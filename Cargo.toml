@@ -1,0 +1,11 @@
+[package]
+name = "emacs_module"
+version = "0.1.0"
+authors = ["Aaron France <aaron.l.france@gmail.com"]
+description = "generated headers for emacs native modules"
+license = "BSD-3-Clause"
+
+[lib]
+
+name = "emacs_module"
+path = "src/emacs_module.rs"
