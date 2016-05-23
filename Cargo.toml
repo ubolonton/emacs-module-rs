@@ -1,11 +1,14 @@
 [package]
-name = "emacs_module"
+name = "emacs"
 version = "0.1.0"
 authors = ["Aaron France <aaron.l.france@gmail.com"]
-description = "generated headers for emacs native modules"
+description = "Rust library for creating emacs modules"
 license = "BSD-3-Clause"
+
+[dependencies]
+libc = "0.2"
 
 [lib]
 
-name = "emacs_module"
-path = "src/emacs_module.rs"
+name = "emacs"
+path = "src/lib.rs"
