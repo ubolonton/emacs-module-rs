@@ -37,8 +37,8 @@ pub extern fn bind_function(env: * mut emacs_env, name: String, sfun: emacs_valu
 }
 
 #[no_mangle]
-pub extern fn provide(env: * mut emacs_env, feature: * const libc::c_char) {
-    let feat = unsafe { (*env).intern.unwrap()(env, feature) };
+pub extern fn provide(env: * mut emacs_env, feature: String) {
+    let feat = unsafe { (*env).intern.unwrap()(env, CString::new(feature).unwrap().as_ptr()) };
     let provide = find_function(env, "provide".to_string());
     let args = [feat].as_mut_ptr();
     unsafe { (*env).funcall.unwrap()(env, provide, 1, args) };
