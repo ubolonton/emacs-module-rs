@@ -1,16 +1,11 @@
 pub mod emacs_module;
 
 extern crate libc;
-use emacs_module::{emacs_env, emacs_value, Struct_emacs_value_tag, Struct_emacs_runtime,
+use emacs_module::{emacs_subr, emacs_env, emacs_value, Struct_emacs_value_tag, Struct_emacs_runtime,
                    Struct_emacs_env_25};
 use std::ffi::CString;
 use std::os::raw;
 
-pub type EmacsFunction = Option<unsafe extern "C" fn(*mut Struct_emacs_env_25,
-                                                     i64,
-                                                     *mut *mut Struct_emacs_value_tag,
-                                                     *mut raw::c_void)
-                                                     -> *mut Struct_emacs_value_tag>;
 
 #[no_mangle]
 pub extern "C" fn find_function(env: *mut emacs_env, name: String) -> *mut Struct_emacs_value_tag {
@@ -21,7 +16,7 @@ pub extern "C" fn find_function(env: *mut emacs_env, name: String) -> *mut Struc
 pub extern "C" fn make_function(env: *mut emacs_env,
                                 min_args: i64,
                                 max_args: i64,
-                                f: EmacsFunction,
+                                f: emacs_subr,
                                 doc: String,
                                 user_ptr: *mut raw::c_void)
                                 -> *mut Struct_emacs_value_tag {
