@@ -1,10 +1,9 @@
+extern crate libc;
+
 pub mod emacs_module;
 
-extern crate libc;
 use emacs_module::{emacs_subr, EmacsEnv, EmacsRT, EmacsVal};
 use std::ffi::CString;
-use std::os::raw;
-
 
 #[no_mangle]
 pub extern "C" fn find_function(env: *mut EmacsEnv, name: String)
@@ -20,8 +19,8 @@ pub extern "C" fn make_function(env: *mut EmacsEnv,
                                 min_args: i64,
                                 max_args: i64,
                                 f: emacs_subr,
-                                doc: String,
-                                user_ptr: *mut raw::c_void)
+                                doc: &str,
+                                user_ptr: *mut libc::c_void)
                                 -> *mut EmacsVal {
     let doc = CString::new(doc).unwrap().as_ptr();
     unsafe {
