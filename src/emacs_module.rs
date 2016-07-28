@@ -288,7 +288,7 @@ pub struct EmacsEnv {
     pub make_user_ptr: Option< unsafe extern "C"
                                fn(env: *mut EmacsEnv,
                                   fin: Option< unsafe extern "C"
-                                               fn(arg1: *mut libc::c_void)>,
+                                               fn(arg: *mut libc::c_void)>,
                                   ptr: *mut libc::c_void)
                                   -> *mut EmacsVal>,
 

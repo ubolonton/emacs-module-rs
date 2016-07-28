@@ -6,7 +6,7 @@ use emacs_module::{emacs_subr, EmacsEnv, EmacsRT, EmacsVal};
 use std::ffi::CString;
 
 #[no_mangle]
-pub extern "C" fn find_function(env: *mut EmacsEnv, name: String)
+pub extern "C" fn find_function(env: *mut EmacsEnv, name: &str)
                                 -> *mut EmacsVal {
     unsafe {
         let intern = (*env).intern.unwrap();
@@ -29,12 +29,12 @@ pub extern "C" fn make_function(env: *mut EmacsEnv,
     }
 }
 
-pub extern "C" fn make_emacs_string<T: Into<Vec<u8>>>(env: *mut EmacsEnv,
-                                                      string: T)
-                                                      -> *mut EmacsVal {
+pub extern "C" fn make_emacs_string<S>(env: *mut EmacsEnv,
+                                       string: S)
+                                       -> *mut EmacsVal where S: Into<Vec<u8>> {
     let c_string = CString::new(string).unwrap().as_ptr();
-    let strlen = unsafe { libc::strlen(c_string) as i64 };
     unsafe {
+        let strlen = libc::strlen(c_string) as i64;
         let make_string = (*env).make_string.unwrap();
         make_string(env, c_string, strlen)
     }
@@ -61,7 +61,7 @@ pub extern "C" fn intern_symbol(env: *mut EmacsEnv, name: String)
 pub extern "C" fn bind_function(env: *mut EmacsEnv,
                                 name: String,
                                 sfun: *mut EmacsVal) {
-    let qfset = find_function(env, "fset".to_string());
+    let qfset = find_function(env, "fset");
     let qsym = intern_symbol(env, name);
     let args = [qsym, sfun].as_mut_ptr();
     unsafe {
@@ -76,7 +76,7 @@ pub extern "C" fn provide(env: *mut EmacsEnv, feature: String) {
         let intern = (*env).intern.unwrap();
         intern (env, CString::new(feature).unwrap().as_ptr())
     };
-    let provide = find_function(env, "provide".to_string());
+    let provide = find_function(env, "provide");
     let args = [feat].as_mut_ptr();
     unsafe {
         let funcall = (*env).funcall.unwrap();
@@ -88,7 +88,7 @@ pub extern "C" fn provide(env: *mut EmacsEnv, feature: String) {
 #[no_mangle]
 pub extern "C" fn get_buffer(env: *mut EmacsEnv, buffer: String)
                              -> *mut EmacsVal {
-    let get_buffer = find_function(env, "get-buffer".to_string());
+    let get_buffer = find_function(env, "get-buffer");
     let args = [make_emacs_string(env, buffer)].as_mut_ptr();
     unsafe {
         let funcall = (*env).funcall.unwrap();
