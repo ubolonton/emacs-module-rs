@@ -95,3 +95,15 @@ pub extern "C" fn get_buffer(env: *mut EmacsEnv, buffer: String)
         funcall(env, get_buffer, 1, args)
     }
 }
+
+#[no_mangle]
+pub extern "C" fn call(env: *mut EmacsEnv,
+                       fn_name: &str,
+                       args: &mut [*mut EmacsVal])
+        -> *mut EmacsVal {
+    let callee = find_function(env,  fn_name);
+    unsafe {
+        let funcall = (*env).funcall.unwrap();
+        funcall(env, callee, args.len() as i64, args.as_mut_ptr())
+    }
+}
