@@ -20,7 +20,6 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
 3. Add the following to your `src/lib.rs`:
    ```` Rust
    extern crate libc;
-   extern crate zmq_ffi as zmq;
    extern crate emacs_module_bindings as emacs;
 
    use emacs::emacs_module::{EmacsEnv, EmacsRT, EmacsVal};
