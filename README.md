@@ -30,8 +30,20 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
    #[no_mangle]
    #[allow(non_upper_case_globals)]
    pub static plugin_is_GPL_compatible: libc::c_int = 0;
+
+   #[no_mangle]
+   pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
+       let env = emacs::get_environment(ert);
+
+       // Add any other things you need the module to do here
+
+       emacs::provide(env, "my-fancy-module");
+       0
+   }
    ````
-4. Add any other things you need the module to do
-5. Execute `cargo build`
-6. If you're on OS X, copy `target/debug/libmy_fancy_module.dylib`
+4. Execute `cargo build`
+5. If you're on OS X, copy `target/debug/libmy_fancy_module.dylib`
     to `target/debug/libmy_fancy_module.so`
+6. Load it in emacs with `(require 'my-fancy-module "/path/to/libmy_fancy_module.so")`.
+   Note that this requires Emacs to be configured and compiled with
+   the `--with-modules` flag.
