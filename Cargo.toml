@@ -1,6 +1,6 @@
 [package]
 name = "emacs_module_bindings"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     "Aaron France <aaron.l.france@gmail.com",
     "Joey Ezechiëls <joey.ezechiels@gmail.com"
