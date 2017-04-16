@@ -5,7 +5,7 @@ mod emacs_gen;
 pub mod hlapi;
 
 pub use emacs_gen::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
-pub use hlapi::{destruct, ConvErr, ConvResult};
+pub use hlapi::{destruct, eq, register, ConvErr, ConvResult};
 pub use hlapi::elisp2native as elisp2native;
 pub use hlapi::native2elisp as native2elisp;
 use std::ffi::CString;

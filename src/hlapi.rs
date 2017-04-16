@@ -1,6 +1,9 @@
-use emacs_gen::{EmacsEnv, EmacsVal};
+use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
 use std::os::raw;
 use {call};
+use std::ffi::CString;
+use std::ptr;
+use std::ops::Range;
 
 pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
     let ptr = arg as *mut T;
@@ -79,11 +82,12 @@ pub mod elisp2native {
 }
 
 pub mod native2elisp {
-    use emacs_gen::{EmacsEnv, EmacsVal};
+    use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
+    use hlapi::{ConvErr, ConvResult};
     use libc;
     use std::ffi::CString;
-    use hlapi::{ConvErr, ConvResult};
-    use call;
+    use std::os::raw;
+    use {call};
 
     pub fn integer(env: *mut EmacsEnv, num: i64) -> ConvResult<EmacsVal> {
         unsafe {
@@ -114,6 +118,18 @@ pub mod native2elisp {
     /// Intern a new Elisp symbol.
     pub fn symbol(env: *mut EmacsEnv, name: &str) -> ConvResult<EmacsVal> {
         Ok(call(env, "intern", &mut [string(env, name)?]))
+    }
+
+    pub fn function(env: *mut EmacsEnv,
+                    min_arity: isize,
+                    max_arity: isize,
+                    function: Option<EmacsSubr>,
+                    documentation: *const libc::c_char,
+                    data: *mut raw::c_void) -> EmacsVal {
+        unsafe {
+            let make_fn = (*env).make_function.unwrap();
+            make_fn(env, min_arity, max_arity, function, documentation, data)
+        }
     }
 }
 
@@ -155,4 +171,38 @@ pub fn message<S>(env: *mut EmacsEnv, text: S)
                   -> ConvResult<EmacsVal>  where S: Into<String> {
     let string = native2elisp::string(env, text.into())?;
     Ok(call(env, "message", &mut [string]))
+}
+
+/// Basic Elisp equality check.
+pub fn eq(env: *mut EmacsEnv, left: EmacsVal, right: EmacsVal) -> bool {
+    unsafe {
+        let eq = (*env).eq.unwrap();
+        eq(env, left, right)
+    }
+}
+
+
+/// Register an Emacs `subr`, so that it can be accessed from Elisp.
+pub fn register(env: *mut EmacsEnv,
+                elisp_sym: &str,
+                native_sym: EmacsSubr,
+                nargs_range: Range<usize>,
+                docstring: &str,
+                /* user_ptr: *mut libc::c_void*/) {
+    let doc = CString::new(docstring).unwrap().as_ptr();
+    let func = native2elisp::function(env,
+                                      nargs_range.start as isize,
+                                      nargs_range.end as isize + 1,
+                                      Some(native_sym),
+                                      doc,
+                                      ptr::null_mut(/* user_ptr */));
+    let elisp_symbol = match native2elisp::symbol(env, elisp_sym) {
+        Ok(string) => string,
+        Err(conv_err) => {
+            message!(env, "Error: {:?}", conv_err);
+            return;
+        },
+    };
+    call(env, "fset", &mut [elisp_symbol, func]);
+    message!(env, "Registered function {}", elisp_sym);
 }
