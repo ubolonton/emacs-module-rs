@@ -4,6 +4,7 @@ use {call};
 use std::ffi::CString;
 use std::ptr;
 use std::ops::Range;
+use std::io;
 
 pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
     let ptr = arg as *mut T;
@@ -21,6 +22,54 @@ pub enum ConvErr {
     Nullptr(String),
     StringLengthFetchFailed,
     StringCopyFailed,
+
+    // foo(io::Error),
+
+    IoNotFound,
+    IoPermissionDenied,
+    IoConnectionRefused,
+    IoConnectionReset,
+    IoConnectionAborted,
+    IoNotConnected,
+    IoAddrInUse,
+    IoAddrNotAvailable,
+    IoBrokenPipe,
+    IoAlreadyExists,
+    IoWouldBlock,
+    IoInvalidInput,
+    IoInvalidData,
+    IoTimedOut,
+    IoWriteZero,
+    IoInterrupted,
+    IoOther,
+    IoUnexpectedEof,
+}
+
+impl From<io::Error> for ConvErr {
+    fn from(ioe: io::Error) -> ConvErr {
+        use std::io::ErrorKind;
+        match ioe.kind() {
+            ErrorKind::NotFound => ConvErr::IoNotFound,
+            ErrorKind::PermissionDenied => ConvErr::IoPermissionDenied,
+            ErrorKind::ConnectionRefused => ConvErr::IoConnectionRefused,
+            ErrorKind::ConnectionReset => ConvErr::IoConnectionReset,
+            ErrorKind::ConnectionAborted => ConvErr::IoConnectionAborted,
+            ErrorKind::NotConnected => ConvErr::IoNotConnected,
+            ErrorKind::AddrInUse => ConvErr::IoAddrInUse,
+            ErrorKind::AddrNotAvailable => ConvErr::IoAddrNotAvailable,
+            ErrorKind::BrokenPipe => ConvErr::IoBrokenPipe,
+            ErrorKind::AlreadyExists => ConvErr::IoAlreadyExists,
+            ErrorKind::WouldBlock => ConvErr::IoWouldBlock,
+            ErrorKind::InvalidInput => ConvErr::IoInvalidInput,
+            ErrorKind::InvalidData => ConvErr::IoInvalidData,
+            ErrorKind::TimedOut => ConvErr::IoTimedOut,
+            ErrorKind::WriteZero => ConvErr::IoWriteZero,
+            ErrorKind::Interrupted => ConvErr::IoInterrupted,
+            ErrorKind::Other => ConvErr::IoOther,
+            ErrorKind::UnexpectedEof => ConvErr::IoUnexpectedEof,
+            _ => unimplemented!(),
+        }
+    }
 }
 
 
@@ -149,10 +198,36 @@ macro_rules! emacs_subrs {
                                        $args: *mut EmacsVal,
                                        $data: *mut raw::c_void)
                                        -> EmacsVal {
+                #[inline(always)]
+                unsafe fn fun($env: *mut EmacsEnv,
+                              $nargs: libc::ptrdiff_t,
+                              $args: *mut EmacsVal,
+                              $data: *mut raw::c_void,
+                              $tag: &str) -> ConvResult<EmacsVal> { $body }
+
                 let $tag = format!("[ZMQ/{}]", stringify!($name));
-                $body
+                let result: ConvResult<EmacsVal> =
+                    fun($env, $nargs, $args, $data, &$tag);
+                result.expect("Expected a valid Elisp value")
             }
         )*
+    };
+}
+
+#[macro_export]
+macro_rules! init_module {
+    ($env:ident, $body:expr) => {
+        #[no_mangle]
+        pub extern "C" fn emacs_module_init(runtime: *mut EmacsRT)
+                                            -> libc::c_int {{
+            #[inline(always)]
+            fn fun($env: *mut EmacsEnv) -> ConvResult<EmacsVal> { $body }
+
+            let $env = emacs::get_environment(runtime);
+            let result: ConvResult<_> = fun($env);
+            result.expect("$body should yield an Ok value");
+            0
+        }}
     };
 }
 
@@ -188,7 +263,8 @@ pub fn register(env: *mut EmacsEnv,
                 native_sym: EmacsSubr,
                 nargs_range: Range<usize>,
                 docstring: &str,
-                /* user_ptr: *mut libc::c_void*/) {
+                /* user_ptr: *mut libc::c_void*/)
+                -> ConvResult<EmacsVal> {
     let doc = CString::new(docstring).unwrap().as_ptr();
     let func = native2elisp::function(env,
                                       nargs_range.start as isize,
@@ -196,13 +272,8 @@ pub fn register(env: *mut EmacsEnv,
                                       Some(native_sym),
                                       doc,
                                       ptr::null_mut(/* user_ptr */));
-    let elisp_symbol = match native2elisp::symbol(env, elisp_sym) {
-        Ok(string) => string,
-        Err(conv_err) => {
-            message!(env, "Error: {:?}", conv_err);
-            return;
-        },
-    };
+    let elisp_symbol = native2elisp::symbol(env, elisp_sym)?;
     call(env, "fset", &mut [elisp_symbol, func]);
-    message!(env, "Registered function {}", elisp_sym);
+    message!(env, "Registered function {}", elisp_sym)?;
+    native2elisp::symbol(env, "t")
 }
