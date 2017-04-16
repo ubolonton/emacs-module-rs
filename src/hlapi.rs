@@ -1,3 +1,4 @@
+use emacs_gen::{EmacsEnv, EmacsVal};
 use std::os::raw;
 
 pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
@@ -82,6 +83,14 @@ pub mod native2elisp {
     use std::ffi::CString;
     use hlapi::{ConvErr, ConvResult};
     use call;
+
+    pub fn integer(env: *mut EmacsEnv, num: i64) -> ConvResult<EmacsVal> {
+        unsafe {
+            let make_integer = (*env).make_integer.ok_or_else(
+                || ConvErr::CoreFnMissing(String::from("make_string")))?;
+            Ok(make_integer(env, num))
+        }
+    }
 
     /// Convert a Rust String/&str into an Elisp string.
     pub fn string<S>(env: *mut EmacsEnv, string: S)
