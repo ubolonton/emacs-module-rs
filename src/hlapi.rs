@@ -22,6 +22,8 @@ pub enum ConvErr {
     Nullptr(String),
     StringLengthFetchFailed,
     StringCopyFailed,
+    InvalidArgCount(usize),
+    UnknownSocketType,
 
     // foo(io::Error),
 
