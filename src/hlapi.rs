@@ -1,5 +1,6 @@
 use emacs_gen::{EmacsEnv, EmacsVal};
 use std::os::raw;
+use {call};
 
 pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
     let ptr = arg as *mut T;
@@ -137,4 +138,21 @@ macro_rules! emacs_subrs {
             }
         )*
     };
+}
+
+
+
+#[macro_export]
+macro_rules! message {
+    ($env:expr, $fmt:expr $(, $args:expr)*) => {{
+        use $crate::hlapi;
+        hlapi::message($env, format!($fmt $(, $args)*))
+    }};
+}
+
+/// Log a message to the *Messages* buffer.
+pub fn message<S>(env: *mut EmacsEnv, text: S)
+                  -> ConvResult<EmacsVal>  where S: Into<String> {
+    let string = native2elisp::string(env, text.into())?;
+    Ok(call(env, "message", &mut [string]))
 }
