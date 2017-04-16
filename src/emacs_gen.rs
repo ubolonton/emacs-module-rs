@@ -27,5 +27,8 @@ pub type EmacsRT = emacs_runtime;
 /// Emacs value.
 pub type EmacsVal = emacs_value;
 
+/// The type of destructors
+pub type Dtor = unsafe extern "C" fn(arg: *mut raw::c_void);
+
 
 include!(concat!(env!("OUT_DIR"), "/emacs_module.rs"));
