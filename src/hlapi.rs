@@ -42,8 +42,8 @@ pub mod elisp2native {
                   -> ConvResult<Vec<i8>> {
         unsafe {
             let mut length: isize = 0;
-            let copy_string_contents = (*env).copy_string_contents.ok_or(
-                ConvErr::CoreFnMissing(String::from("copy_string_contents"))
+            let copy_string_contents = (*env).copy_string_contents.ok_or_else(
+                || ConvErr::CoreFnMissing(String::from("copy_string_contents"))
             )?;
             let ok = copy_string_contents(env,
                                           *args.offset(index as isize),
