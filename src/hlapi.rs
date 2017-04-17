@@ -272,8 +272,7 @@ macro_rules! init_module {
 #[macro_export]
 macro_rules! message {
     ($env:expr, $fmt:expr $(, $args:expr)*) => {{
-        use $crate::hlapi;
-        hlapi::message($env, format!($fmt $(, $args)*))
+        $crate::hlapi::message($env, format!($fmt $(, $args)*))
     }};
 }
 
