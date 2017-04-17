@@ -1,7 +1,7 @@
 use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
 use std::os::raw;
 use {call};
-use std::ffi::{CString, FromBytesWithNulError, NulError};
+use std::ffi::{CString, FromBytesWithNulError, IntoStringError, NulError};
 use std::io;
 use std::io::ErrorKind;
 use std::ops::Range;
@@ -21,19 +21,13 @@ pub type ConvResult<T> = Result<T, ConvErr>;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ConvErr {
     CoreFnMissing(String),
-    NulError,
-    NulByteFound { pos: usize, bytes: Vec<u8> },
     Nullptr(String),
-    FromUtf8Error { valid_up_to: usize,  bytes: Vec<u8> },
-    Utf8Error { valid_up_to: usize },
     StringLengthFetchFailed,
     StringCopyFailed,
     VecLengthFetchFailed,
     VecCopyFailed,
     InvalidArgCount(usize),
     UnknownSocketType,
-
-    // foo(io::Error),
 
     IoNotFound,
     IoPermissionDenied,
@@ -53,6 +47,14 @@ pub enum ConvErr {
     IoInterrupted,
     IoOther,
     IoUnexpectedEof,
+
+    NulByteFound { pos: usize, bytes: Vec<u8> },
+
+    FromUtf8Error { valid_up_to: usize,  bytes: Vec<u8> },
+
+    Utf8Error { valid_up_to: usize },
+
+    FromBytesWithNul,
 }
 
 impl From<io::Error> for ConvErr {
@@ -108,7 +110,13 @@ impl From<Utf8Error> for ConvErr {
 
 impl From<FromBytesWithNulError> for ConvErr {
     fn from(_: FromBytesWithNulError) -> ConvErr {
-        ConvErr::NulError
+        ConvErr::FromBytesWithNul
+    }
+}
+
+impl From<IntoStringError> for ConvErr {
+    fn from(ise: IntoStringError) -> ConvErr {
+        ConvErr::from(ise.utf8_error())
     }
 }
 
@@ -137,43 +145,37 @@ pub mod elisp2native {
         pointer(env, args, index).map(|raw: *mut T| unsafe { &mut *raw })
     }
 
-    pub fn string(env: *mut EmacsEnv, args: *mut EmacsVal, index: usize)
-                  -> ConvResult<Vec<i8>> {
-        unsafe {
-            let mut length: isize = 0;
-            let copy_string_contents = (*env).copy_string_contents.ok_or_else(
-                || ConvErr::CoreFnMissing(String::from("copy_string_contents"))
-            )?;
-            let ok = copy_string_contents(env,
-                                          *args.offset(index as isize),
-                                          ptr::null_mut(),
-                                          &mut length as *mut isize);
-            if !ok { return Err(ConvErr::StringLengthFetchFailed) }
-
-            let mut string = vec![0; length as usize];
-            let ok = copy_string_contents(env,
-                                          *args.offset(index as isize),
-                                          string.as_mut_ptr(),
-                                          &mut length as *mut isize);
-            if !ok { return Err(ConvErr::StringCopyFailed) }
-            Ok(string)
-        }
+    pub fn string(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<String> {
+        let bytes: Vec<u8> = self::string_bytes(env, val)?;
+        Ok(String::from_utf8(bytes)?)
     }
 
-    pub fn vec(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<Vec<u8>> {
+    use std::ffi::{CString};
+    pub fn cstring(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<CString> {
+        let mut bytes: Vec<u8> = self::string_bytes(env, val)?;
+        let mut len = bytes.len();
+        while len > 0 && bytes[len - 1] == 0 {
+            bytes.pop(); // strip trailing 0-bytes
+            len = bytes.len();
+        }
+        Ok(CString::new(bytes)?)
+    }
+
+    pub fn string_bytes(env: *mut EmacsEnv, val: EmacsVal)
+                        -> ConvResult<Vec<u8>> {
         let mut len: isize = 0;
         unsafe {
             // Fetch Elisp path string length
-            let copy_string = (*env).copy_string_contents.ok_or_else(
+            let copy_string_contents = (*env).copy_string_contents.ok_or_else(
                 || ConvErr::CoreFnMissing(String::from("copy_string_contents"))
             )?;
-            let ok = copy_string(env, val, ptr::null_mut(), &mut len);
+            let ok = copy_string_contents(env, val, ptr::null_mut(), &mut len);
             if !ok { return Err(ConvErr::VecLengthFetchFailed); }
 
             // Copy the Elisp path string to a Rust Vec, based on its length
             let mut bytes = vec![0u8; len as usize];
             let bytes_ptr = bytes.as_mut_ptr() as *mut i8;
-            let ok = copy_string(env, val, bytes_ptr, &mut len);
+            let ok = copy_string_contents(env, val, bytes_ptr, &mut len);
             if !ok { return Err(ConvErr::VecCopyFailed); }
             Ok(bytes)
         }
