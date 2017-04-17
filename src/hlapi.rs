@@ -22,6 +22,8 @@ pub enum ConvErr {
     Nullptr(String),
     StringLengthFetchFailed,
     StringCopyFailed,
+    VecLengthFetchFailed,
+    VecCopyFailed,
     InvalidArgCount(usize),
     UnknownSocketType,
 
@@ -94,6 +96,11 @@ pub mod elisp2native {
         }}
     }
 
+    pub fn mut_ref<'t, T>(env: *mut EmacsEnv, args: *mut EmacsVal, index: usize)
+                          -> ConvResult<&'t mut T> {
+        pointer(env, args, index).map(|raw: *mut T| unsafe { &mut *raw })
+    }
+
     pub fn string(env: *mut EmacsEnv, args: *mut EmacsVal, index: usize)
                   -> ConvResult<Vec<i8>> {
         unsafe {
@@ -117,6 +124,23 @@ pub mod elisp2native {
         }
     }
 
+    pub fn vec(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<Vec<u8>> {
+        let mut len: isize = 0;
+        unsafe {
+            // Fetch Elisp path string length
+            let copy_string = (*env).copy_string_contents.unwrap();
+            let ok = copy_string(env, val, ptr::null_mut(), &mut len);
+            if !ok { return Err(ConvErr::VecLengthFetchFailed); }
+
+            // Copy the Elisp path string to a Rust Vec, based on its length
+            let mut bytes = vec![0u8; len as usize];
+            let bytes_ptr = bytes.as_mut_ptr() as *mut i8;
+            let ok = copy_string(env, val, bytes_ptr, &mut len);
+            if !ok { return Err(ConvErr::VecCopyFailed); }
+            Ok(bytes)
+        }
+    }
+
     pub fn integer(env: *mut EmacsEnv, args: *mut EmacsVal, index: usize)
                    -> ConvResult<i64> {
         if args.is_null() { return Err(ConvErr::Nullptr(String::from("args"))) }
@@ -133,7 +157,7 @@ pub mod elisp2native {
 }
 
 pub mod native2elisp {
-    use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
+    use emacs_gen::{Dtor, EmacsEnv, EmacsSubr, EmacsVal};
     use hlapi::{ConvErr, ConvResult};
     use libc;
     use std::ffi::CString;
@@ -180,6 +204,16 @@ pub mod native2elisp {
         unsafe {
             let make_fn = (*env).make_function.unwrap();
             make_fn(env, min_arity, max_arity, function, documentation, data)
+        }
+    }
+
+    /// Transform a `Box<T>` into a `*mut EmacsVal`.
+    pub fn boxed<T>(env: *mut EmacsEnv, val: Box<T>, dtor_fn: Dtor) -> EmacsVal {
+        let ptr = Box::into_raw(val) as *mut raw::c_void;
+        println!("Transferred Box<T> @ {:p} to Elisp", ptr);
+        unsafe {
+            let make_user_ptr = (*env).make_user_ptr.unwrap();
+            make_user_ptr(env, Some(dtor_fn), ptr)
         }
     }
 }
