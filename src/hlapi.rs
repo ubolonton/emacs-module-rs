@@ -1,10 +1,13 @@
 use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
 use std::os::raw;
 use {call};
-use std::ffi::CString;
-use std::ptr;
-use std::ops::Range;
+use std::ffi::{CString, FromBytesWithNulError, NulError};
 use std::io;
+use std::io::ErrorKind;
+use std::ops::Range;
+use std::ptr;
+use std::string::FromUtf8Error;
+use std::str::Utf8Error;
 
 pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
     let ptr = arg as *mut T;
@@ -18,8 +21,11 @@ pub type ConvResult<T> = Result<T, ConvErr>;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ConvErr {
     CoreFnMissing(String),
+    NulError,
     NulByteFound { pos: usize, bytes: Vec<u8> },
     Nullptr(String),
+    FromUtf8Error { valid_up_to: usize,  bytes: Vec<u8> },
+    Utf8Error { valid_up_to: usize },
     StringLengthFetchFailed,
     StringCopyFailed,
     VecLengthFetchFailed,
@@ -51,7 +57,6 @@ pub enum ConvErr {
 
 impl From<io::Error> for ConvErr {
     fn from(ioe: io::Error) -> ConvErr {
-        use std::io::ErrorKind;
         match ioe.kind() {
             ErrorKind::NotFound => ConvErr::IoNotFound,
             ErrorKind::PermissionDenied => ConvErr::IoPermissionDenied,
@@ -73,6 +78,37 @@ impl From<io::Error> for ConvErr {
             ErrorKind::UnexpectedEof => ConvErr::IoUnexpectedEof,
             _ => unimplemented!(),
         }
+    }
+}
+
+
+impl From<NulError> for ConvErr {
+    fn from(nerr: NulError) -> ConvErr {
+        ConvErr::NulByteFound {
+            pos: nerr.nul_position(),
+            bytes: nerr.into_vec(),
+        }
+    }
+}
+
+impl From<FromUtf8Error> for ConvErr {
+    fn from(fue: FromUtf8Error) -> ConvErr {
+        ConvErr::FromUtf8Error {
+            valid_up_to: fue.utf8_error().valid_up_to(),
+            bytes: fue.into_bytes()
+        }
+    }
+}
+
+impl From<Utf8Error> for ConvErr {
+    fn from(ue: Utf8Error) -> ConvErr {
+        ConvErr::Utf8Error { valid_up_to: ue.valid_up_to() }
+    }
+}
+
+impl From<FromBytesWithNulError> for ConvErr {
+    fn from(_: FromBytesWithNulError) -> ConvErr {
+        ConvErr::NulError
     }
 }
 
@@ -128,7 +164,9 @@ pub mod elisp2native {
         let mut len: isize = 0;
         unsafe {
             // Fetch Elisp path string length
-            let copy_string = (*env).copy_string_contents.unwrap();
+            let copy_string = (*env).copy_string_contents.ok_or_else(
+                || ConvErr::CoreFnMissing(String::from("copy_string_contents"))
+            )?;
             let ok = copy_string(env, val, ptr::null_mut(), &mut len);
             if !ok { return Err(ConvErr::VecLengthFetchFailed); }
 
@@ -200,20 +238,26 @@ pub mod native2elisp {
                     max_arity: isize,
                     function: Option<EmacsSubr>,
                     documentation: *const libc::c_char,
-                    data: *mut raw::c_void) -> EmacsVal {
+                    data: *mut raw::c_void)
+                    -> ConvResult<EmacsVal> {
         unsafe {
-            let make_fn = (*env).make_function.unwrap();
-            make_fn(env, min_arity, max_arity, function, documentation, data)
+            let make_fn = (*env).make_function.ok_or_else(
+                || ConvErr::CoreFnMissing(String::from("make_function"))
+            )?;
+            Ok(make_fn(env, min_arity, max_arity, function, documentation, data))
         }
     }
 
     /// Transform a `Box<T>` into a `*mut EmacsVal`.
-    pub fn boxed<T>(env: *mut EmacsEnv, val: Box<T>, dtor_fn: Dtor) -> EmacsVal {
+    pub fn boxed<T>(env: *mut EmacsEnv, val: Box<T>, dtor_fn: Dtor)
+                    -> ConvResult<EmacsVal> {
         let ptr = Box::into_raw(val) as *mut raw::c_void;
         println!("Transferred Box<T> @ {:p} to Elisp", ptr);
         unsafe {
-            let make_user_ptr = (*env).make_user_ptr.unwrap();
-            make_user_ptr(env, Some(dtor_fn), ptr)
+            let make_user_ptr = (*env).make_user_ptr.ok_or_else(
+                || ConvErr::CoreFnMissing(String::from("make_user_ptr"))
+            )?;
+            Ok(make_user_ptr(env, Some(dtor_fn), ptr))
         }
     }
 }
@@ -234,6 +278,17 @@ macro_rules! emacs_subrs {
                                        $args: *mut EmacsVal,
                                        $data: *mut raw::c_void)
                                        -> EmacsVal {
+                // NOTE: The inner `fun` fn provides type checking for Emacs
+                // subrs -- especially their output -- while also allowing each
+                // subr to just use `?` for error handling. This is much nicer
+                // than any alternative would be. It does mean that those errors
+                // need to be dealt with here. For now it calls `expect()` which
+                // still means a panic. However at least the cause should be
+                // clear because of a useful backtrace, as well as proper error
+                // handling in the subrs themselves. This in turn aids debugging.
+                //
+                // Inlining the inner fn means there's no runtime penalty at the
+                // cost of slightly higher compile times.
                 #[inline(always)]
                 unsafe fn fun($env: *mut EmacsEnv,
                               $nargs: libc::ptrdiff_t,
@@ -252,7 +307,7 @@ macro_rules! emacs_subrs {
 
 #[macro_export]
 macro_rules! init_module {
-    ($env:ident, $body:expr) => {
+    (($env:ident) $body:expr ) => {
         #[no_mangle]
         pub extern "C" fn emacs_module_init(runtime: *mut EmacsRT)
                                             -> libc::c_int {{
@@ -284,10 +339,13 @@ pub fn message<S>(env: *mut EmacsEnv, text: S)
 }
 
 /// Basic Elisp equality check.
-pub fn eq(env: *mut EmacsEnv, left: EmacsVal, right: EmacsVal) -> bool {
+pub fn eq(env: *mut EmacsEnv, left: EmacsVal, right: EmacsVal)
+          -> ConvResult<bool> {
     unsafe {
-        let eq = (*env).eq.unwrap();
-        eq(env, left, right)
+        let eq = (*env).eq.ok_or_else(
+            || ConvErr::CoreFnMissing(String::from("eq"))
+        )?;
+        Ok(eq(env, left, right))
     }
 }
 
@@ -300,13 +358,13 @@ pub fn register(env: *mut EmacsEnv,
                 docstring: &str,
                 /* user_ptr: *mut libc::c_void*/)
                 -> ConvResult<EmacsVal> {
-    let doc = CString::new(docstring).unwrap().as_ptr();
+    let doc = CString::new(docstring)?.as_ptr();
     let func = native2elisp::function(env,
                                       nargs_range.start as isize,
                                       nargs_range.end as isize + 1,
                                       Some(native_sym),
                                       doc,
-                                      ptr::null_mut(/* user_ptr */));
+                                      ptr::null_mut(/* user_ptr */))?;
     let elisp_symbol = native2elisp::symbol(env, elisp_sym)?;
     call(env, "fset", &mut [elisp_symbol, func]);
     message!(env, "Registered function {}", elisp_sym)?;
