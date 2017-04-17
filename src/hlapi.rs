@@ -121,10 +121,10 @@ impl From<IntoStringError> for ConvErr {
 }
 
 
-#[no_mangle]
 pub mod elisp2native {
     use emacs_gen::{EmacsEnv, EmacsVal};
     use hlapi::{ConvErr, ConvResult};
+    use std::ffi::{CString};
     use std::ptr;
 
     pub fn pointer<T>(env: *mut EmacsEnv, args: *mut EmacsVal, index: usize)
@@ -150,7 +150,6 @@ pub mod elisp2native {
         Ok(String::from_utf8(bytes)?)
     }
 
-    use std::ffi::{CString};
     pub fn cstring(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<CString> {
         let mut bytes: Vec<u8> = self::string_bytes(env, val)?;
         let mut len = bytes.len();
@@ -251,15 +250,15 @@ pub mod native2elisp {
     }
 
     /// Transform a `Box<T>` into a `*mut EmacsVal`.
-    pub fn boxed<T>(env: *mut EmacsEnv, val: Box<T>, dtor_fn: Dtor)
+    pub fn boxed<T>(env: *mut EmacsEnv, value: T, dtor: Dtor)
                     -> ConvResult<EmacsVal> {
-        let ptr = Box::into_raw(val) as *mut raw::c_void;
+        let ptr = Box::into_raw(Box::new(value)) as *mut raw::c_void;
         println!("Transferred Box<T> @ {:p} to Elisp", ptr);
         unsafe {
             let make_user_ptr = (*env).make_user_ptr.ok_or_else(
                 || ConvErr::CoreFnMissing(String::from("make_user_ptr"))
             )?;
-            Ok(make_user_ptr(env, Some(dtor_fn), ptr))
+            Ok(make_user_ptr(env, Some(dtor), ptr))
         }
     }
 }
