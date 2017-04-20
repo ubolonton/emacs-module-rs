@@ -3,7 +3,6 @@ use std::os::raw;
 use {call};
 use std::ffi::{CString, FromBytesWithNulError, IntoStringError, NulError};
 use std::io;
-use std::io::ErrorKind;
 use std::ops::Range;
 use std::ptr;
 use std::string::FromUtf8Error;
@@ -22,31 +21,31 @@ pub type ConvResult<T> = Result<T, ConvErr>;
 pub enum ConvErr {
     CoreFnMissing(String),
     Nullptr(String),
-    StringLengthFetchFailed,
-    StringCopyFailed,
-    VecLengthFetchFailed,
-    VecCopyFailed,
+    FailedToFetchLength,
+    FailedToCopy,
     InvalidArgCount(usize),
-    UnknownSocketType,
+    Other(String),
+    Interrupted,
+    DoNothing,
 
-    IoNotFound,
-    IoPermissionDenied,
-    IoConnectionRefused,
-    IoConnectionReset,
-    IoConnectionAborted,
-    IoNotConnected,
-    IoAddrInUse,
-    IoAddrNotAvailable,
-    IoBrokenPipe,
-    IoAlreadyExists,
-    IoWouldBlock,
-    IoInvalidInput,
-    IoInvalidData,
-    IoTimedOut,
-    IoWriteZero,
-    IoInterrupted,
-    IoOther,
-    IoUnexpectedEof,
+    IoNotFound(Option<String>),
+    IoPermissionDenied(Option<String>),
+    IoConnectionRefused(Option<String>),
+    IoConnectionReset(Option<String>),
+    IoConnectionAborted(Option<String>),
+    IoNotConnected(Option<String>),
+    IoAddrInUse(Option<String>),
+    IoAddrNotAvailable(Option<String>),
+    IoBrokenPipe(Option<String>),
+    IoAlreadyExists(Option<String>),
+    IoWouldBlock(Option<String>),
+    IoInvalidInput(Option<String>),
+    IoInvalidData(Option<String>),
+    IoTimedOut(Option<String>),
+    IoWriteZero(Option<String>),
+    IoInterrupted(Option<String>),
+    IoOther(Option<String>),
+    IoUnexpectedEof(Option<String>),
 
     NulByteFound { pos: usize, bytes: Vec<u8> },
 
@@ -59,25 +58,28 @@ pub enum ConvErr {
 
 impl From<io::Error> for ConvErr {
     fn from(ioe: io::Error) -> ConvErr {
+        use std::io::ErrorKind;
+        use std::error::Error;
+        let cause = ioe.cause().map(|err: &Error| format!("{}", err));
         match ioe.kind() {
-            ErrorKind::NotFound => ConvErr::IoNotFound,
-            ErrorKind::PermissionDenied => ConvErr::IoPermissionDenied,
-            ErrorKind::ConnectionRefused => ConvErr::IoConnectionRefused,
-            ErrorKind::ConnectionReset => ConvErr::IoConnectionReset,
-            ErrorKind::ConnectionAborted => ConvErr::IoConnectionAborted,
-            ErrorKind::NotConnected => ConvErr::IoNotConnected,
-            ErrorKind::AddrInUse => ConvErr::IoAddrInUse,
-            ErrorKind::AddrNotAvailable => ConvErr::IoAddrNotAvailable,
-            ErrorKind::BrokenPipe => ConvErr::IoBrokenPipe,
-            ErrorKind::AlreadyExists => ConvErr::IoAlreadyExists,
-            ErrorKind::WouldBlock => ConvErr::IoWouldBlock,
-            ErrorKind::InvalidInput => ConvErr::IoInvalidInput,
-            ErrorKind::InvalidData => ConvErr::IoInvalidData,
-            ErrorKind::TimedOut => ConvErr::IoTimedOut,
-            ErrorKind::WriteZero => ConvErr::IoWriteZero,
-            ErrorKind::Interrupted => ConvErr::IoInterrupted,
-            ErrorKind::Other => ConvErr::IoOther,
-            ErrorKind::UnexpectedEof => ConvErr::IoUnexpectedEof,
+            ErrorKind::NotFound => ConvErr::IoNotFound(cause),
+            ErrorKind::PermissionDenied => ConvErr::IoPermissionDenied(cause),
+            ErrorKind::ConnectionRefused => ConvErr::IoConnectionRefused(cause),
+            ErrorKind::ConnectionReset => ConvErr::IoConnectionReset(cause),
+            ErrorKind::ConnectionAborted => ConvErr::IoConnectionAborted(cause),
+            ErrorKind::NotConnected => ConvErr::IoNotConnected(cause),
+            ErrorKind::AddrInUse => ConvErr::IoAddrInUse(cause),
+            ErrorKind::AddrNotAvailable => ConvErr::IoAddrNotAvailable(cause),
+            ErrorKind::BrokenPipe => ConvErr::IoBrokenPipe(cause),
+            ErrorKind::AlreadyExists => ConvErr::IoAlreadyExists(cause),
+            ErrorKind::WouldBlock => ConvErr::IoWouldBlock(cause),
+            ErrorKind::InvalidInput => ConvErr::IoInvalidInput(cause),
+            ErrorKind::InvalidData => ConvErr::IoInvalidData(cause),
+            ErrorKind::TimedOut => ConvErr::IoTimedOut(cause),
+            ErrorKind::WriteZero => ConvErr::IoWriteZero(cause),
+            ErrorKind::Interrupted => ConvErr::IoInterrupted(cause),
+            ErrorKind::Other => ConvErr::IoOther(cause),
+            ErrorKind::UnexpectedEof => ConvErr::IoUnexpectedEof(cause),
             _ => unimplemented!(),
         }
     }
@@ -169,13 +171,13 @@ pub mod elisp2native {
                 || ConvErr::CoreFnMissing(String::from("copy_string_contents"))
             )?;
             let ok = copy_string_contents(env, val, ptr::null_mut(), &mut len);
-            if !ok { return Err(ConvErr::VecLengthFetchFailed); }
+            if !ok { return Err(ConvErr::FailedToFetchLength); }
 
             // Copy the Elisp path string to a Rust Vec, based on its length
             let mut bytes = vec![0u8; len as usize];
             let bytes_ptr = bytes.as_mut_ptr() as *mut i8;
             let ok = copy_string_contents(env, val, bytes_ptr, &mut len);
-            if !ok { return Err(ConvErr::VecCopyFailed); }
+            if !ok { return Err(ConvErr::FailedToCopy); }
             Ok(bytes)
         }
     }
@@ -297,10 +299,16 @@ macro_rules! emacs_subrs {
                               $data: *mut raw::c_void,
                               $tag: &str) -> ConvResult<EmacsVal> { $body }
 
-                let $tag = format!("[ZMQ/{}]", stringify!($name));
-                let result: ConvResult<EmacsVal> =
-                    fun($env, $nargs, $args, $data, &$tag);
-                result.expect("Expected a valid Elisp value")
+                let $tag = format!("[{}]", stringify!($name));
+                match fun($env, $nargs, $args, $data, &$tag) {
+                    Ok(value) => value,
+                    Err(conv_err) => {
+                        let msg = format!("{} ConvErr::{:?}", $tag, conv_err);
+                        $crate::hlapi::native2elisp::string($env, msg)
+                        // TODO: implement sans panic using the ?-operator
+                            .expect("Error string creation failed")
+                    }
+                }
             }
         )*
     };
@@ -316,7 +324,7 @@ macro_rules! init_module {
             fn fun($env: *mut EmacsEnv) -> ConvResult<EmacsVal> { $body }
 
             let $env = emacs::get_environment(runtime);
-            let result: ConvResult<_> = fun($env);
+            let result: ConvResult<EmacsVal> = fun($env);
             result.expect("$body should yield an Ok value");
             0
         }}
