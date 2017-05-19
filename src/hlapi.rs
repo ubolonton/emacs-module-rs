@@ -27,6 +27,7 @@ pub enum ConvErr {
     Other(String),
     Interrupted,
     DoNothing,
+    WrongEmacsValueType { expected: String, got: Option<EmacsVal> },
 
     IoNotFound(Option<String>),
     IoPermissionDenied(Option<String>),
@@ -187,12 +188,39 @@ pub mod elisp2native {
         if args.is_null() { return Err(ConvErr::Nullptr(String::from("args"))) }
         // TODO: verify that `index` is within bounds
         unsafe {
-            let arg = *args.offset(index as isize);
+            int_value(env, *args.offset(index as isize))
+        }
+    }
+
+    pub fn int_value(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<i64> {
+        if val.is_null() { return Err(ConvErr::Nullptr(String::from("val"))) }
+        unsafe {
             let extract_int = (*env).extract_integer.ok_or_else(
                 || ConvErr::CoreFnMissing(String::from("extract_integer"))
             )?;
-            Ok(extract_int(env, arg))
+            Ok(extract_int(env, val))
         }
+    }
+
+
+    pub fn list(env: *mut EmacsEnv, arg: EmacsVal) -> ConvResult<Vec<EmacsVal>> {
+        let nil: EmacsVal = ::native2elisp::symbol(env, "nil")?;
+        let is_list: EmacsVal = ::call(env, "listp", &mut [arg]);
+        if ::eq(env, is_list, nil)? {
+            return Err(ConvErr::WrongEmacsValueType {
+                expected: String::from("list"),
+                got: Some(arg)
+            });
+        }
+        let length: EmacsVal = ::call(env, "length", &mut [arg]);
+        let length: i64 = int_value(env, length)?;
+        let mut list: Vec<EmacsVal> = vec![];
+        for i in 0 .. length {
+            let integer: EmacsVal = ::native2elisp::integer(env, i)?;
+            let element: EmacsVal = ::call(env, "nth", &mut [integer, arg]);
+            list.push(element);
+        }
+        Ok(list)
     }
 
 }
