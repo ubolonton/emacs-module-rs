@@ -216,8 +216,8 @@ pub mod elisp2native {
         let length: i64 = int_value(env, length)?;
         let mut list: Vec<EmacsVal> = vec![];
         for i in 0 .. length {
-            let integer: EmacsVal = ::native2elisp::integer(env, i)?;
-            let element: EmacsVal = ::call(env, "nth", &mut [integer, arg]);
+            let index: EmacsVal = ::native2elisp::integer(env, i)?;
+            let element: EmacsVal = ::call(env, "nth", &mut [index, arg]);
             list.push(element);
         }
         Ok(list)
