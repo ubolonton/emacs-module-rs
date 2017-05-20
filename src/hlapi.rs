@@ -291,6 +291,18 @@ pub mod native2elisp {
             Ok(make_user_ptr(env, Some(dtor), ptr))
         }
     }
+
+    pub fn string_list<S>(env: *mut EmacsEnv, strings: &[S])
+                          -> ConvResult<EmacsVal>   where S: AsRef<str> {
+        let mut list: EmacsVal = ::call(env, "list", &mut []);
+        for entry in strings.iter().rev() {
+            list = ::call(env, "cons", &mut [
+                ::native2elisp::string(env, entry.as_ref())?,
+                list
+            ]);
+        }
+        Ok(list)
+    }
 }
 
 
