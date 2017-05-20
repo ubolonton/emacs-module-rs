@@ -149,18 +149,23 @@ pub mod elisp2native {
     }
 
     pub fn string(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<String> {
-        let bytes: Vec<u8> = self::string_bytes(env, val)?;
+        let mut bytes: Vec<u8> = self::string_bytes(env, val)?;
+        strip_trailing_zero_bytes(&mut bytes);
         Ok(String::from_utf8(bytes)?)
     }
 
     pub fn cstring(env: *mut EmacsEnv, val: EmacsVal) -> ConvResult<CString> {
         let mut bytes: Vec<u8> = self::string_bytes(env, val)?;
+        strip_trailing_zero_bytes(&mut bytes);
+        Ok(CString::new(bytes)?)
+    }
+
+    fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
         let mut len = bytes.len();
         while len > 0 && bytes[len - 1] == 0 {
-            bytes.pop(); // strip trailing 0-bytes
-            len = bytes.len();
+            bytes.pop(); // strip trailing 0-byte(s)
+            len -= 1;
         }
-        Ok(CString::new(bytes)?)
     }
 
     pub fn string_bytes(env: *mut EmacsEnv, val: EmacsVal)
