@@ -9,9 +9,12 @@ use std::string::FromUtf8Error;
 use std::str::Utf8Error;
 
 pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
+    if arg.is_null() {
+        println!("WARNING: Dropping nullptr @ {:p}", arg);
+        return;
+    }
     let ptr = arg as *mut T;
-    let lib = Box::from_raw(ptr);
-    drop(lib);
+    drop(Box::from_raw(ptr));
     println!("Dropped value @ {:p}", ptr);
 }
 
@@ -424,3 +427,5 @@ pub fn register(env: *mut EmacsEnv,
     message!(env, "Registered function {}", elisp_sym)?;
     native2elisp::symbol(env, "t")
 }
+
+//  LocalWords:  nullptr
