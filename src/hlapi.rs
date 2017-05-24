@@ -406,6 +406,9 @@ pub fn eq(env: *mut EmacsEnv, left: EmacsVal, right: EmacsVal)
     }
 }
 
+pub fn is_nil(env: *mut EmacsEnv, value: EmacsVal) -> ConvResult<bool> {
+    eq(env, value, native2elisp::symbol(env, "nil")?)
+}
 
 /// Register an Emacs `subr`, so that it can be accessed from Elisp.
 pub fn register(env: *mut EmacsEnv,
