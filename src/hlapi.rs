@@ -10,12 +10,12 @@ use std::str::Utf8Error;
 
 pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
     if arg.is_null() {
-        println!("WARNING: Dropping nullptr @ {:p}", arg);
+        // println!("WARNING: Dropping nullptr @ {:p}", arg);
         return;
     }
     let ptr = arg as *mut T;
     drop(Box::from_raw(ptr));
-    println!("Dropped value @ {:p}", ptr);
+    // println!("Dropped value @ {:p}", ptr);
 }
 
 pub type ConvResult<T> = Result<T, ConvErr>;
@@ -291,7 +291,7 @@ pub mod native2elisp {
     pub fn boxed<T>(env: *mut EmacsEnv, value: T, dtor: Dtor)
                     -> ConvResult<EmacsVal> {
         let ptr = Box::into_raw(Box::new(value)) as *mut raw::c_void;
-        println!("Transferred Box<T> @ {:p} to Elisp", ptr);
+        // println!("Transferred Box<T> @ {:p} to Elisp", ptr);
         unsafe {
             let make_user_ptr = (*env).make_user_ptr.ok_or_else(
                 || ConvErr::CoreFnMissing(String::from("make_user_ptr"))
