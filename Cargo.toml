@@ -9,11 +9,13 @@ description = "Rust library for creating emacs modules"
 license = "BSD-3-Clause"
 build = "build.rs"
 
+[build-dependencies]
+bindgen = "0.32"
+
 [dependencies]
 libc = "0.2"
-
-[build-dependencies]
-bindgen = "0.31"
+regex = "0.2"
+lazy_static = "1.0.0"
 
 [lib]
 name = "emacs_module_bindings"
