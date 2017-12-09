@@ -1,8 +1,12 @@
-use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
-use std::os::raw;
 use {call};
+use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
+use regex;
+use regex::Regex;
+use std::os::raw;
 use std::ffi::{CString, FromBytesWithNulError, IntoStringError, NulError};
 use std::io;
+use std::io::ErrorKind;
+use std::num::ParseIntError;
 use std::ops::Range;
 use std::ptr;
 use std::string::FromUtf8Error;
@@ -20,7 +24,7 @@ pub unsafe extern "C" fn destruct<T>(arg: *mut raw::c_void) {
 
 pub type ConvResult<T> = Result<T, ConvErr>;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ConvErr {
     CoreFnMissing(String),
     Nullptr(String),
@@ -28,101 +32,93 @@ pub enum ConvErr {
     FailedToCopy,
     InvalidArgCount(usize),
     Other(String),
-    Interrupted,
-    DoNothing,
     WrongEmacsValueType { expected: String, got: Option<EmacsVal> },
 
-    IoNotFound(Option<String>),
-    IoPermissionDenied(Option<String>),
-    IoConnectionRefused(Option<String>),
-    IoConnectionReset(Option<String>),
-    IoConnectionAborted(Option<String>),
-    IoNotConnected(Option<String>),
-    IoAddrInUse(Option<String>),
-    IoAddrNotAvailable(Option<String>),
-    IoBrokenPipe(Option<String>),
-    IoAlreadyExists(Option<String>),
-    IoWouldBlock(Option<String>),
-    IoInvalidInput(Option<String>),
-    IoInvalidData(Option<String>),
-    IoTimedOut(Option<String>),
-    IoWriteZero(Option<String>),
-    IoInterrupted(Option<String>),
-    IoOther(Option<String>),
-    IoUnexpectedEof(Option<String>),
-
-    NulByteFound { pos: usize, bytes: Vec<u8> },
+    IoErr { kind: ErrorKind, msg: String },
+    RegexSyntaxErr(String),
+    RegexTooLarge(usize),
 
     FromUtf8Error { valid_up_to: usize,  bytes: Vec<u8> },
-
     Utf8Error { valid_up_to: usize },
+    ParseIntError(ParseIntError),
 
-    FromBytesWithNul,
+    FoundInteriorNulByte { pos: usize, bytes: Option<Vec<u8>> },
+    NotNulTerminated,
 }
+
 
 impl From<io::Error> for ConvErr {
-    fn from(ioe: io::Error) -> ConvErr {
-        use std::io::ErrorKind;
-        use std::error::Error;
-        let cause = ioe.cause().map(|err: &Error| format!("{}", err));
-        match ioe.kind() {
-            ErrorKind::NotFound => ConvErr::IoNotFound(cause),
-            ErrorKind::PermissionDenied => ConvErr::IoPermissionDenied(cause),
-            ErrorKind::ConnectionRefused => ConvErr::IoConnectionRefused(cause),
-            ErrorKind::ConnectionReset => ConvErr::IoConnectionReset(cause),
-            ErrorKind::ConnectionAborted => ConvErr::IoConnectionAborted(cause),
-            ErrorKind::NotConnected => ConvErr::IoNotConnected(cause),
-            ErrorKind::AddrInUse => ConvErr::IoAddrInUse(cause),
-            ErrorKind::AddrNotAvailable => ConvErr::IoAddrNotAvailable(cause),
-            ErrorKind::BrokenPipe => ConvErr::IoBrokenPipe(cause),
-            ErrorKind::AlreadyExists => ConvErr::IoAlreadyExists(cause),
-            ErrorKind::WouldBlock => ConvErr::IoWouldBlock(cause),
-            ErrorKind::InvalidInput => ConvErr::IoInvalidInput(cause),
-            ErrorKind::InvalidData => ConvErr::IoInvalidData(cause),
-            ErrorKind::TimedOut => ConvErr::IoTimedOut(cause),
-            ErrorKind::WriteZero => ConvErr::IoWriteZero(cause),
-            ErrorKind::Interrupted => ConvErr::IoInterrupted(cause),
-            ErrorKind::Other => ConvErr::IoOther(cause),
-            ErrorKind::UnexpectedEof => ConvErr::IoUnexpectedEof(cause),
-            _ => unimplemented!(),
-        }
-    }
-}
-
-
-impl From<NulError> for ConvErr {
-    fn from(nerr: NulError) -> ConvErr {
-        ConvErr::NulByteFound {
-            pos: nerr.nul_position(),
-            bytes: nerr.into_vec(),
-        }
+    fn from(err: io::Error) -> ConvErr {
+        ConvErr::IoErr { kind: err.kind(),  msg: format!("{}", err) }
     }
 }
 
 impl From<FromUtf8Error> for ConvErr {
-    fn from(fue: FromUtf8Error) -> ConvErr {
+    fn from(err: FromUtf8Error) -> ConvErr {
         ConvErr::FromUtf8Error {
-            valid_up_to: fue.utf8_error().valid_up_to(),
-            bytes: fue.into_bytes()
+            valid_up_to: err.utf8_error().valid_up_to(),
+            bytes: err.into_bytes()
         }
     }
 }
 
 impl From<Utf8Error> for ConvErr {
-    fn from(ue: Utf8Error) -> ConvErr {
-        ConvErr::Utf8Error { valid_up_to: ue.valid_up_to() }
+    fn from(err: Utf8Error) -> ConvErr {
+        ConvErr::Utf8Error { valid_up_to: err.valid_up_to() }
+    }
+}
+
+impl From<regex::Error> for ConvErr {
+    fn from(err: regex::Error) -> ConvErr {
+        match err {
+            regex::Error::Syntax(msg) => ConvErr::RegexSyntaxErr(msg),
+            regex::Error::CompiledTooBig(size) => ConvErr::RegexTooLarge(size),
+            regex_err => ConvErr::Other(format!("{:#?}", regex_err)),
+        }
+    }
+}
+
+impl From<NulError> for ConvErr {
+    fn from(err: NulError) -> ConvErr {
+        ConvErr::FoundInteriorNulByte {
+            pos: err.nul_position(),
+            bytes: Some(err.into_vec()),
+        }
     }
 }
 
 impl From<FromBytesWithNulError> for ConvErr {
-    fn from(_: FromBytesWithNulError) -> ConvErr {
-        ConvErr::FromBytesWithNul
+    fn from(err: FromBytesWithNulError) -> ConvErr {
+        lazy_static! {
+            /// This is an example for using doc comment attributes
+            static ref RE_FROM_BYTES_WITH_NUL_ERROR: Regex = Regex::new(
+                r"Err(FromBytesWithNulError { kind: InteriorNul(\d+) })"
+            ).expect("Failed to init regex RE_FROM_BYTES_WITH_NUL_ERROR");
+        }
+        let err_string = format!("{:?}", err);
+        if "Err(FromBytesWithNulError { kind: NotNulTerminated })" == err_string {
+            return ConvErr::NotNulTerminated;
+        }
+        for cap in RE_FROM_BYTES_WITH_NUL_ERROR.captures_iter(&err_string) {
+            let pos = match cap[1].parse() {
+                Ok(pos) => pos,
+                Err(parse_int_err) => return ConvErr::from(parse_int_err),
+            };
+            return ConvErr::FoundInteriorNulByte { pos: pos, bytes: None };
+        }
+        ConvErr::Other(err_string)
     }
 }
 
 impl From<IntoStringError> for ConvErr {
-    fn from(ise: IntoStringError) -> ConvErr {
-        ConvErr::from(ise.utf8_error())
+    fn from(err: IntoStringError) -> ConvErr {
+        ConvErr::from(err.utf8_error())
+    }
+}
+
+impl From<ParseIntError> for ConvErr {
+    fn from(err: ParseIntError) -> ConvErr {
+        ConvErr::ParseIntError(err)
     }
 }
 
@@ -234,31 +230,29 @@ pub mod elisp2native {
 }
 
 pub mod native2elisp {
+    use {call};
     use emacs_gen::{Dtor, EmacsEnv, EmacsSubr, EmacsVal};
     use hlapi::{ConvErr, ConvResult};
     use libc;
     use std::ffi::CString;
     use std::os::raw;
-    use {call};
 
     pub fn integer(env: *mut EmacsEnv, num: i64) -> ConvResult<EmacsVal> {
         unsafe {
             let make_integer = (*env).make_integer.ok_or_else(
-                || ConvErr::CoreFnMissing(String::from("make_string")))?;
+                || ConvErr::CoreFnMissing(String::from("make_integer"))
+            )?;
             Ok(make_integer(env, num))
         }
     }
 
     /// Convert a Rust String/&str into an Elisp string.
-    pub fn string<S>(env: *mut EmacsEnv, string: S)
-                     -> ConvResult<EmacsVal>  where S: Into<Vec<u8>> {
+    pub fn string<S>(env: *mut EmacsEnv, string: S) -> ConvResult<EmacsVal>
+        where S: Into<Vec<u8>>
+    {
         unsafe {
             let string: Vec<u8> = string.into();
-            let cstring = CString::new(string)
-                .map_err(|nul_err| ConvErr::NulByteFound {
-                    pos: nul_err.nul_position(),
-                    bytes: nul_err.into_vec(),
-                })?;
+            let cstring = CString::new(string)?;
             let c_string: *const libc::c_char = cstring.as_ptr();
             let strlen: usize = libc::strlen(c_string);
             let make_string = (*env).make_string
@@ -300,8 +294,9 @@ pub mod native2elisp {
         }
     }
 
-    pub fn string_list<S>(env: *mut EmacsEnv, strings: &[S])
-                          -> ConvResult<EmacsVal>   where S: AsRef<str> {
+    pub fn string_list<S>(env: *mut EmacsEnv, strings: &[S]) -> ConvResult<EmacsVal>
+        where S: AsRef<str>
+    {
         let mut list: EmacsVal = ::call(env, "list", &mut []);
         for entry in strings.iter().rev() {
             list = ::call(env, "cons", &mut [
@@ -389,8 +384,9 @@ macro_rules! message {
 }
 
 /// Log a message to the *Messages* buffer.
-pub fn message<S>(env: *mut EmacsEnv, text: S)
-                  -> ConvResult<EmacsVal>  where S: Into<String> {
+pub fn message<S>(env: *mut EmacsEnv, text: S) -> ConvResult<EmacsVal>
+    where S: Into<String>
+{
     let string = native2elisp::string(env, text.into())?;
     Ok(call(env, "message", &mut [string]))
 }

@@ -1,4 +1,6 @@
 extern crate libc;
+extern crate regex;
+#[macro_use] extern crate lazy_static;
 
 mod emacs_gen;
 pub mod hlapi;
