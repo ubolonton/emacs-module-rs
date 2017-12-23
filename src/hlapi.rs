@@ -347,9 +347,7 @@ macro_rules! emacs_subrs {
                     Ok(value) => value,
                     Err(conv_err) => {
                         let msg = format!("{} ConvErr::{:?}", $tag, conv_err);
-                        $crate::hlapi::native2elisp::string($env, msg)
-                        // TODO: implement sans panic using the ?-operator
-                            .expect("Error string creation failed")
+                        $crate::hlapi::error($env, &msg).expect("Error signaling error")
                     }
                 }
             }
@@ -425,6 +423,17 @@ pub fn register(env: *mut EmacsEnv,
     call(env, "fset", &mut [elisp_symbol, func]);
     message!(env, "Registered function {}", elisp_sym)?;
     native2elisp::symbol(env, "t")
+}
+
+// FIX: The return type of this should be !
+pub fn error(env: *mut EmacsEnv, message: &str) -> ConvResult<EmacsVal> {
+    let symbol = native2elisp::symbol(env, "error")?;
+    unsafe {
+        let args = native2elisp::string_list(env, &[message])?;
+        let non_local_exit_signal = (*env).non_local_exit_signal.unwrap();
+        non_local_exit_signal(env, symbol, args);
+        Ok(symbol)
+    }
 }
 
 //  LocalWords:  nullptr
