@@ -11,16 +11,14 @@ pub use hlapi::elisp2native as elisp2native;
 pub use hlapi::native2elisp as native2elisp;
 use std::ffi::CString;
 
-#[no_mangle]
-pub extern "C" fn find_function(env: *mut EmacsEnv, name: &str) -> EmacsVal {
+pub fn find_function(env: *mut EmacsEnv, name: &str) -> EmacsVal {
     unsafe {
         let intern = (*env).intern.unwrap();
         intern(env, CString::new(name).unwrap().as_ptr())
     }
 }
 
-#[no_mangle]
-pub extern "C" fn make_function(env: *mut EmacsEnv,
+pub fn make_function(env: *mut EmacsEnv,
                                 min_args: i64,
                                 max_args: i64,
                                 f: Option<EmacsSubr>,
@@ -34,7 +32,7 @@ pub extern "C" fn make_function(env: *mut EmacsEnv,
     }
 }
 
-pub extern "C" fn make_emacs_string<S>(env: *mut EmacsEnv, string: S)
+pub fn make_emacs_string<S>(env: *mut EmacsEnv, string: S)
                                        -> EmacsVal where S: Into<Vec<u8>> {
     let c_string = CString::new(string).unwrap().as_ptr();
     unsafe {
@@ -44,24 +42,21 @@ pub extern "C" fn make_emacs_string<S>(env: *mut EmacsEnv, string: S)
     }
 }
 
-#[no_mangle]
-pub extern "C" fn get_environment(ert: *mut EmacsRT) -> *mut EmacsEnv {
+pub fn get_environment(ert: *mut EmacsRT) -> *mut EmacsEnv {
     unsafe {
         let get_env = (*ert).get_environment.unwrap();
         get_env(ert)
     }
 }
 
-#[no_mangle]
-pub extern "C" fn intern_symbol(env: *mut EmacsEnv, name: String) -> EmacsVal {
+pub fn intern_symbol(env: *mut EmacsEnv, name: String) -> EmacsVal {
     unsafe {
         let intern = (*env).intern.unwrap();
         intern(env, CString::new(name).unwrap().as_ptr())
     }
 }
 
-#[no_mangle]
-pub extern "C" fn bind_function(env: *mut EmacsEnv,
+pub fn bind_function(env: *mut EmacsEnv,
                                 name: String,
                                 sfun: EmacsVal) {
     let qfset = find_function(env, "fset");
@@ -73,8 +68,7 @@ pub extern "C" fn bind_function(env: *mut EmacsEnv,
     };
 }
 
-#[no_mangle]
-pub extern "C" fn provide(env: *mut EmacsEnv, feature: String) {
+pub fn provide(env: *mut EmacsEnv, feature: String) {
     let feat = unsafe {
         let intern = (*env).intern.unwrap();
         intern (env, CString::new(feature).unwrap().as_ptr())
@@ -88,8 +82,7 @@ pub extern "C" fn provide(env: *mut EmacsEnv, feature: String) {
 }
 
 
-#[no_mangle]
-pub extern "C" fn get_buffer(env: *mut EmacsEnv, buffer: String) -> EmacsVal {
+pub fn get_buffer(env: *mut EmacsEnv, buffer: String) -> EmacsVal {
     let get_buffer = find_function(env, "get-buffer");
     let args = [make_emacs_string(env, buffer)].as_mut_ptr();
     unsafe {
@@ -98,8 +91,7 @@ pub extern "C" fn get_buffer(env: *mut EmacsEnv, buffer: String) -> EmacsVal {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn call(env: *mut EmacsEnv, fn_name: &str, args: &mut [EmacsVal])
+pub fn call(env: *mut EmacsEnv, fn_name: &str, args: &mut [EmacsVal])
                        -> EmacsVal {
     let callee = find_function(env,  fn_name);
     unsafe {
