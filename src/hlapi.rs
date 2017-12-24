@@ -1,5 +1,6 @@
 use {call};
 use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
+use new;
 use regex;
 use regex::Regex;
 use std::os::raw;
@@ -122,6 +123,11 @@ impl From<ParseIntError> for ConvErr {
     }
 }
 
+impl From<new::NonLocalExit> for ConvErr {
+    fn from(err: new::NonLocalExit) -> ConvErr {
+        ConvErr::Other(format!("{:#?}", err))
+    }
+}
 
 pub mod elisp2native {
     use emacs_gen::{EmacsEnv, EmacsVal};
@@ -432,6 +438,7 @@ pub fn error(env: *mut EmacsEnv, message: &str) -> ConvResult<EmacsVal> {
         let args = native2elisp::string_list(env, &[message])?;
         let non_local_exit_signal = (*env).non_local_exit_signal.unwrap();
         non_local_exit_signal(env, symbol, args);
+        message!(env, "Hey")?;
         Ok(symbol)
     }
 }

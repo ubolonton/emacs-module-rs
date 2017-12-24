@@ -1,9 +1,12 @@
 extern crate libc;
 extern crate regex;
 #[macro_use] extern crate lazy_static;
+//#[macro_use] extern crate error_chain;
 
 mod emacs_gen;
+// pub mod env;
 pub mod hlapi;
+pub mod new;
 
 pub use emacs_gen::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
 pub use hlapi::{destruct, eq, register, ConvErr, ConvResult};

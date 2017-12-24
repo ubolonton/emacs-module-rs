@@ -20,3 +20,9 @@ lazy_static = "1.0.0"
 [lib]
 name = "emacs_module_bindings"
 path = "src/lib.rs"
+
+[workspace]
+members = [
+        ".",
+        "test-module",
+]
