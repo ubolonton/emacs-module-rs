@@ -8,6 +8,7 @@ mod emacs_gen;
 pub mod hlapi;
 pub mod new;
 pub mod error;
+pub mod func;
 
 pub use emacs_gen::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
 pub use hlapi::{destruct, eq, register, ConvErr, ConvResult};

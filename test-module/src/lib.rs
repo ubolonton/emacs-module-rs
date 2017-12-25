@@ -6,6 +6,7 @@ use emacs::{EmacsVal, EmacsRT, EmacsEnv, ConvResult};
 use emacs::native2elisp as n2e;
 use emacs::elisp2native as e2n;
 use emacs::new::{Env, ToEmacs};
+use emacs::error::Result;
 use std::os::raw;
 use std::ptr;
 use std::ffi::CString;
@@ -41,6 +42,17 @@ fn call(raw: *mut EmacsEnv) -> ConvResult<EmacsVal> {
     message!(raw, "Here")
 }
 
+fn test(env: &Env, _args: &mut [EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+    env.call("message", &mut [
+        "Testing %s".to_emacs(env)?,
+        "arithmetic".to_emacs(env)?,
+    ])?;
+    env.list(&mut [
+        1.to_emacs(env)?,
+        2.to_emacs(env)?,
+    ])
+}
+
 emacs_subrs!(
     f_inc(env, _nargs, args, _data, tag) {
         message!(env, "{}: {:?}", tag, args)?;
@@ -50,6 +62,10 @@ emacs_subrs!(
     f_call(env, _nargs, args, _data, _tag) {
         call(env)
     };
+);
+
+expose_subrs!(
+    test -> f_test;
 );
 
 /// Entry point for live-reloading during development.
@@ -70,6 +86,14 @@ pub extern "C" fn emacs_rs_module_init(env: *mut EmacsEnv) -> libc::c_int {
         env, format!("{}/call", MODULE),
         n2e::function(
             env, 0, 0, Some(f_call),
+            CString::new("").unwrap().as_ptr(), ptr::null_mut(),
+        ).unwrap(),
+    );
+
+    emacs::bind_function(
+        env, format!("{}/test", MODULE),
+        n2e::function(
+            env, 0, 0, Some(f_test),
             CString::new("").unwrap().as_ptr(), ptr::null_mut(),
         ).unwrap(),
     );

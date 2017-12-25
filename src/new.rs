@@ -144,7 +144,7 @@ impl Env {
         CString::new(s).map_err(|_| {
             // TODO: Return a different error. Converting to non-local exit should be at the point
             // where execution returns from Rust to Emacs (in wrapper functions).
-            self.error("Rust string with null byte cannot be converted to C string".to_owned())
+            self.error("Rust string with null byte cannot be converted to C string".to_string())
                 .unwrap_err()
         })
     }
@@ -237,14 +237,6 @@ impl Env {
 
     pub fn provide(&self, name: &str) -> Result<EmacsVal> {
         self.call("provide", &mut [self.intern(name)?])
-    }
-
-    pub fn fset(&self, name: &str, func: EmacsVal) -> Result<EmacsVal> {
-        let i: i64 = 5;
-        i.into_emacs(self)?;
-        self.call("fset", &mut [
-            self.intern(name)?, func
-        ])
     }
 
     pub fn message(&self, text: &str) -> Result<EmacsVal> {

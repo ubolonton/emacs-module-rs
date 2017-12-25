@@ -12,7 +12,7 @@ read -r -d '' expr <<EOF
   (unless (featurep 'rs-module)
     (module-load "$RS_MODULE"))
   (rs-module/load "$MODULE")
-  (test-module/call)
+  (test-module/test)
 )
 EOF
 

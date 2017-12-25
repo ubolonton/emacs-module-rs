@@ -77,9 +77,10 @@ impl HandleExit for Env {
 }
 
 // TODO: Use these only in the wrapper funcs that give the error back to Emacs.
-pub(crate) trait TriggerExit {
+pub trait TriggerExit {
     fn throw(&self, tag: EmacsVal, value: EmacsVal) -> Result<EmacsVal>;
     fn signal(&self, symbol: EmacsVal, data: EmacsVal) -> Result<EmacsVal> ;
+    // FIX: This should not consume the message?
     fn error<T: ToEmacs>(&self, message: T) -> Result<EmacsVal>;
 }
 
