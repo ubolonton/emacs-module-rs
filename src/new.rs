@@ -4,6 +4,7 @@ use emacs_gen::*;
 use std::ffi::CString;
 use libc::ptrdiff_t;
 use std::result;
+use std::ptr;
 
 // TODO: Replace .unwrap() calls with non-local error signaling to Emacs.
 
@@ -33,8 +34,9 @@ pub trait IntoEmacs {
     fn into_emacs(self, env: &Env) -> Result<EmacsVal>;
 }
 
+// Technically this is CloneFromEmacs?
 pub trait FromEmacs: Sized {
-    fn from_emacs(env: *mut EmacsEnv, value: EmacsVal) -> Result<Self>;
+    fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self>;
 }
 
 pub struct Env {
@@ -106,6 +108,32 @@ impl IntoEmacs for i64 {
 //    }
 //}
 
+impl FromEmacs for i64 {
+    fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self> {
+        let result = unsafe {
+            let extract_integer = (*env.raw).extract_integer.unwrap();
+            extract_integer(env.raw, value)
+        };
+        env.handle_exit(result)
+    }
+}
+
+fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
+    let mut len = bytes.len();
+    while len > 0 && bytes[len - 1] == 0 {
+        bytes.pop(); // strip trailing 0-byte(s)
+        len -= 1;
+    }
+}
+
+impl FromEmacs for String {
+    fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self> {
+        let bytes = env.string_bytes(value)?;
+        // FIX
+        Ok(String::from_utf8(bytes).unwrap())
+    }
+}
+
 impl From<*mut EmacsEnv> for Env {
     fn from(raw: *mut EmacsEnv) -> Env {
         Env { raw }
@@ -147,6 +175,7 @@ impl Env {
             (status, ..) => panic!("Unexpected non local exit status {}", status),
         }
     }
+
     pub fn throw(&self, tag: EmacsVal, value: EmacsVal) -> Result<EmacsVal> {
         unsafe {
             let clear = (*self.raw).non_local_exit_clear.unwrap();
@@ -181,6 +210,32 @@ impl Env {
             self.error("Rust string with null byte cannot be converted to C string".to_owned())
                 .unwrap_err()
         })
+    }
+
+    fn string_bytes(&self, value: EmacsVal) -> Result<Vec<u8>> {
+        let mut len: isize = 0;
+        let mut bytes = unsafe {
+            let copy_string_contents = (*self.raw).copy_string_contents.unwrap();
+            let ok = self.handle_exit(copy_string_contents(
+                self.raw, value, ptr::null_mut(), &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to give string's length but did not raise a signal");
+            }
+
+            let mut bytes = Vec::<u8>::with_capacity(len as usize);
+            let ok = self.handle_exit(copy_string_contents(
+                self.raw, value, bytes.as_mut_ptr() as *mut i8, &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to copy string but did not raise a signal");
+            }
+            bytes
+        };
+        strip_trailing_zero_bytes(&mut bytes);
+        Ok(bytes)
     }
 
     // TODO: Return a Symbol.
