@@ -1,6 +1,6 @@
 use {call};
 use emacs_gen::{EmacsEnv, EmacsSubr, EmacsVal};
-use new;
+use error;
 use regex;
 use regex::Regex;
 use std::os::raw;
@@ -123,9 +123,9 @@ impl From<ParseIntError> for ConvErr {
     }
 }
 
-impl From<new::NonLocalExit> for ConvErr {
-    fn from(err: new::NonLocalExit) -> ConvErr {
-        ConvErr::Other(format!("{:#?}", err))
+impl From<error::Error> for ConvErr {
+    fn from(err: error::Error) -> ConvErr {
+        ConvErr::Other(format!("{:#?}", err.kind()))
     }
 }
 

@@ -3,27 +3,10 @@ extern crate libc;
 use emacs_gen::*;
 use std::ffi::CString;
 use libc::ptrdiff_t;
-use std::result;
 use std::ptr;
+use error::{Result, HandleExit, TriggerExit};
 
 // TODO: Replace .unwrap() calls with non-local error signaling to Emacs.
-
-/// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
-/// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
-/// statuses in the future). FIX: Use an enum, and check for compatibility on load.
-pub type FuncallExit = emacs_funcall_exit;
-pub const FUNCALL_EXIT_RETURN: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_return;
-pub const FUNCALL_EXIT_SIGNAL: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_signal;
-pub const FUNCALL_EXIT_THROW: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_throw;
-
-// TODO: Error chain? (need to solve the issue that EmacsVal does not satisfy Send).
-#[derive(Debug)]
-pub enum NonLocalExit {
-    Signal { symbol: EmacsVal, data: EmacsVal },
-    Throw { tag: EmacsVal, value: EmacsVal },
-}
-
-pub type Result<T> = result::Result<T, NonLocalExit>;
 
 // TODO: How about IntoEmacs (which may include EmacsVal itself)?
 pub trait ToEmacs {
@@ -40,7 +23,7 @@ pub trait FromEmacs: Sized {
 }
 
 pub struct Env {
-    raw: *mut EmacsEnv
+    pub(crate) raw: *mut EmacsEnv
 }
 
 impl ToEmacs for i64 {
@@ -150,63 +133,17 @@ impl From<*mut EmacsRT> for Env {
     }
 }
 
+pub type Func = fn(env: Env, args: &mut [EmacsVal], data: *mut libc::c_void) -> Result<EmacsVal>;
+
 impl Env {
     pub fn raw(&self) -> *mut EmacsEnv {
         self.raw
     }
 
-    fn non_local_exit_get(&self) -> (FuncallExit, EmacsVal, EmacsVal) {
-        let symbol = Vec::<EmacsVal>::with_capacity(1).as_mut_ptr();
-        let data = Vec::<EmacsVal>::with_capacity(1).as_mut_ptr();
-        unsafe {
-            let get = (*self.raw).non_local_exit_get.unwrap();
-            let result = get(self.raw, symbol, data);
-            (result, *symbol, *data)
-        }
-    }
-
-    // TODO: Should we also clear the exit status, and leave it up to the Rust side whether to
-    // continue propagating it.
-    fn handle_exit<T>(&self, result: T) -> Result<T> {
-        match self.non_local_exit_get() {
-            (FUNCALL_EXIT_RETURN, ..) => Ok(result),
-            (FUNCALL_EXIT_SIGNAL, symbol, data) => Err(NonLocalExit::Signal { symbol, data }),
-            (FUNCALL_EXIT_THROW, tag, value) => Err(NonLocalExit::Throw { tag, value }),
-            (status, ..) => panic!("Unexpected non local exit status {}", status),
-        }
-    }
-
-    pub fn throw(&self, tag: EmacsVal, value: EmacsVal) -> Result<EmacsVal> {
-        unsafe {
-            let clear = (*self.raw).non_local_exit_clear.unwrap();
-            let exit = (*self.raw).non_local_exit_throw.unwrap();
-            // TODO: Add variants that don't clear the current exit status.
-            clear(self.raw);
-            exit(self.raw, tag, value);
-        }
-        Err(NonLocalExit::Throw { tag, value })
-    }
-
-    pub fn signal(&self, symbol: EmacsVal, data: EmacsVal) -> Result<EmacsVal> {
-        unsafe {
-            let clear = (*self.raw).non_local_exit_clear.unwrap();
-            let exit = (*self.raw).non_local_exit_signal.unwrap();
-            // TODO: Do we need variants that don't clear the current exit status?
-            clear(self.raw);
-            exit(self.raw, symbol, data);
-        }
-        Err(NonLocalExit::Signal { symbol, data })
-    }
-
-    pub fn error<T: ToEmacs>(&self, message: T) -> Result<EmacsVal> {
-        let data = self.list(&mut [message.to_emacs(self)?])?;
-        let symbol = self.intern("error")?;
-        self.signal(symbol, data)
-    }
-
     fn to_cstring(&self, s: &str) -> Result<CString> {
         CString::new(s).map_err(|_| {
-            // TODO: Give more info, e.g. the string until null byte, or its position (if too long).
+            // TODO: Return a different error. Converting to non-local exit should be at the point
+            // where execution returns from Rust to Emacs (in wrapper functions).
             self.error("Rust string with null byte cannot be converted to C string".to_owned())
                 .unwrap_err()
         })
@@ -307,6 +244,12 @@ impl Env {
         i.into_emacs(self)?;
         self.call("fset", &mut [
             self.intern(name)?, func
+        ])
+    }
+
+    pub fn message(&self, text: &str) -> Result<EmacsVal> {
+        self.call("message", &mut [
+            text.to_emacs(self)?
         ])
     }
 }
