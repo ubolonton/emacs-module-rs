@@ -35,21 +35,11 @@ macro_rules! expose_subrs {
                                               args: *mut EmacsVal,
                                               data: *mut raw::c_void) -> EmacsVal {
                 let env = Env::from(env);
-                // TODO: Check whether Emacs keeps the ownership of these. If it does, we want to renounce
-                // ownership later on without dropping.
+                // TODO: Check whether Emacs keeps the ownership of these. If it does, we want to
+                // renounce ownership later on without dropping.
                 let mut args = Vec::<EmacsVal>::from_raw_parts(args, nargs as usize, nargs as usize);
-                match $name(&env, &mut args, data) {
-                    Ok(result) => result,
-                    Err(error) => {
-                        let message = format!("Error: {:#?}", error);
-                        match env.error(message.to_owned()) {
-                            // XXX
-                            Ok(v) => v,
-                            // TODO: Custom error instead of panicking.
-                            Err(e) => panic!(message),
-                        }
-                    },
-                }
+                let result = $name(&env, &mut args, data);
+                env.maybe_exit(result)
             }
         )*
     };

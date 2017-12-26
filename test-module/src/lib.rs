@@ -6,7 +6,7 @@ use emacs::{EmacsVal, EmacsRT, EmacsEnv, ConvResult};
 use emacs::native2elisp as n2e;
 use emacs::elisp2native as e2n;
 use emacs::new::{Env, ToEmacs};
-use emacs::error::Result;
+use emacs::error::{Result, Error};
 use std::os::raw;
 use std::ptr;
 use std::ffi::CString;
@@ -43,13 +43,41 @@ fn call(raw: *mut EmacsEnv) -> ConvResult<EmacsVal> {
 }
 
 fn test(env: &Env, _args: &mut [EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
-    env.call("message", &mut [
-        "Testing %s".to_emacs(env)?,
-        "arithmetic".to_emacs(env)?,
-    ])?;
-    env.list(&mut [
-        1.to_emacs(env)?,
+//    env.call("message", &mut [
+//        "Testing %s".to_emacs(env)?,
+//        "arithmetic".to_emacs(env)?,
+//    ])?;
+//    env.list(&mut [
+//        1.to_emacs(env)?,
+//        2.to_emacs(env)?,
+//    ])?;
+//    Err(Error::signal(
+//        env.intern("error")?,
+//        env.list(&mut [
+//            "Custom error signaled from Rust".to_emacs(env)?
+//        ])?
+//    ))
+    env.to_emacs(&5)?;
+    match "1\0a".to_emacs(env) {
+        Ok(_) => {
+            println!("ok");
+            env.call("message", &mut [
+                "Should not get to this because we used a string with a zero byte".to_emacs(env)?
+            ])?;
+        },
+        Err(_) => {
+            println!("err");
+            env.call("message", &mut [
+                "Caught error here and continue".to_emacs(env)?
+            ])?;
+        }
+    };
+    env.call("+", &mut [
+        "1\0".to_emacs(env)?,
         2.to_emacs(env)?,
+    ])?;
+    env.call("message", &mut [
+        "Should not ever get here".to_emacs(env)?
     ])
 }
 

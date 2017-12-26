@@ -4,7 +4,7 @@ use emacs_gen::*;
 use std::ffi::CString;
 use libc::ptrdiff_t;
 use std::ptr;
-use error::{Result, HandleExit, TriggerExit};
+use error::{Result, HandleExit};
 
 // TODO: Replace .unwrap() calls with non-local error signaling to Emacs.
 
@@ -40,6 +40,7 @@ impl ToEmacs for i64 {
 // complain about conflicting implementations for i64.
 impl ToEmacs for str {
     fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
+//        println!("to_emacs {}", self);
         // Rust string may fail to convert to CString. Raise non-local exit in that case.
         let cstring = env.to_cstring(self)?;
         let result = unsafe {
@@ -141,12 +142,8 @@ impl Env {
     }
 
     fn to_cstring(&self, s: &str) -> Result<CString> {
-        CString::new(s).map_err(|_| {
-            // TODO: Return a different error. Converting to non-local exit should be at the point
-            // where execution returns from Rust to Emacs (in wrapper functions).
-            self.error("Rust string with null byte cannot be converted to C string".to_string())
-                .unwrap_err()
-        })
+        let cstring = CString::new(s)?;
+        Ok(cstring)
     }
 
     fn string_bytes(&self, value: EmacsVal) -> Result<Vec<u8>> {
@@ -196,6 +193,7 @@ impl Env {
     // TODO: Should there be variants of this that deal with mixtures of types?
     pub fn call(&self, name: &str, args: &mut [EmacsVal]) -> Result<EmacsVal> {
         let symbol = self.intern(name)?;
+//        println!("calling {}", name);
         let result = unsafe {
             let funcall = (*self.raw).funcall.unwrap();
             funcall(self.raw, symbol, args.len() as ptrdiff_t, args.as_mut_ptr())
@@ -213,6 +211,10 @@ impl Env {
             e_args.push(value.to_emacs(self)?);
         }
         Ok(e_args)
+    }
+
+    pub fn to_emacs<T: ToEmacs>(&self, value: &T) -> Result<EmacsVal> {
+        value.to_emacs(self)
     }
 
     pub fn is_not_nil(&self, value: EmacsVal) -> Result<bool> {

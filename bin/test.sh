@@ -16,6 +16,6 @@ read -r -d '' expr <<EOF
 )
 EOF
 
-emacs -batch -eval "$expr"
+RUST_BACKTRACE=1 emacs -batch -eval "$expr"
 
 echo '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'

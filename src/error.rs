@@ -1,6 +1,7 @@
 use std::result;
 use std::error;
 use std::io;
+use std::ffi::NulError;
 use emacs_gen::*;
 use new::{Env, ToEmacs};
 
@@ -49,6 +50,13 @@ impl From<io::Error> for Error {
     }
 }
 
+// TODO: Better reporting.
+impl From<NulError> for Error {
+    fn from(error: NulError) -> Self {
+        Self { kind: ErrorKind::Other { error: Box::new(error) }}
+    }
+}
+
 // TODO: Use these only in the internal functions that call Emacs.
 pub(crate) trait HandleExit {
     fn handle_exit<T>(&self, result: T) -> Result<T>;
@@ -64,50 +72,81 @@ fn non_local_exit_get(env: &Env) -> (FuncallExit, EmacsVal, EmacsVal) {
     }
 }
 
+fn non_local_exit_clear(env: &Env) -> Result<()> {
+    unsafe {
+        let clear = (*env.raw).non_local_exit_clear.unwrap();
+        clear(env.raw)
+    }
+    Ok(())
+}
+
 impl HandleExit for Env {
     fn handle_exit<T>(&self, result: T) -> Result<T> {
+//        println!("handling exit");
         match non_local_exit_get(self) {
             (RETURN, ..) => Ok(result),
-            (SIGNAL, symbol, data) => Err(Error::signal(symbol, data)),
-            (THROW, tag, value) => Err(Error::throw(tag, value)),
+            (SIGNAL, symbol, data) => {
+                println!("signaled");
+                non_local_exit_clear(self)?;
+                Err(Error::signal(symbol, data))
+            },
+            (THROW, tag, value) => {
+                println!("thrown");
+                non_local_exit_clear(self)?;
+                Err(Error::throw(tag, value))
+            },
             // TODO: Don't panic here, use a custom error.
             (status, ..) => panic!("Unexpected non local exit status {}", status),
         }
     }
 }
 
-// TODO: Use these only in the wrapper funcs that give the error back to Emacs.
+// TODO: Use these only in the wrapper funcs that give the error back to Emacs. One problem is,
+// wrappers are written (by macros) by user code, which shouldn't have access to these.
 pub trait TriggerExit {
-    fn throw(&self, tag: EmacsVal, value: EmacsVal) -> Result<EmacsVal>;
-    fn signal(&self, symbol: EmacsVal, data: EmacsVal) -> Result<EmacsVal> ;
-    // FIX: This should not consume the message?
-    fn error<T: ToEmacs>(&self, message: T) -> Result<EmacsVal>;
+    fn maybe_exit(&self, result: Result<EmacsVal>) -> EmacsVal;
+}
+
+fn throw(env: &Env, tag: EmacsVal, value: EmacsVal) -> EmacsVal {
+    unsafe {
+        let exit = (*env.raw).non_local_exit_throw.unwrap();
+        exit(env.raw, tag, value);
+    }
+    tag
+}
+
+fn signal(env: &Env, symbol: EmacsVal, data: EmacsVal) -> EmacsVal {
+    unsafe {
+        // Note: If this function is missing, there is no way to report error to Emacs. The only
+        // sensible thing to do is crashing. Therefore unwrap() is used. Other places should use
+        // "function-missing" error.
+        let exit = (*env.raw).non_local_exit_signal.unwrap();
+        exit(env.raw, symbol, data);
+    }
+    symbol
+}
+
+// XXX
+fn error(env: &Env, message: &str) -> Result<EmacsVal> {
+    let data = env.list(&mut [message.to_emacs(env)?])?;
+    let symbol = env.intern("error")?;
+    Ok(signal(env, symbol, data))
 }
 
 impl TriggerExit for Env {
-    fn throw(&self, tag: EmacsVal, value: EmacsVal) -> Result<EmacsVal> {
-        unsafe {
-            let clear = (*self.raw).non_local_exit_clear.unwrap();
-            let exit = (*self.raw).non_local_exit_throw.unwrap();
-            clear(self.raw);
-            exit(self.raw, tag, value);
+    /// This is intended to be used at the Rust->Emacs boundary, by the internal macros/functions.
+    /// Module code should use [`Error::throw`] and [`Error::signal`] instead.
+    fn maybe_exit(&self, result: Result<EmacsVal>) -> EmacsVal {
+        match result {
+            Ok(v) => v,
+            Err(e) => {
+                match e.kind {
+                    ErrorKind::Signal { symbol, data } => signal(self, symbol, data),
+                    ErrorKind::Throw { tag, value } => throw(self, tag, value),
+                    // XXX: Custom error instead of panicking.
+                    _ => error(self, "Hmm").unwrap(),
+                }
+            }
         }
-        Err(Error::throw(tag, value))
-    }
-
-    fn signal(&self, symbol: EmacsVal, data: EmacsVal) -> Result<EmacsVal> {
-        unsafe {
-            let clear = (*self.raw).non_local_exit_clear.unwrap();
-            let exit = (*self.raw).non_local_exit_signal.unwrap();
-            clear(self.raw);
-            exit(self.raw, symbol, data);
-        }
-        Err(Error::signal(symbol, data))
-    }
-
-    fn error<T: ToEmacs>(&self, message: T) -> Result<EmacsVal> {
-        let data = self.list(&mut [message.to_emacs(self)?])?;
-        let symbol = self.intern("error")?;
-        self.signal(symbol, data)
     }
 }
