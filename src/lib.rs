@@ -10,6 +10,7 @@ pub mod new;
 pub mod error;
 pub mod func;
 
+pub use new::Env;
 pub use emacs_gen::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
 pub use hlapi::{destruct, eq, register, ConvErr, ConvResult};
 pub use hlapi::elisp2native as elisp2native;

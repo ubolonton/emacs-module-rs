@@ -27,19 +27,17 @@ impl Func for Env {
 macro_rules! expose_subrs {
     ($($name:ident -> $extern_name:ident;)*) => {
         $(
-            use $crate::error::TriggerExit;
-
             #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn $extern_name(env: *mut EmacsEnv,
+            unsafe extern "C" fn $extern_name(env: *mut $crate::EmacsEnv,
                                               nargs: libc::ptrdiff_t,
-                                              args: *mut EmacsVal,
-                                              data: *mut raw::c_void) -> EmacsVal {
-                let env = Env::from(env);
+                                              args: *mut $crate::EmacsVal,
+                                              data: *mut raw::c_void) -> $crate::EmacsVal {
+                let env = $crate::Env::from(env);
                 // TODO: Check whether Emacs keeps the ownership of these. If it does, we want to
                 // renounce ownership later on without dropping.
-                let mut args = Vec::<EmacsVal>::from_raw_parts(args, nargs as usize, nargs as usize);
+                let mut args = Vec::<$crate::EmacsVal>::from_raw_parts(args, nargs as usize, nargs as usize);
                 let result = $name(&env, &mut args, data);
-                env.maybe_exit(result)
+                $crate::error::TriggerExit::maybe_exit(&env, result)
             }
         )*
     };
