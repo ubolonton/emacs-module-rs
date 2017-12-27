@@ -16,7 +16,10 @@ read -r -d '' expr <<EOF
   (if (featurep $FEATURE)
       (message "Module was loaded successfully!" )
     (message "Module could not be loaded!"))
-  (if (feature $FEATURE)
+
+  (message "%s" (test-module/inc 5))
+
+  (if (featurep $FEATURE)
     (test-module/test))
 )
 EOF

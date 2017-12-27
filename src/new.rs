@@ -22,6 +22,8 @@ pub trait FromEmacs: Sized {
     fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self>;
 }
 
+// TODO: BorrowFromEmacs?
+
 pub struct Env {
     pub(crate) raw: *mut EmacsEnv
 }
@@ -215,6 +217,10 @@ impl Env {
 
     pub fn to_emacs<T: ToEmacs>(&self, value: &T) -> Result<EmacsVal> {
         value.to_emacs(self)
+    }
+
+    pub fn from_emacs<T: FromEmacs>(&self, value: EmacsVal) -> Result<T> {
+        FromEmacs::from_emacs(&self, value)
     }
 
     pub fn is_not_nil(&self, value: EmacsVal) -> Result<bool> {

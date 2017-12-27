@@ -33,10 +33,8 @@ macro_rules! expose_subrs {
                                               args: *mut $crate::EmacsVal,
                                               data: *mut raw::c_void) -> $crate::EmacsVal {
                 let env = $crate::Env::from(env);
-                // TODO: Check whether Emacs keeps the ownership of these. If it does, we want to
-                // renounce ownership later on without dropping.
-                let mut args = Vec::<$crate::EmacsVal>::from_raw_parts(args, nargs as usize, nargs as usize);
-                let result = $name(&env, &mut args, data);
+                let args = &std::slice::from_raw_parts::<$crate::EmacsVal>(args, nargs as usize);
+                let result = $name(&env, args, data);
                 $crate::error::TriggerExit::maybe_exit(&env, result)
             }
         )*

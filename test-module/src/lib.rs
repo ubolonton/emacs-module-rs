@@ -2,15 +2,12 @@ extern crate libc;
 #[macro_use]
 extern crate emacs_module_bindings as emacs;
 
-use emacs::{EmacsVal, EmacsRT, EmacsEnv, ConvResult};
-use emacs::native2elisp as n2e;
-use emacs::elisp2native as e2n;
+use emacs::{EmacsVal, EmacsRT, EmacsEnv};
 use emacs::new::{Env, ToEmacs};
 use emacs::error::{Result, Error};
 use emacs::func::Func;
 use std::os::raw;
 use std::ptr;
-use std::ffi::CString;
 
 /// This states that the module is GPL-compliant.
 /// Emacs won't load the module if this symbol is undefined.
@@ -20,30 +17,12 @@ pub static plugin_is_GPL_compatible: libc::c_int = 0;
 
 const MODULE: &str = "test-module";
 
-fn inc(env: *mut EmacsEnv, num: *mut EmacsVal) -> ConvResult<EmacsVal> {
-    let i = e2n::integer(env, num, 0)?;
-    n2e::integer(env, i + 1)
+fn inc(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+    let i: i64 = env.from_emacs(args[0])?;
+    (i + 1).to_emacs(&env)
 }
 
-fn call(raw: *mut EmacsEnv) -> ConvResult<EmacsVal> {
-    let env = &Env::from(raw);
-    env.call("message", &mut [
-        "Testing %s".to_emacs(env)?,
-        "formatting".to_emacs(env)?,
-    ])?;
-    env.list(&mut [
-        1.to_emacs(env)?,
-        2.to_emacs(env)?,
-    ])?;
-    env.call("xxx", &mut [])?;
-    env.call("+", &mut [
-        "1\0".to_emacs(env)?,
-        2.to_emacs(env)?,
-    ])?;
-    message!(raw, "Here")
-}
-
-fn test(env: &Env, _args: &mut [EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
 //    env.call("message", &mut [
 //        "Testing %s".to_emacs(env)?,
 //        "arithmetic".to_emacs(env)?,
@@ -82,19 +61,9 @@ fn test(env: &Env, _args: &mut [EmacsVal], _data: *mut raw::c_void) -> Result<Em
     ])
 }
 
-emacs_subrs!(
-    f_inc(env, _nargs, args, _data, tag) {
-        message!(env, "{}: {:?}", tag, args)?;
-        inc(env, args)
-    };
-
-    f_call(env, _nargs, args, _data, _tag) {
-        call(env)
-    };
-);
-
 expose_subrs!(
     test -> f_test;
+    inc -> f_inc;
 );
 
 fn init(env: &Env) -> Result<EmacsVal> {
@@ -107,18 +76,12 @@ fn init(env: &Env) -> Result<EmacsVal> {
     )?;
 
     env.fset(
-        &format!("{}/call", MODULE),
-        env.make_function(0, 0, f_call,
-        env.to_cstring("")?.as_ptr(), ptr::null_mut())?
-    )?;
-
-    env.fset(
         &format!("{}/test", MODULE),
         env.make_function(0, 0, f_test,
         env.to_cstring("")?.as_ptr(), ptr::null_mut())?
     )?;
 
-    env.call(&format!("{}/call", MODULE), &mut [])?;
+//    env.call(&format!("{}/call", MODULE), &mut [])?;
 
     env.provide(MODULE)
 }
