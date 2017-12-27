@@ -3,7 +3,7 @@ use new::Env;
 use emacs_gen::{EmacsSubr, EmacsVal};
 use error::Result;
 
-trait Func {
+pub trait Func {
     fn make_function(&self, min_arity: isize, max_arity: isize, function: EmacsSubr, doc: *const i8, data: *mut raw::c_void) -> Result<EmacsVal>;
     fn fset(&self, name: &str, func: EmacsVal) -> Result<EmacsVal>;
 }

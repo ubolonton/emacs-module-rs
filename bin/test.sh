@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
 
-# Load the dynamic module into
+# TODO: Make this into an automated test.
 
 here=`cd $(dirname $BASH_SOURCE); pwd`
 root=`cd $here/..; pwd`
 RS_MODULE=$(find $root -iname '*emacs_rs_module*.dylib' | head -n 1)
 MODULE=$root/target/debug/libtest_module.dylib
+FEATURE="'test-module"
 
 read -r -d '' expr <<EOF
 (progn
   (unless (featurep 'rs-module)
     (module-load "$RS_MODULE"))
   (rs-module/load "$MODULE")
-  (test-module/test)
+  (if (featurep $FEATURE)
+      (message "Module was loaded successfully!" )
+    (message "Module could not be loaded!"))
+  (if (feature $FEATURE)
+    (test-module/test))
 )
 EOF
 

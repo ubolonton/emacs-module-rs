@@ -141,7 +141,7 @@ impl Env {
         self.raw
     }
 
-    fn to_cstring(&self, s: &str) -> Result<CString> {
+    pub fn to_cstring(&self, s: &str) -> Result<CString> {
         let cstring = CString::new(s)?;
         Ok(cstring)
     }
