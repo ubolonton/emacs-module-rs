@@ -37,7 +37,7 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
 //            "Custom error signaled from Rust".to_emacs(env)?
 //        ])?
 //    ))
-    env.to_emacs(&5)?;
+    env.to_emacs(5)?;
     match "1\0a".to_emacs(env) {
         Ok(_) => {
             println!("ok");
@@ -52,6 +52,24 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
             ])?;
         }
     };
+
+    env.call("message", &mut [
+        "(+ 1) -> %s".to_emacs(env)?,
+        env.call("+", &mut [
+            1.to_emacs(env)?
+        ])?
+    ])?;
+
+    // Wrong type argument: symbolp, (throw-)
+    env.call("throw-", &mut [
+//        "How about this?".to_emacs(env)?
+        1.to_emacs(env)?
+    ])?;
+
+    env.call("error", &mut [
+//        "How about this?".to_emacs(env)?
+        1.to_emacs(env)?
+    ])?;
     env.call("+", &mut [
         "1\0".to_emacs(env)?,
         2.to_emacs(env)?,

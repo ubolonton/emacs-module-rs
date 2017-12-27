@@ -10,10 +10,7 @@ pub trait Func {
 
 impl Func for Env {
     fn make_function(&self, min_arity: isize, max_arity: isize, function: EmacsSubr, doc: *const i8, data: *mut raw::c_void) -> Result<EmacsVal> {
-        unsafe {
-            let make_function = (*self.raw).make_function.unwrap();
-            Ok(make_function(self.raw, min_arity, max_arity, Some(function), doc, data))
-        }
+        raw_call!(self, make_function, min_arity, max_arity, Some(function), doc, data)
     }
 
     fn fset(&self, name: &str, func: EmacsVal) -> Result<EmacsVal> {
@@ -32,10 +29,10 @@ macro_rules! expose_subrs {
                                               nargs: libc::ptrdiff_t,
                                               args: *mut $crate::EmacsVal,
                                               data: *mut raw::c_void) -> $crate::EmacsVal {
-                let env = $crate::Env::from(env);
-                let args = &std::slice::from_raw_parts::<$crate::EmacsVal>(args, nargs as usize);
-                let result = $name(&env, args, data);
-                $crate::error::TriggerExit::maybe_exit(&env, result)
+                let env = &$crate::Env::from(env);
+                let args: & [$crate::EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
+                let result = $name(env, args, data);
+                $crate::error::TriggerExit::maybe_exit(env, result)
             }
         )*
     };

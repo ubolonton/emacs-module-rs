@@ -28,13 +28,33 @@ pub struct Env {
     pub(crate) raw: *mut EmacsEnv
 }
 
+// TODO: Consider checking for existence of these upon startup, not on each call.
+macro_rules! raw_fn {
+    ($env:ident, $name:ident) => {
+        // FIX: Sometimes it crashes here with error "incorrect checksum for freed object - object
+        // was probably modified after being freed". Maybe related:
+        // https://github.com/rust-lang/rust/issues/28794
+        (*$env.raw).$name.ok_or($crate::error::Error {
+            kind: $crate::error::ErrorKind::CoreFnMissing(format!("{}", stringify!($name)))
+        })
+    };
+}
+
+macro_rules! raw_call {
+    ($env:ident, $name:ident $(, $args:expr)*) => {
+        {
+            let result = unsafe {
+                let $name = raw_fn!($env, $name)?;
+                $name($env.raw $(, $args)*)
+            };
+            $crate::error::HandleExit::handle_exit($env, result)
+        }
+    };
+}
+
 impl ToEmacs for i64 {
     fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
-        let result = unsafe {
-            let make_integer = (*env.raw).make_integer.unwrap();
-            make_integer(env.raw, *self)
-        };
-        env.handle_exit(result)
+        raw_call!(env, make_integer, *self)
     }
 }
 
@@ -45,12 +65,8 @@ impl ToEmacs for str {
 //        println!("to_emacs {}", self);
         // Rust string may fail to convert to CString. Raise non-local exit in that case.
         let cstring = env.to_cstring(self)?;
-        let result = unsafe {
-            let make_string = (*env.raw).make_string.unwrap();
-            let ptr = cstring.as_ptr();
-            make_string(env.raw, ptr, libc::strlen(ptr) as ptrdiff_t)
-        };
-        env.handle_exit(result)
+        let ptr = cstring.as_ptr();
+        raw_call!(env, make_string, ptr, libc::strlen(ptr) as ptrdiff_t)
     }
 }
 
@@ -78,11 +94,7 @@ impl ToEmacs for [Box<ToEmacs>] {
 
 impl IntoEmacs for i64 {
     fn into_emacs(self, env: &Env) -> Result<EmacsVal> {
-        let result = unsafe {
-            let make_integer = (*env.raw).make_integer.unwrap();
-            make_integer(env.raw, self)
-        };
-        env.handle_exit(result)
+        raw_call!(env, make_integer, self)
     }
 }
 
@@ -96,11 +108,7 @@ impl IntoEmacs for i64 {
 
 impl FromEmacs for i64 {
     fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self> {
-        let result = unsafe {
-            let extract_integer = (*env.raw).extract_integer.unwrap();
-            extract_integer(env.raw, value)
-        };
-        env.handle_exit(result)
+        raw_call!(env, extract_integer, value)
     }
 }
 
@@ -129,7 +137,7 @@ impl From<*mut EmacsEnv> for Env {
 impl From<*mut EmacsRT> for Env {
     fn from(runtime: *mut EmacsRT) -> Env {
         let raw = unsafe {
-            let get_env = (*runtime).get_environment.unwrap();
+            let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
             get_env(runtime)
         };
         Env { raw }
@@ -151,7 +159,7 @@ impl Env {
     fn string_bytes(&self, value: EmacsVal) -> Result<Vec<u8>> {
         let mut len: isize = 0;
         let mut bytes = unsafe {
-            let copy_string_contents = (*self.raw).copy_string_contents.unwrap();
+            let copy_string_contents = raw_fn!(self, copy_string_contents)?;
             let ok = self.handle_exit(copy_string_contents(
                 self.raw, value, ptr::null_mut(), &mut len))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
@@ -176,31 +184,18 @@ impl Env {
 
     // TODO: Return a Symbol.
     pub fn intern(&self, name: &str) -> Result<EmacsVal> {
-        let result = unsafe {
-            let intern = (*self.raw).intern.unwrap();
-            intern(self.raw, self.to_cstring(name)?.as_ptr())
-        };
-        self.handle_exit(result)
+        raw_call!(self, intern, self.to_cstring(name)?.as_ptr())
     }
 
     // TODO: Return a Symbol.
     pub fn type_of(&self, value: EmacsVal) -> Result<EmacsVal> {
-        let result = unsafe {
-            let type_of = (*self.raw).type_of.unwrap();
-            type_of(self.raw, value)
-        };
-        self.handle_exit(result)
+        raw_call!(self, type_of, value)
     }
 
     // TODO: Should there be variants of this that deal with mixtures of types?
     pub fn call(&self, name: &str, args: &mut [EmacsVal]) -> Result<EmacsVal> {
         let symbol = self.intern(name)?;
-//        println!("calling {}", name);
-        let result = unsafe {
-            let funcall = (*self.raw).funcall.unwrap();
-            funcall(self.raw, symbol, args.len() as ptrdiff_t, args.as_mut_ptr())
-        };
-        self.handle_exit(result)
+        raw_call!(self, funcall, symbol, args.len() as ptrdiff_t, args.as_mut_ptr())
     }
 
 //    pub fn call1(&self, name: &str, args: &mut [Box<ToEmacs>]) -> Result<EmacsVal> {
@@ -215,7 +210,7 @@ impl Env {
         Ok(e_args)
     }
 
-    pub fn to_emacs<T: ToEmacs>(&self, value: &T) -> Result<EmacsVal> {
+    pub fn to_emacs<T: ToEmacs>(&self, value: T) -> Result<EmacsVal> {
         value.to_emacs(self)
     }
 
@@ -224,19 +219,11 @@ impl Env {
     }
 
     pub fn is_not_nil(&self, value: EmacsVal) -> Result<bool> {
-        let result = unsafe {
-            let is_not_nil = (*self.raw).is_not_nil.unwrap();
-            is_not_nil(self.raw, value)
-        };
-        self.handle_exit(result)
+        raw_call!(self, is_not_nil, value)
     }
 
     pub fn eq(&self, a: EmacsVal, b: EmacsVal) -> Result<bool> {
-        let result = unsafe {
-            let eq = (*self.raw).eq.unwrap();
-            eq(self.raw, a, b)
-        };
-        self.handle_exit(result)
+        raw_call!(self, eq, a, b)
     }
 
     pub fn list(&self, args: &mut [EmacsVal]) -> Result<EmacsVal> {

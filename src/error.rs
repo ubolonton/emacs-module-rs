@@ -26,6 +26,7 @@ pub enum ErrorKind {
     Throw { tag: EmacsVal, value: EmacsVal },
     IO { error: io::Error },
     Other { error: Box<error::Error+Send> },
+    CoreFnMissing(String),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -62,37 +63,46 @@ pub(crate) trait HandleExit {
     fn handle_exit<T>(&self, result: T) -> Result<T>;
 }
 
+/// Note: Some functions in emacs-module.h are critically important, like those that support error
+/// reporting to Emacs. If they are missing, the only sensible thing to do is crashing. Use this
+/// macro to call them instead of [`raw_call!`].
+macro_rules! critical {
+    ($env:ident, $name:ident $(, $args:expr)*) => {
+        unsafe {
+            let $name = raw_fn!($env, $name)
+                .expect(&format!("Required function {} cannot be found", stringify!($name)));
+            $name($env.raw $(, $args)*)
+        }
+    };
+}
+
 fn non_local_exit_get(env: &Env) -> (FuncallExit, EmacsVal, EmacsVal) {
     let symbol = Vec::<EmacsVal>::with_capacity(1).as_mut_ptr();
     let data = Vec::<EmacsVal>::with_capacity(1).as_mut_ptr();
+    let result = critical!(env, non_local_exit_get, symbol, data);
     unsafe {
-        let get = (*env.raw).non_local_exit_get.unwrap();
-        let result = get(env.raw, symbol, data);
         (result, *symbol, *data)
     }
 }
 
-fn non_local_exit_clear(env: &Env) -> Result<()> {
-    unsafe {
-        let clear = (*env.raw).non_local_exit_clear.unwrap();
-        clear(env.raw)
-    }
-    Ok(())
+fn non_local_exit_clear(env: &Env) {
+    critical!(env, non_local_exit_clear)
 }
 
 impl HandleExit for Env {
     fn handle_exit<T>(&self, result: T) -> Result<T> {
-//        println!("handling exit");
         match non_local_exit_get(self) {
             (RETURN, ..) => Ok(result),
             (SIGNAL, symbol, data) => {
-                println!("signaled");
-                non_local_exit_clear(self)?;
+                // TODO: Shouldn't we call make_global_ref here to make sure symbol and data are
+                // not GC'ed? Maybe in a wrapper type that calls free_global_ref when dropped.
+                // The only issue is that free_global_ref requires emacs_env (even though it
+                // doesn't currently use that).
+                non_local_exit_clear(self);
                 Err(Error::signal(symbol, data))
             },
             (THROW, tag, value) => {
-                println!("thrown");
-                non_local_exit_clear(self)?;
+                non_local_exit_clear(self);
                 Err(Error::throw(tag, value))
             },
             // TODO: Don't panic here, use a custom error.
@@ -108,21 +118,12 @@ pub trait TriggerExit {
 }
 
 fn throw(env: &Env, tag: EmacsVal, value: EmacsVal) -> EmacsVal {
-    unsafe {
-        let exit = (*env.raw).non_local_exit_throw.unwrap();
-        exit(env.raw, tag, value);
-    }
+    critical!(env, non_local_exit_throw, tag, value);
     tag
 }
 
 fn signal(env: &Env, symbol: EmacsVal, data: EmacsVal) -> EmacsVal {
-    unsafe {
-        // Note: If this function is missing, there is no way to report error to Emacs. The only
-        // sensible thing to do is crashing. Therefore unwrap() is used. Other places should use
-        // "function-missing" error.
-        let exit = (*env.raw).non_local_exit_signal.unwrap();
-        exit(env.raw, symbol, data);
-    }
+    critical!(env, non_local_exit_signal, symbol, data);
     symbol
 }
 
@@ -139,12 +140,19 @@ impl TriggerExit for Env {
     fn maybe_exit(&self, result: Result<EmacsVal>) -> EmacsVal {
         match result {
             Ok(v) => v,
-            Err(e) => {
-                match e.kind {
+            Err(normal_error) => {
+                match normal_error.kind {
                     ErrorKind::Signal { symbol, data } => signal(self, symbol, data),
                     ErrorKind::Throw { tag, value } => throw(self, tag, value),
-                    // XXX: Custom error instead of panicking.
-                    _ => error(self, "Hmm").unwrap(),
+                    // TODO: Better formatting.
+                    other_error => match error(self, &format!("Error: {:#?}", other_error)) {
+                        Ok(v) => v,
+                        // XXX: Custom error instead of panicking.
+                        Err(fail_to_error) => {
+                            error(self, "Undisplayable error")
+                                .expect("Fail to signal error to Emacs")
+                        }
+                    },
                 }
             }
         }

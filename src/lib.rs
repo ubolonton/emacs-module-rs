@@ -6,6 +6,7 @@ extern crate regex;
 mod emacs_gen;
 // pub mod env;
 pub mod hlapi;
+#[macro_use]
 pub mod new;
 pub mod error;
 pub mod func;

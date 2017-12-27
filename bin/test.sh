@@ -12,7 +12,8 @@ read -r -d '' expr <<EOF
 (progn
   (unless (featurep 'rs-module)
     (module-load "$RS_MODULE"))
-  (rs-module/load "$MODULE")
+  ;(rs-module/load "$MODULE")
+  (module-load "$MODULE")
   (if (featurep $FEATURE)
       (message "Module was loaded successfully!" )
     (message "Module could not be loaded!"))
