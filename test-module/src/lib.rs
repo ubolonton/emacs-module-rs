@@ -53,6 +53,20 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
         }
     };
 
+    println!("Start");
+    let range = std::ops::Range { start: 0, end: 2usize.pow(22) };
+    for i in range {
+        println!("{}", i);
+        let result = env.call("/", &mut[
+            1.to_emacs(env)?,
+            0.to_emacs(env)?,
+        ]);
+        match result {
+            _ => continue
+        }
+    }
+    println!("Stop");
+
     env.call("message", &mut [
         "(+ 1) -> %s".to_emacs(env)?,
         env.call("+", &mut [

@@ -31,9 +31,6 @@ pub struct Env {
 // TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
     ($env:ident, $name:ident) => {
-        // FIX: Sometimes it crashes here with error "incorrect checksum for freed object - object
-        // was probably modified after being freed". Maybe related:
-        // https://github.com/rust-lang/rust/issues/28794
         (*$env.raw).$name.ok_or($crate::error::Error {
             kind: $crate::error::ErrorKind::CoreFnMissing(format!("{}", stringify!($name)))
         })

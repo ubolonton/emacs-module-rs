@@ -77,8 +77,9 @@ macro_rules! critical {
 }
 
 fn non_local_exit_get(env: &Env) -> (FuncallExit, EmacsVal, EmacsVal) {
-    let symbol = Vec::<EmacsVal>::with_capacity(1).as_mut_ptr();
-    let data = Vec::<EmacsVal>::with_capacity(1).as_mut_ptr();
+    let mut buffer = Vec::<EmacsVal>::with_capacity(2);
+    let symbol = buffer.as_mut_ptr();
+    let data = unsafe { symbol.offset(1) };
     let result = critical!(env, non_local_exit_get, symbol, data);
     unsafe {
         (result, *symbol, *data)
