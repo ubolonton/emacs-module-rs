@@ -3,7 +3,7 @@ extern crate libc;
 extern crate emacs_module_bindings as emacs;
 
 use emacs::{EmacsVal, EmacsRT, EmacsEnv};
-use emacs::new::{Env, ToEmacs};
+use emacs::{Env, ToEmacs};
 use emacs::error::{Result, Error};
 use emacs::func::Func;
 use std::os::raw;

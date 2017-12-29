@@ -1,108 +1,223 @@
 extern crate libc;
 extern crate regex;
-#[macro_use] extern crate lazy_static;
-//#[macro_use] extern crate error_chain;
+
+use std::ffi::CString;
+use libc::ptrdiff_t;
+use std::ptr;
+use error::{Result, HandleExit};
 
 mod emacs_gen;
-// pub mod env;
-pub mod hlapi;
 #[macro_use]
-pub mod new;
-pub mod error;
 pub mod func;
+pub mod error;
 
-pub use new::Env;
 pub use emacs_gen::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
-pub use hlapi::{destruct, eq, register, ConvErr, ConvResult};
-pub use hlapi::elisp2native as elisp2native;
-pub use hlapi::native2elisp as native2elisp;
-use std::ffi::CString;
 
-pub fn find_function(env: *mut EmacsEnv, name: &str) -> EmacsVal {
-    unsafe {
-        let intern = (*env).intern.unwrap();
-        intern(env, CString::new(name).unwrap().as_ptr())
+// TODO: How about IntoEmacs (which may include EmacsVal itself)?
+pub trait ToEmacs {
+    fn to_emacs(&self, env: &Env) -> Result<EmacsVal>;
+}
+
+pub trait IntoEmacs {
+    fn into_emacs(self, env: &Env) -> Result<EmacsVal>;
+}
+
+// Technically this is CloneFromEmacs?
+pub trait FromEmacs: Sized {
+    fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self>;
+}
+
+// TODO: BorrowFromEmacs?
+
+pub struct Env {
+    pub(crate) raw: *mut EmacsEnv
+}
+
+impl ToEmacs for i64 {
+    fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
+        raw_call!(env, make_integer, *self)
     }
 }
 
-pub fn make_function(env: *mut EmacsEnv,
-                                min_args: i64,
-                                max_args: i64,
-                                f: Option<EmacsSubr>,
-                                doc: &str,
-                                user_ptr: *mut libc::c_void) -> EmacsVal {
-    let doc = CString::new(doc).unwrap().as_ptr();
-    unsafe {
-        let make_function = (*env).make_function.unwrap();
-        make_function(env, min_args as isize, max_args as isize, f, doc,
-                      user_ptr as *mut std::os::raw::c_void)
+// TODO: Make this more elegant. Can't implement it for trait bound Into<Vec<u8>>, since that would
+// complain about conflicting implementations for i64.
+impl ToEmacs for str {
+    fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
+//        println!("to_emacs {}", self);
+        // Rust string may fail to convert to CString. Raise non-local exit in that case.
+        let cstring = env.to_cstring(self)?;
+        let ptr = cstring.as_ptr();
+        raw_call!(env, make_string, ptr, libc::strlen(ptr) as ptrdiff_t)
     }
 }
 
-pub fn make_emacs_string<S>(env: *mut EmacsEnv, string: S)
-                                       -> EmacsVal where S: Into<Vec<u8>> {
-    let c_string = CString::new(string).unwrap().as_ptr();
-    unsafe {
-        let strlen = libc::strlen(c_string) as isize;
-        let make_string = (*env).make_string.unwrap();
-        make_string(env, c_string, strlen)
+impl ToEmacs for String {
+    fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
+        self.as_str().to_emacs(env)
     }
 }
 
-pub fn get_environment(ert: *mut EmacsRT) -> *mut EmacsEnv {
-    unsafe {
-        let get_env = (*ert).get_environment.unwrap();
-        get_env(ert)
+impl ToEmacs for [Box<ToEmacs>] {
+    fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
+        let args = &mut env.to_emacs_args(self)?;
+        env.list(args)
     }
 }
 
-pub fn intern_symbol(env: *mut EmacsEnv, name: String) -> EmacsVal {
-    unsafe {
-        let intern = (*env).intern.unwrap();
-        intern(env, CString::new(name).unwrap().as_ptr())
+// XXX: Doesn't work, possibly because of blanket implementations of Into. See
+// https://github.com/rust-lang/rust/issues/30191 and
+// https://github.com/rust-lang/rust/issues/19032.
+//impl <T> ToEmacs for T where Vec<u8>: From<T> {
+//    fn into_emacs(self, env: &Env) -> Result<EmacsVal> {
+//        unimplemented!()
+//    }
+//}
+
+impl IntoEmacs for i64 {
+    fn into_emacs(self, env: &Env) -> Result<EmacsVal> {
+        raw_call!(env, make_integer, self)
     }
 }
 
-pub fn bind_function(env: *mut EmacsEnv,
-                                name: String,
-                                sfun: EmacsVal) {
-    let qfset = find_function(env, "fset");
-    let qsym = intern_symbol(env, name);
-    let args = [qsym, sfun].as_mut_ptr();
-    unsafe {
-        let funcall = (*env).funcall.unwrap();
-        funcall(env, qfset, 2, args)
-    };
-}
+// XXX: Cannot do this. Box instances must contain sized types.
+// Maybe related: https://github.com/rust-lang/rust/issues/27779.
+//impl IntoEmacs for [Box<IntoEmacs>] {
+//    fn into_emacs(self, env: &Env) -> Result<EmacsVal> {
+//        unimplemented!()
+//    }
+//}
 
-pub fn provide(env: *mut EmacsEnv, feature: String) {
-    let feat = unsafe {
-        let intern = (*env).intern.unwrap();
-        intern (env, CString::new(feature).unwrap().as_ptr())
-    };
-    let provide = find_function(env, "provide");
-    let args = [feat].as_mut_ptr();
-    unsafe {
-        let funcall = (*env).funcall.unwrap();
-        funcall(env, provide, 1, args)
-    };
-}
-
-
-pub fn get_buffer(env: *mut EmacsEnv, buffer: String) -> EmacsVal {
-    let get_buffer = find_function(env, "get-buffer");
-    let args = [make_emacs_string(env, buffer)].as_mut_ptr();
-    unsafe {
-        let funcall = (*env).funcall.unwrap();
-        funcall(env, get_buffer, 1, args)
+impl FromEmacs for i64 {
+    fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self> {
+        raw_call!(env, extract_integer, value)
     }
 }
 
-pub fn call(env: *mut EmacsEnv, fn_name: &str, args: &mut [EmacsVal])
-                       -> EmacsVal {
-    let callee = find_function(env,  fn_name);
-    unsafe {
-        let funcall = (*env).funcall.unwrap();
-        funcall(env, callee, args.len() as isize, args.as_mut_ptr())
+fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
+    let mut len = bytes.len();
+    while len > 0 && bytes[len - 1] == 0 {
+        bytes.pop(); // strip trailing 0-byte(s)
+        len -= 1;
+    }
+}
+
+impl FromEmacs for String {
+    fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self> {
+        let bytes = env.string_bytes(value)?;
+        // FIX
+        Ok(String::from_utf8(bytes).unwrap())
+    }
+}
+
+impl From<*mut EmacsEnv> for Env {
+    fn from(raw: *mut EmacsEnv) -> Env {
+        Env { raw }
+    }
+}
+
+impl From<*mut EmacsRT> for Env {
+    fn from(runtime: *mut EmacsRT) -> Env {
+        let raw = unsafe {
+            let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
+            get_env(runtime)
+        };
+        Env { raw }
+    }
+}
+
+pub type Func = fn(env: Env, args: &mut [EmacsVal], data: *mut libc::c_void) -> Result<EmacsVal>;
+
+impl Env {
+    pub fn raw(&self) -> *mut EmacsEnv {
+        self.raw
+    }
+
+    pub fn to_cstring(&self, s: &str) -> Result<CString> {
+        let cstring = CString::new(s)?;
+        Ok(cstring)
+    }
+
+    fn string_bytes(&self, value: EmacsVal) -> Result<Vec<u8>> {
+        let mut len: isize = 0;
+        let mut bytes = unsafe {
+            let copy_string_contents = raw_fn!(self, copy_string_contents)?;
+            let ok = self.handle_exit(copy_string_contents(
+                self.raw, value, ptr::null_mut(), &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to give string's length but did not raise a signal");
+            }
+
+            let mut bytes = Vec::<u8>::with_capacity(len as usize);
+            let ok = self.handle_exit(copy_string_contents(
+                self.raw, value, bytes.as_mut_ptr() as *mut i8, &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to copy string but did not raise a signal");
+            }
+            bytes
+        };
+        strip_trailing_zero_bytes(&mut bytes);
+        Ok(bytes)
+    }
+
+    // TODO: Return a Symbol.
+    pub fn intern(&self, name: &str) -> Result<EmacsVal> {
+        raw_call!(self, intern, self.to_cstring(name)?.as_ptr())
+    }
+
+    // TODO: Return a Symbol.
+    pub fn type_of(&self, value: EmacsVal) -> Result<EmacsVal> {
+        raw_call!(self, type_of, value)
+    }
+
+    // TODO: Should there be variants of this that deal with mixtures of types?
+    pub fn call(&self, name: &str, args: &mut [EmacsVal]) -> Result<EmacsVal> {
+        let symbol = self.intern(name)?;
+        raw_call!(self, funcall, symbol, args.len() as ptrdiff_t, args.as_mut_ptr())
+    }
+
+//    pub fn call1(&self, name: &str, args: &mut [Box<ToEmacs>]) -> Result<EmacsVal> {
+//        self.call(name,&mut self.to_emacs_args(args)?)
+//    }
+
+    fn to_emacs_args(&self, args: &[Box<ToEmacs>]) -> Result<Vec<EmacsVal>> {
+        let mut e_args: Vec<EmacsVal> = Vec::with_capacity(args.len());
+        for value in args.iter() {
+            e_args.push(value.to_emacs(self)?);
+        }
+        Ok(e_args)
+    }
+
+    pub fn to_emacs<T: ToEmacs>(&self, value: T) -> Result<EmacsVal> {
+        value.to_emacs(self)
+    }
+
+    pub fn from_emacs<T: FromEmacs>(&self, value: EmacsVal) -> Result<T> {
+        FromEmacs::from_emacs(&self, value)
+    }
+
+    pub fn is_not_nil(&self, value: EmacsVal) -> Result<bool> {
+        raw_call!(self, is_not_nil, value)
+    }
+
+    pub fn eq(&self, a: EmacsVal, b: EmacsVal) -> Result<bool> {
+        raw_call!(self, eq, a, b)
+    }
+
+    pub fn list(&self, args: &mut [EmacsVal]) -> Result<EmacsVal> {
+        self.call("list", args)
+    }
+
+    pub fn provide(&self, name: &str) -> Result<EmacsVal> {
+        self.call("provide", &mut [self.intern(name)?])
+    }
+
+    pub fn message(&self, text: &str) -> Result<EmacsVal> {
+        self.call("message", &mut [
+            text.to_emacs(self)?
+        ])
     }
 }

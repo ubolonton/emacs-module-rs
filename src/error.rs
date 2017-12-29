@@ -3,7 +3,7 @@ use std::error;
 use std::io;
 use std::ffi::NulError;
 use emacs_gen::*;
-use new::{Env, ToEmacs};
+use {Env, ToEmacs};
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
@@ -149,7 +149,7 @@ impl TriggerExit for Env {
                     other_error => match error(self, &format!("Error: {:#?}", other_error)) {
                         Ok(v) => v,
                         // XXX: Custom error instead of panicking.
-                        Err(fail_to_error) => {
+                        Err(_fail_to_error) => {
                             error(self, "Undisplayable error")
                                 .expect("Fail to signal error to Emacs")
                         }

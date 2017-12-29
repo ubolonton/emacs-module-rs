@@ -1,7 +1,28 @@
 use std::os::raw;
-use new::Env;
+use Env;
 use emacs_gen::{EmacsSubr, EmacsVal};
 use error::Result;
+
+// TODO: Consider checking for existence of these upon startup, not on each call.
+macro_rules! raw_fn {
+    ($env:ident, $name:ident) => {
+        (*$env.raw).$name.ok_or($crate::error::Error {
+            kind: $crate::error::ErrorKind::CoreFnMissing(format!("{}", stringify!($name)))
+        })
+    };
+}
+
+macro_rules! raw_call {
+    ($env:ident, $name:ident $(, $args:expr)*) => {
+        {
+            let result = unsafe {
+                let $name = raw_fn!($env, $name)?;
+                $name($env.raw $(, $args)*)
+            };
+            $crate::error::HandleExit::handle_exit($env, result)
+        }
+    };
+}
 
 pub trait Func {
     fn make_function(&self, min_arity: isize, max_arity: isize, function: EmacsSubr, doc: *const i8, data: *mut raw::c_void) -> Result<EmacsVal>;
