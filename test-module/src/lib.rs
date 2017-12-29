@@ -4,7 +4,7 @@ extern crate emacs_module_bindings as emacs;
 
 use emacs::{EmacsVal, EmacsRT, EmacsEnv};
 use emacs::{Env, ToEmacs};
-use emacs::error::{Result, Error};
+use emacs::error::Result;
 use emacs::func::Func;
 use std::os::raw;
 use std::ptr;
@@ -19,24 +19,17 @@ const MODULE: &str = "test-module";
 
 fn inc(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
     let i: i64 = env.from_emacs(args[0])?;
-    (i + 1).to_emacs(&env)
+    (i + 1).to_emacs(env)
+}
+
+fn calling_error(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+    env.call("/", &mut [
+        1.to_emacs(env)?,
+        0.to_emacs(env)?,
+    ])
 }
 
 fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
-//    env.call("message", &mut [
-//        "Testing %s".to_emacs(env)?,
-//        "arithmetic".to_emacs(env)?,
-//    ])?;
-//    env.list(&mut [
-//        1.to_emacs(env)?,
-//        2.to_emacs(env)?,
-//    ])?;
-//    Err(Error::signal(
-//        env.intern("error")?,
-//        env.list(&mut [
-//            "Custom error signaled from Rust".to_emacs(env)?
-//        ])?
-//    ))
     env.to_emacs(5)?;
     match "1\0a".to_emacs(env) {
         Ok(_) => {
@@ -96,21 +89,26 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
 expose_subrs!(
     test -> f_test;
     inc -> f_inc;
+    calling_error -> f_calling_error;
 );
 
 fn init(env: &Env) -> Result<EmacsVal> {
     env.message("Hello, Emacs!")?;
 
-    let doc = env.to_cstring("This is a unicode doc string, from Nguyễn Tuấn Anh!")?;
-    env.fset(
-        &format!("{}/inc", MODULE),
-        env.make_function(1, 1, f_inc, doc.as_ptr(), ptr::null_mut())?
+    // let doc = env.to_cstring("This is a unicode doc string, from Nguyễn Tuấn Anh!")?;
+    env.register(
+        &format!("{}/inc", MODULE), f_inc, 1, 1,
+        "This is a unicode doc string, from Nguyễn Tuấn Anh!", ptr::null_mut()
     )?;
 
-    env.fset(
-        &format!("{}/test", MODULE),
-        env.make_function(0, 0, f_test,
-        env.to_cstring("")?.as_ptr(), ptr::null_mut())?
+    env.register(
+        &format!("{}/test", MODULE), f_test, 0, 0,
+        "", ptr::null_mut()
+    )?;
+
+    env.register(
+        &format!("{}/calling-error", MODULE), f_calling_error, 0, 0,
+        "", ptr::null_mut()
     )?;
 
 //    env.call(&format!("{}/call", MODULE), &mut [])?;
