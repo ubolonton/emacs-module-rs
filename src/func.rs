@@ -56,7 +56,7 @@ impl HandleFunc for Env {
 }
 
 #[macro_export]
-macro_rules! expose_subrs {
+macro_rules! emacs_subrs {
     ($($name:ident -> $extern_name:ident;)*) => {
         $(
             #[allow(non_snake_case, unused_variables)]

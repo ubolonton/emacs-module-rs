@@ -76,7 +76,7 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
     ])
 }
 
-expose_subrs! {
+emacs_subrs! {
     test -> f_test;
 }
 
@@ -114,14 +114,12 @@ fn init(env: &Env) -> Result<EmacsVal> {
                 let i: i64 = env.from_emacs(args[0])?;
                 (i - 1).to_emacs(env)
             }
-            expose_subrs! {
+            emacs_subrs! {
                 dec -> f_dec;
             }
             env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
         }
     }
-
-//    env.call(&format!("{}/call", MODULE), &mut [])?;
 
     env.provide(MODULE)
 }
