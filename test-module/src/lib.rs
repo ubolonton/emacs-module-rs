@@ -2,6 +2,9 @@ extern crate libc;
 #[macro_use]
 extern crate emacs_module_bindings as emacs;
 
+#[macro_use]
+mod macros;
+
 use emacs::{EmacsVal, EmacsRT, EmacsEnv};
 use emacs::{Env, ToEmacs};
 use emacs::error::Result;
@@ -86,28 +89,30 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
     ])
 }
 
-expose_subrs!(
+expose_subrs! {
     test -> f_test;
     inc -> f_inc;
     calling_error -> f_calling_error;
-);
+}
 
 fn init(env: &Env) -> Result<EmacsVal> {
+    prefix!(name, MODULE);
+
     env.message("Hello, Emacs!")?;
 
     // let doc = env.to_cstring("This is a unicode doc string, from Nguyễn Tuấn Anh!")?;
     env.register(
-        &format!("{}/inc", MODULE), f_inc, 1, 1,
-        "This is a unicode doc string, from Nguyễn Tuấn Anh!", ptr::null_mut()
+        name!(inc), f_inc, 1, 1,
+        "This is a unicode doc string!", ptr::null_mut()
     )?;
 
     env.register(
-        &format!("{}/test", MODULE), f_test, 0, 0,
+        name!(test), f_test, 0, 0,
         "", ptr::null_mut()
     )?;
 
     env.register(
-        &format!("{}/calling-error", MODULE), f_calling_error, 0, 0,
+        name!("calling-error"), f_calling_error, 0, 0,
         "", ptr::null_mut()
     )?;
 

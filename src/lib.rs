@@ -29,6 +29,7 @@ pub trait FromEmacs: Sized {
 
 // TODO: BorrowFromEmacs?
 
+// TODO: Do we need this? How about using an existing type, like Box<EmacsEnv>?
 pub struct Env {
     pub(crate) raw: *mut EmacsEnv
 }
