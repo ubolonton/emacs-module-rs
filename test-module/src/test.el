@@ -1,5 +1,6 @@
 (ert-deftest inc ()
   (should (= (test-module/inc 3) 4))
+  (should (equal (documentation 'test-module/inc) "1+"))
 
   (should-error (test-module/inc "3") :type 'wrong-type-argument)
   (should-error (test-module/inc nil) :type 'wrong-type-argument)
@@ -17,3 +18,11 @@
 
 (ert-deftest identity ()
   (should (equal (test-module/identity "x") "x")))
+
+(ert-deftest create-function ()
+  (let ((dec (test-module/make-dec)))
+    (should (= (funcall dec 9) 8))
+    (should (equal (documentation dec) "decrement"))
+    ;; (should-error (func-call dec) :type 'wrong-number-of-arguments)
+
+    ))

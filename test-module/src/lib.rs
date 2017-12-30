@@ -93,7 +93,7 @@ fn init(env: &Env) -> Result<EmacsVal> {
     defuns! {
         env, MODULE;
 
-        inc, "+1", (env, x) {
+        inc, "1+", (env, x) {
             let i: i64 = env.from_emacs(x)?;
             (i + 1).to_emacs(env)
         }
@@ -107,6 +107,17 @@ fn init(env: &Env) -> Result<EmacsVal> {
                 1.to_emacs(env)?,
                 0.to_emacs(env)?,
             ])
+        }
+
+        "make-dec", "", (env) {
+            fn dec(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+                let i: i64 = env.from_emacs(args[0])?;
+                (i - 1).to_emacs(env)
+            }
+            expose_subrs! {
+                dec -> f_dec;
+            }
+            env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
         }
     }
 
