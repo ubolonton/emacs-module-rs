@@ -50,7 +50,7 @@ macro_rules! make_prefix {
 /// repeat an expression containing no syntax variables matched as repeating at this depth".)
 ///
 /// ```
-/// using!(defuns, env);
+/// using!(defuns, env, "my-module/");
 /// defuns! {
 ///     "foo", "foo doc" -> (env, x) { unimplemented() };
 ///     "bar", "bar doc" -> (env, x, y) { unimplemented() };
@@ -61,6 +61,7 @@ macro_rules! make_prefix {
 /// - Support custom data `*mut raw::c_void`.
 /// - Support automatic conversion of arguments .
 /// - Support automatic conversion of return value.
+/// - Support optional args.
 macro_rules! defuns {
     ($env_var:expr, $prefix:expr; $($name:tt, $doc:expr, ($env:ident $(, $arg:ident)*) $body:expr)*) => {
         make_prefix!(emacs_prefix, $prefix);
@@ -91,8 +92,8 @@ macro_rules! defuns {
                 $body
             }
 
-            let nargs = (count_tts!($($arg)*)) as isize;
-            $env_var.register(emacs_prefix!($name), extern_name, nargs, nargs, $doc, std::ptr::null_mut())?;
+            let nargs = count_tts!($($arg)*);
+            $env_var.register(emacs_prefix!($name), extern_name, nargs..nargs, $doc, std::ptr::null_mut())?;
         })*
     };
 }

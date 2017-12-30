@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::os::raw;
 use Env;
 use emacs_gen::{EmacsSubr, EmacsVal};
@@ -24,15 +25,21 @@ macro_rules! raw_call {
     };
 }
 
+// TODO: Enable creating a Lisp function from a Rust fn. That probably requires procedural macros,
+// macro_rules! is inadequate.
 pub trait HandleFunc {
-    fn make_function(&self, min_arity: isize, max_arity: isize, function: EmacsSubr, doc: *const i8, data: *mut raw::c_void) -> Result<EmacsVal>;
+    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal>;
     fn fset(&self, name: &str, func: EmacsVal) -> Result<EmacsVal>;
-    fn register(&self, name: &str, function: EmacsSubr, min_arity: isize, max_arity: isize, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal>;
+    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal>;
 }
 
 impl HandleFunc for Env {
-    fn make_function(&self, min_arity: isize, max_arity: isize, function: EmacsSubr, doc: *const i8, data: *mut raw::c_void) -> Result<EmacsVal> {
-        raw_call!(self, make_function, min_arity, max_arity, Some(function), doc, data)
+    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal> {
+        raw_call!(
+            self, make_function,
+            arities.start as isize, arities.end as isize,
+            Some(function), self.to_cstring(doc)?.as_ptr(), data
+        )
     }
 
     fn fset(&self, name: &str, func: EmacsVal) -> Result<EmacsVal> {
@@ -41,12 +48,9 @@ impl HandleFunc for Env {
         ])
     }
 
-    fn register(&self, name: &str, function: EmacsSubr, min_arity: isize, max_arity: isize, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal> {
+    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal> {
         self.fset(
-            name, self.make_function(
-                min_arity, max_arity, function,
-                self.to_cstring(doc)?.as_ptr(), data
-            )?
+            name, self.make_function(function, arities, doc, data)?
         )
     }
 }

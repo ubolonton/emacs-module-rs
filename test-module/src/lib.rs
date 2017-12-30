@@ -86,7 +86,7 @@ fn init(env: &Env) -> Result<EmacsVal> {
     env.message("Hello, Emacs!")?;
 
     env.register(
-        prefix!(test), f_test, 0, 0,
+        prefix!(test), f_test, 0..0,
         "", ptr::null_mut()
     )?;
 
