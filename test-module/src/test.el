@@ -10,3 +10,10 @@
 
 (ert-deftest propagate-errors ()
   (should-error (test-module/calling-error) :type 'arith-error))
+
+(ert-deftest identity-eq ()
+  :expected-result :failed
+  (should (eq (test-module/identity "x") "x")))
+
+(ert-deftest identity ()
+  (should (equal (test-module/identity "x") "x")))

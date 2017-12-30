@@ -20,11 +20,6 @@ pub static plugin_is_GPL_compatible: libc::c_int = 0;
 
 const MODULE: &str = "test-module";
 
-fn inc(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
-    let i: i64 = env.from_emacs(args[0])?;
-    (i + 1).to_emacs(env)
-}
-
 fn calling_error(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
     env.call("/", &mut [
         1.to_emacs(env)?,
@@ -91,7 +86,6 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
 
 expose_subrs! {
     test -> f_test;
-    inc -> f_inc;
     calling_error -> f_calling_error;
 }
 
@@ -99,12 +93,6 @@ fn init(env: &Env) -> Result<EmacsVal> {
     prefix!(name, MODULE);
 
     env.message("Hello, Emacs!")?;
-
-    // let doc = env.to_cstring("This is a unicode doc string, from Nguyễn Tuấn Anh!")?;
-    env.register(
-        name!(inc), f_inc, 1, 1,
-        "This is a unicode doc string!", ptr::null_mut()
-    )?;
 
     env.register(
         name!(test), f_test, 0, 0,
@@ -115,6 +103,19 @@ fn init(env: &Env) -> Result<EmacsVal> {
         name!("calling-error"), f_calling_error, 0, 0,
         "", ptr::null_mut()
     )?;
+
+    defuns! {
+        env;
+
+        name!(inc), "+1", (env, x) {
+            let i: i64 = env.from_emacs(x)?;
+            (i + 1).to_emacs(env)
+        }
+
+        name!("identity"), "not even doing any conversion", (_env, x) {
+            Ok(x)
+        }
+    }
 
 //    env.call(&format!("{}/call", MODULE), &mut [])?;
 
