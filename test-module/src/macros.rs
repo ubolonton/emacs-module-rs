@@ -63,23 +63,26 @@ macro_rules! defuns {
     ($env_var:expr; $($name:expr, $doc:expr, ($env:ident $(, $arg:ident)*) $body:expr)*) => {
         $({
             extern crate emacs_module_bindings as emacs;
+            use emacs::{EmacsEnv, EmacsVal};
+            use emacs::{Env, Result};
+            use emacs::error::TriggerExit;
 
             #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn extern_name(env: *mut emacs::EmacsEnv,
+            unsafe extern "C" fn extern_name(env: *mut EmacsEnv,
                                              nargs: libc::ptrdiff_t,
-                                             args: *mut emacs::EmacsVal,
-                                             _data: *mut raw::c_void) -> emacs::EmacsVal {
-                let env = &emacs::Env::from(env);
-                let args: &[emacs::EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
+                                             args: *mut EmacsVal,
+                                             _data: *mut raw::c_void) -> EmacsVal {
+                let env = &Env::from(env);
+                let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
                 let mut iter = args.iter();
                 // XXX: .unwrap()
                 // XXX: .clone()
                 $(let $arg = iter.next().unwrap().clone();)*
                 let result = intern_name(env $(, $arg)*);
-                emacs::error::TriggerExit::maybe_exit(env, result)
+                env.maybe_exit(result)
             }
 
-            fn intern_name($env: &emacs::Env $(, $arg: EmacsVal)*) -> emacs::error::Result<emacs::EmacsVal> {
+            fn intern_name($env: &Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
                 $body
             }
 

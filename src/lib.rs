@@ -4,7 +4,7 @@ extern crate regex;
 use std::ffi::CString;
 use libc::ptrdiff_t;
 use std::ptr;
-use error::{Result, HandleExit};
+use error::HandleExit;
 
 mod emacs_gen;
 #[macro_use]
@@ -12,6 +12,8 @@ pub mod func;
 pub mod error;
 
 pub use emacs_gen::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
+pub use error::{Result, Error};
+pub use func::HandleFunc;
 
 // TODO: How about IntoEmacs (which may include EmacsVal itself)?
 pub trait ToEmacs {
@@ -126,7 +128,7 @@ impl From<*mut EmacsRT> for Env {
     }
 }
 
-pub type Func = fn(env: Env, args: &mut [EmacsVal], data: *mut libc::c_void) -> Result<EmacsVal>;
+pub type Func = fn(env: &Env, args: &[EmacsVal], data: *mut libc::c_void) -> Result<EmacsVal>;
 
 impl Env {
     pub fn raw(&self) -> *mut EmacsEnv {

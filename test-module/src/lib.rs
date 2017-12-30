@@ -6,9 +6,8 @@ extern crate emacs_module_bindings as emacs;
 mod macros;
 
 use emacs::{EmacsVal, EmacsRT, EmacsEnv};
-use emacs::{Env, ToEmacs};
-use emacs::error::Result;
-use emacs::func::Func;
+use emacs::{Env, ToEmacs, Result};
+use emacs::HandleFunc;
 use std::os::raw;
 use std::ptr;
 

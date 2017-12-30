@@ -24,13 +24,13 @@ macro_rules! raw_call {
     };
 }
 
-pub trait Func {
+pub trait HandleFunc {
     fn make_function(&self, min_arity: isize, max_arity: isize, function: EmacsSubr, doc: *const i8, data: *mut raw::c_void) -> Result<EmacsVal>;
     fn fset(&self, name: &str, func: EmacsVal) -> Result<EmacsVal>;
     fn register(&self, name: &str, function: EmacsSubr, min_arity: isize, max_arity: isize, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal>;
 }
 
-impl Func for Env {
+impl HandleFunc for Env {
     fn make_function(&self, min_arity: isize, max_arity: isize, function: EmacsSubr, doc: *const i8, data: *mut raw::c_void) -> Result<EmacsVal> {
         raw_call!(self, make_function, min_arity, max_arity, Some(function), doc, data)
     }
