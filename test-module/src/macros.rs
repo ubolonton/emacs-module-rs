@@ -11,14 +11,14 @@ macro_rules! count_tts {
 }
 
 /// Defines a macro that creates prefixed string.
-macro_rules! prefix {
-    ($namer:ident, $prefix:ident) => {
-        macro_rules! $namer {
+macro_rules! make_prefix {
+    ($prefixer:ident, $prefix:expr) => {
+        macro_rules! $prefixer {
             ($name:ident) => {
-                $namer!(stringify!($name))
+                $prefixer!(stringify!($name))
             };
             ($name:expr) => {
-                &format!("{}/{}", $prefix, $name)
+                &format!("{}{}", $prefix, $name)
             };
         }
     };
@@ -32,12 +32,14 @@ macro_rules! prefix {
 ///
 /// ```
 /// defuns! {
-///     env;
-///     "my-plus", "x + y", (env, x, y) {
+///     env, "my-module/";
+///     // Defines "my-module/plus"
+///     plus, "x + y", (env, x, y) {
 ///         let result = env.from_emacs(x)? + env.from_emacs(y)?;
 ///         result.to_emacs(env)
 ///     }
-///     "identity", "", (_env, x) {
+///     // Defines "my-module/my-identity"
+///     "my-identity", "", (_env, x) {
 ///         Ok(x)
 ///     }
 /// }
@@ -60,7 +62,9 @@ macro_rules! prefix {
 /// - Support automatic conversion of arguments .
 /// - Support automatic conversion of return value.
 macro_rules! defuns {
-    ($env_var:expr; $($name:expr, $doc:expr, ($env:ident $(, $arg:ident)*) $body:expr)*) => {
+    ($env_var:expr, $prefix:expr; $($name:tt, $doc:expr, ($env:ident $(, $arg:ident)*) $body:expr)*) => {
+        make_prefix!(emacs_prefix, $prefix);
+
         $({
             extern crate emacs_module_bindings as emacs;
             use emacs::{EmacsEnv, EmacsVal};
@@ -74,10 +78,11 @@ macro_rules! defuns {
                                              _data: *mut raw::c_void) -> EmacsVal {
                 let env = &Env::from(env);
                 let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
-                let mut iter = args.iter();
+                // TODO: Don't do this for zero-arg functions.
+                let mut _iter = args.iter();
                 // XXX: .unwrap()
                 // XXX: .clone()
-                $(let $arg = iter.next().unwrap().clone();)*
+                $(let $arg = _iter.next().unwrap().clone();)*
                 let result = intern_name(env $(, $arg)*);
                 env.maybe_exit(result)
             }
@@ -87,7 +92,7 @@ macro_rules! defuns {
             }
 
             let nargs = (count_tts!($($arg)*)) as isize;
-            $env_var.register($name, extern_name, nargs, nargs, $doc, std::ptr::null_mut())?;
+            $env_var.register(emacs_prefix!($name), extern_name, nargs, nargs, $doc, std::ptr::null_mut())?;
         })*
     };
 }

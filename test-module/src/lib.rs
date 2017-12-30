@@ -17,14 +17,7 @@ use std::ptr;
 #[allow(non_upper_case_globals)]
 pub static plugin_is_GPL_compatible: libc::c_int = 0;
 
-const MODULE: &str = "test-module";
-
-fn calling_error(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
-    env.call("/", &mut [
-        1.to_emacs(env)?,
-        0.to_emacs(env)?,
-    ])
-}
+const MODULE: &str = "test-module/";
 
 fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
     env.to_emacs(5)?;
@@ -85,34 +78,35 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
 
 expose_subrs! {
     test -> f_test;
-    calling_error -> f_calling_error;
 }
 
 fn init(env: &Env) -> Result<EmacsVal> {
-    prefix!(name, MODULE);
+    make_prefix!(prefix, MODULE);
 
     env.message("Hello, Emacs!")?;
 
     env.register(
-        name!(test), f_test, 0, 0,
-        "", ptr::null_mut()
-    )?;
-
-    env.register(
-        name!("calling-error"), f_calling_error, 0, 0,
+        prefix!(test), f_test, 0, 0,
         "", ptr::null_mut()
     )?;
 
     defuns! {
-        env;
+        env, MODULE;
 
-        name!(inc), "+1", (env, x) {
+        inc, "+1", (env, x) {
             let i: i64 = env.from_emacs(x)?;
             (i + 1).to_emacs(env)
         }
 
-        name!("identity"), "not even doing any conversion", (_env, x) {
+        identity, "not even doing any conversion", (_env, x) {
             Ok(x)
+        }
+
+        "calling-error", "", (env) {
+            env.call("/", &mut [
+                1.to_emacs(env)?,
+                0.to_emacs(env)?,
+            ])
         }
     }
 
