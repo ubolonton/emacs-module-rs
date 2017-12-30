@@ -25,7 +25,7 @@ pub enum ErrorKind {
     Signal { symbol: EmacsVal, data: EmacsVal },
     Throw { tag: EmacsVal, value: EmacsVal },
     IO { error: io::Error },
-    Other { error: Box<error::Error+Send> },
+    Other { error: Box<error::Error> },
     CoreFnMissing(String),
 }
 
@@ -36,11 +36,16 @@ impl Error {
         &self.kind
     }
 
-    pub fn signal(symbol: EmacsVal, data: EmacsVal) -> Self {
+    pub fn new<E: Into<Box<error::Error>>>(error: E) -> Self {
+        Self { kind: ErrorKind::Other { error: error.into() } }
+    }
+
+    // TODO: Public version of signal/throw that take ToEmacs values.
+    fn signal(symbol: EmacsVal, data: EmacsVal) -> Self {
         Self { kind: ErrorKind::Signal { symbol, data } }
     }
 
-    pub fn throw(tag: EmacsVal, value: EmacsVal) -> Self {
+    fn throw(tag: EmacsVal, value: EmacsVal) -> Self {
         Self { kind: ErrorKind::Throw { tag, value } }
     }
 }
@@ -54,11 +59,10 @@ impl From<io::Error> for Error {
 // TODO: Better reporting.
 impl From<NulError> for Error {
     fn from(error: NulError) -> Self {
-        Self { kind: ErrorKind::Other { error: Box::new(error) }}
+        Self { kind: ErrorKind::Other { error: Box::new(error) } }
     }
 }
 
-// TODO: Use these only in the internal functions that call Emacs.
 pub(crate) trait HandleExit {
     fn handle_exit<T>(&self, result: T) -> Result<T>;
 }
