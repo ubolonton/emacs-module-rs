@@ -107,6 +107,11 @@ fn init(env: &Env) -> Result<EmacsVal> {
             Ok(x)
         }
 
+        "to-uppercase", "", (env, s) {
+            let s: String = env.from_emacs(s)?;
+            s.to_uppercase().to_emacs(env)
+        }
+
         "calling-error", "", (env) {
             env.call("/", &mut [
                 1.to_emacs(env)?,

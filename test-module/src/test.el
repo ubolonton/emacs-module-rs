@@ -28,3 +28,6 @@
     ;; (should-error (func-call dec) :type 'wrong-number-of-arguments)
 
     ))
+
+(ert-deftest from-emac-string ()
+  (should (equal (test-module/to-uppercase "abc") "ABC")))

@@ -65,7 +65,7 @@ macro_rules! emacs_subrs {
                                               args: *mut $crate::EmacsVal,
                                               data: *mut raw::c_void) -> $crate::EmacsVal {
                 let env = &$crate::Env::from(env);
-                let args: & [$crate::EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
+                let args: &[$crate::EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
                 let result = $name(env, args, data);
                 $crate::error::TriggerExit::maybe_exit(env, result)
             }

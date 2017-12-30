@@ -152,7 +152,7 @@ impl Env {
                 panic!("Emacs failed to give string's length but did not raise a signal");
             }
 
-            let mut bytes = Vec::<u8>::with_capacity(len as usize);
+            let mut bytes = vec![0u8; len as usize];
             let ok = self.handle_exit(copy_string_contents(
                 self.raw, value, bytes.as_mut_ptr() as *mut i8, &mut len))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
