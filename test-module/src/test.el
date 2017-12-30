@@ -1,3 +1,5 @@
+(require 'test-module)
+
 (ert-deftest inc ()
   (should (= (test-module/inc 3) 4))
   (should (equal (documentation 'test-module/inc) "1+"))

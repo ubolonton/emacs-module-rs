@@ -1,5 +1,7 @@
 extern crate libc;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate emacs_module_bindings as emacs;
 
 #[macro_use]
@@ -17,7 +19,10 @@ use std::ptr;
 #[allow(non_upper_case_globals)]
 pub static plugin_is_GPL_compatible: libc::c_int = 0;
 
-const MODULE: &str = "test-module/";
+const MODULE: &str = "test-module";
+lazy_static! {
+    static ref MODULE_PREFIX: String = format!("{}/", MODULE);
+}
 
 fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
     env.to_emacs(5)?;
@@ -81,7 +86,7 @@ emacs_subrs! {
 }
 
 fn init(env: &Env) -> Result<EmacsVal> {
-    make_prefix!(prefix, MODULE);
+    make_prefix!(prefix, *MODULE_PREFIX);
 
     env.message("Hello, Emacs!")?;
 
@@ -91,7 +96,7 @@ fn init(env: &Env) -> Result<EmacsVal> {
     )?;
 
     defuns! {
-        env, MODULE;
+        env, *MODULE_PREFIX;
 
         inc, "1+", (env, x) {
             let i: i64 = env.from_emacs(x)?;
