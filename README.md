@@ -2,16 +2,13 @@ Emacs Module Bindings
 ====
 
 This crate provides access to the new `Emacs module` functionality recently
-introduced in Emacs 25. It's a basic FFI with a relatively straightforward
-API. Have have a look at the source for details.
+introduced in Emacs 25.
 
 Usage aka How to write an oxidized Emacs module in a few easy steps
 ----
-0. Clone this project to some `$EMB_PATH`
 1. Create a new Cargo `lib` project, say `my_fancy_module`
 2. Open up `Cargo.toml` in an editor, and:
-   * Add `crate-type = ["cdylib"]` to the `[lib]` section (NOTE: Only
-     Rust nightly correctly handles this at the moment)
+   * Add `crate-type = ["cdylib"]` to the `[lib]` section
    * Add the following dependencies:
    ```` toml
    libc = "0.2.14"
@@ -22,7 +19,7 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
    extern crate libc;
    extern crate emacs_module_bindings as emacs;
 
-   use emacs::emacs_module::{EmacsEnv, EmacsRT, EmacsVal};
+   use emacs::{Env, EmacsRT};
 
    /// This states that the module is GPL-compliant.
    /// Emacs won't load the module if this symbol is undefined.
@@ -32,11 +29,11 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
 
    #[no_mangle]
    pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
-       let env = emacs::get_environment(ert);
+       let env = Env::from(ert);
 
        // Add any other things you need the module to do here
 
-       emacs::provide(env, "my-fancy-module");
+       env.provide("my-fancy-module");
        0
    }
    ````
@@ -46,3 +43,20 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
 6. Load it in emacs with `(require 'my-fancy-module "/path/to/libmy_fancy_module.so")`.
    Note that this requires Emacs to be configured and compiled with
    the `--with-modules` flag.
+
+For a more elaborate example, check out [test-module](test-module).
+
+Development
+----
+- Building:
+    ````shell
+    cargo build --all
+    ````
+- Testing:
+    ````shell
+    bin/test.sh
+    ````
+- Continuous testing (requires `cargo-watch`):
+    ````shell
+    cargo watch -x 'build --all' -s bin/test.sh
+    ````
