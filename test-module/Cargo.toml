@@ -13,4 +13,4 @@ lazy_static = "1.0.0"
 # emacs_module_bindings = "0.7.0"
 # emacs_module_bindings = { path = "./emacs_module_bindings" }
 emacs_module_bindings = { path = ".." }
-emacs-rs-module = "0.1.0" # only for dev flow
+emacs-rs-module = { path = "../rs-module" } # only for dev flow
