@@ -1,0 +1,16 @@
+[package]
+name = "test-module"
+version = "0.1.0"
+authors = ["Nguyễn Tuấn Anh <ubolonton@gmail.com>"]
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+libc = "0.2.34"
+lazy_static = "1.0.0"
+# emacs_module_bindings = "0.7.0"
+# emacs_module_bindings = { path = "./emacs_module_bindings" }
+emacs_module_bindings = { path = ".." }
+emacs-rs-module = { path = "../rs-module" } # only for dev flow

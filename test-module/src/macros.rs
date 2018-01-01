@@ -1,0 +1,99 @@
+//! Experimental utility macros that make writing a module easier. If they prove to be useful, we
+//! will move them into the lib after stabilizing them.
+
+macro_rules! replace_expr {
+    ($_t:tt $sub:expr) => {$sub};
+}
+
+// https://danielkeep.github.io/tlborm/book/blk-counting.html
+macro_rules! count_tts {
+    ($($tts:tt)*) => {<[()]>::len(&[$(replace_expr!($tts ())),*])};
+}
+
+/// Defines a macro that creates prefixed string.
+macro_rules! make_prefix {
+    ($prefixer:ident, $prefix:expr) => {
+        macro_rules! $prefixer {
+            ($name:ident) => {
+                $prefixer!(stringify!($name))
+            };
+            ($name:expr) => {
+                &format!("{}{}", $prefix, $name)
+            };
+        }
+    };
+}
+
+/// Defines a Lisp function.
+///
+/// In the following example, the first `env` is an expression (the env handle to define the
+/// function). The second `env` is an identifier (name of the env that the defined function gets
+/// called with).
+///
+/// ```
+/// defuns! {
+///     env, "my-module/";
+///     // Defines "my-module/plus"
+///     plus, "x + y", (env, x, y) {
+///         let result = env.from_emacs(x)? + env.from_emacs(y)?;
+///         result.to_emacs(env)
+///     }
+///     // Defines "my-module/my-identity"
+///     "my-identity", "", (_env, x) {
+///         Ok(x)
+///     }
+/// }
+/// ```
+///
+/// TODO: It would be nice to separate the 2 `env`s, like in the following snippet. That's currently
+/// not possible though. (See https://github.com/rust-lang/rust/issues/35853: "error: attempted to
+/// repeat an expression containing no syntax variables matched as repeating at this depth".)
+///
+/// ```
+/// using!(defuns, env, "my-module/");
+/// defuns! {
+///     "foo", "foo doc" -> (env, x) { unimplemented() };
+///     "bar", "bar doc" -> (env, x, y) { unimplemented() };
+/// }
+/// ```
+///
+/// TODO:
+/// - Support custom data `*mut raw::c_void`.
+/// - Support automatic conversion of arguments .
+/// - Support automatic conversion of return value.
+/// - Support optional args.
+macro_rules! defuns {
+    ($env_var:expr, $prefix:expr; $($name:tt, $doc:expr, ($env:ident $(, $arg:ident)*) $body:expr)*) => {
+        make_prefix!(emacs_prefix, $prefix);
+
+        $({
+            extern crate emacs_module_bindings as emacs;
+            use emacs::{EmacsEnv, EmacsVal};
+            use emacs::{Env, Result};
+            use emacs::error::TriggerExit;
+
+            #[allow(non_snake_case, unused_variables)]
+            unsafe extern "C" fn extern_name(env: *mut EmacsEnv,
+                                             nargs: libc::ptrdiff_t,
+                                             args: *mut EmacsVal,
+                                             _data: *mut raw::c_void) -> EmacsVal {
+                let env = &Env::from(env);
+                let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
+                // TODO: Don't do this for zero-arg functions.
+                let mut _iter = args.iter();
+                // XXX: .unwrap()
+                // XXX: .clone()
+                $(let $arg = _iter.next().unwrap().clone();)*
+                let result = intern_name(env $(, $arg)*);
+                env.maybe_exit(result)
+            }
+
+            fn intern_name($env: &Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
+                $body
+            }
+
+            let nargs = count_tts!($($arg)*);
+            $env_var.register(emacs_prefix!($name), extern_name, nargs..nargs, $doc, std::ptr::null_mut())?;
+        })*
+    };
+}

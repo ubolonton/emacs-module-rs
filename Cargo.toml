@@ -3,7 +3,8 @@ name = "emacs_module_bindings"
 version = "0.7.0"
 authors = [
     "Aaron France <aaron.l.france@gmail.com",
-    "Joey Ezechiëls <joey.ezechiels@gmail.com"
+    "Joey Ezechiëls <joey.ezechiels@gmail.com",
+    "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
 ]
 description = "Rust library for creating emacs modules"
 license = "BSD-3-Clause"
@@ -20,3 +21,10 @@ lazy_static = "1.0.0"
 [lib]
 name = "emacs_module_bindings"
 path = "src/lib.rs"
+
+[workspace]
+members = [
+    ".",
+    "test-module",
+    "rs-module",
+]
