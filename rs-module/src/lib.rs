@@ -1,6 +1,6 @@
 extern crate libc;
 #[macro_use]
-extern crate emacs_module_bindings as emacs;
+extern crate emacs;
 extern crate libloading as lib;
 #[macro_use]
 extern crate lazy_static;

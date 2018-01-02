@@ -2,7 +2,7 @@ extern crate libc;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
-extern crate emacs_module_bindings as emacs;
+extern crate emacs;
 
 #[macro_use]
 mod macros;

@@ -8,7 +8,7 @@
 // generates a lot of constants that aren't used in this crate directly
 #![allow(dead_code)]
 
-use libc;
+extern crate libc;
 use std::os::raw;
 
 /// The type of all Emacs subroutines.

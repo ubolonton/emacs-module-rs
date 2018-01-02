@@ -11,13 +11,13 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
    * Add `crate-type = ["cdylib"]` to the `[lib]` section
    * Add the following dependencies:
    ```` toml
-   libc = "0.2.14"
-   emacs_module_bindings = { path = "$EMB_PATH" }
+   libc = "0.2.34"
+   emacs = { path = "$EMB_PATH" }
    ````
 3. Add the following to your `src/lib.rs`:
    ```` Rust
    extern crate libc;
-   extern crate emacs_module_bindings as emacs;
+   extern crate emacs;
 
    use emacs::{Env, EmacsRT};
 

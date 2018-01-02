@@ -1,17 +1,16 @@
 extern crate libc;
-extern crate regex;
+extern crate emacs_module;
 
 use std::ffi::CString;
 use libc::ptrdiff_t;
 use std::ptr;
 use error::HandleExit;
 
-mod emacs_gen;
 #[macro_use]
 pub mod func;
 pub mod error;
 
-pub use emacs_gen::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
+pub use emacs_module::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
 pub use error::{Result, Error};
 pub use func::HandleFunc;
 

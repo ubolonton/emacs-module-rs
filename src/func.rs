@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::os::raw;
 use Env;
-use emacs_gen::{EmacsSubr, EmacsVal};
+use emacs_module::{EmacsSubr, EmacsVal};
 use error::Result;
 
 // TODO: Consider checking for existence of these upon startup, not on each call.

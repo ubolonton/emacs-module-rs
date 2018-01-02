@@ -1,22 +1,17 @@
 [package]
-name = "emacs"
+name = "emacs_module"
 version = "0.2.0"
 authors = [
     "Aaron France <aaron.l.france@gmail.com",
     "Joey Ezechiëls <joey.ezechiels@gmail.com",
     "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
 ]
-description = "Rust library for creating emacs modules"
+description = "Raw FFI for emacs-module"
 license = "BSD-3-Clause"
+build = "build.rs"
 
 [dependencies]
 libc = "0.2.34"
-lazy_static = "1.0.0"
-emacs_module = { path = "emacs-module" }
 
-[workspace]
-members = [
-    ".",
-    "test-module",
-    "rs-module",
-]
+[build-dependencies]
+bindgen = "0.32"

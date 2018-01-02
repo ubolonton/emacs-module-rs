@@ -67,7 +67,7 @@ macro_rules! defuns {
         make_prefix!(emacs_prefix, $prefix);
 
         $({
-            extern crate emacs_module_bindings as emacs;
+            extern crate emacs;
             use emacs::{EmacsEnv, EmacsVal};
             use emacs::{Env, Result};
             use emacs::error::TriggerExit;

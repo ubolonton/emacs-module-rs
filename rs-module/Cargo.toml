@@ -13,4 +13,4 @@ crate-type = ["cdylib"]
 libc = "0.2.34"
 libloading = "0.4.3"
 lazy_static = "1.0.0"
-emacs_module_bindings = { path = ".." }
+emacs = { path = ".." }
