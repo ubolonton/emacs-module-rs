@@ -9,14 +9,13 @@
 #![allow(dead_code)]
 
 extern crate libc;
-use std::os::raw;
 
 /// The type of all Emacs subroutines.
 pub type EmacsSubr =
     unsafe extern "C" fn(env: *mut EmacsEnv,
                          nargs: libc::ptrdiff_t,
                          args: *mut EmacsVal,
-                         data: *mut raw::c_void) -> EmacsVal;
+                         data: *mut libc::c_void) -> EmacsVal;
 
 /// Emacs environment.
 pub type EmacsEnv = emacs_env;
@@ -28,7 +27,7 @@ pub type EmacsRT = emacs_runtime;
 pub type EmacsVal = emacs_value;
 
 /// The type of destructors
-pub type Dtor = unsafe extern "C" fn(arg: *mut raw::c_void);
+pub type Dtor = unsafe extern "C" fn(arg: *mut libc::c_void);
 
 
 include!(concat!(env!("OUT_DIR"), "/emacs_module.rs"));

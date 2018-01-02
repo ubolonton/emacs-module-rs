@@ -58,7 +58,7 @@ macro_rules! make_prefix {
 /// ```
 ///
 /// TODO:
-/// - Support custom data `*mut raw::c_void`.
+/// - Support custom data `*mut libc::c_void`.
 /// - Support automatic conversion of arguments .
 /// - Support automatic conversion of return value.
 /// - Support optional args.
@@ -68,6 +68,7 @@ macro_rules! defuns {
 
         $({
             extern crate emacs;
+            extern crate libc;
             use emacs::{EmacsEnv, EmacsVal};
             use emacs::{Env, Result};
             use emacs::error::TriggerExit;
@@ -76,7 +77,7 @@ macro_rules! defuns {
             unsafe extern "C" fn extern_name(env: *mut EmacsEnv,
                                              nargs: libc::ptrdiff_t,
                                              args: *mut EmacsVal,
-                                             _data: *mut raw::c_void) -> EmacsVal {
+                                             _data: *mut libc::c_void) -> EmacsVal {
                 let env = &Env::from(env);
                 let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
                 // TODO: Don't do this for zero-arg functions.

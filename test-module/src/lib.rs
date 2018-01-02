@@ -10,7 +10,6 @@ mod macros;
 use emacs::{EmacsVal, EmacsRT, EmacsEnv};
 use emacs::{Env, ToEmacs, Result};
 use emacs::HandleFunc;
-use std::os::raw;
 use std::ptr;
 
 /// This states that the module is GPL-compliant.
@@ -24,7 +23,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+fn test(env: &Env, _args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
     env.to_emacs(5)?;
     match "1\0a".to_emacs(env) {
         Ok(_) => {
@@ -120,7 +119,7 @@ fn init(env: &Env) -> Result<EmacsVal> {
         }
 
         "make-dec", "", (env) {
-            fn dec(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+            fn dec(env: &Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
                 let i: i64 = env.from_emacs(args[0])?;
                 (i - 1).to_emacs(env)
             }

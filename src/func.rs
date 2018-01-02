@@ -1,5 +1,5 @@
+use libc;
 use std::ops::Range;
-use std::os::raw;
 use Env;
 use emacs_module::{EmacsSubr, EmacsVal};
 use error::Result;
@@ -25,16 +25,17 @@ macro_rules! raw_call {
     };
 }
 
+// TODO: This should be named sth like HandleSubr, HandleRawFn
 // TODO: Enable creating a Lisp function from a Rust fn. That probably requires procedural macros,
 // macro_rules! is inadequate.
 pub trait HandleFunc {
-    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal>;
+    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal>;
     fn fset(&self, name: &str, func: EmacsVal) -> Result<EmacsVal>;
-    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal>;
+    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal>;
 }
 
 impl HandleFunc for Env {
-    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal> {
+    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal> {
         raw_call!(
             self, make_function,
             arities.start as isize, arities.end as isize,
@@ -48,7 +49,7 @@ impl HandleFunc for Env {
         ])
     }
 
-    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut raw::c_void) -> Result<EmacsVal> {
+    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal> {
         self.fset(
             name, self.make_function(function, arities, doc, data)?
         )
@@ -63,7 +64,7 @@ macro_rules! emacs_subrs {
             unsafe extern "C" fn $extern_name(env: *mut $crate::EmacsEnv,
                                               nargs: libc::ptrdiff_t,
                                               args: *mut $crate::EmacsVal,
-                                              data: *mut raw::c_void) -> $crate::EmacsVal {
+                                              data: *mut libc::c_void) -> $crate::EmacsVal {
                 let env = &$crate::Env::from(env);
                 let args: &[$crate::EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
                 let result = $name(env, args, data);

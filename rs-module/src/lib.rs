@@ -7,7 +7,6 @@ extern crate lazy_static;
 
 use emacs::{EmacsVal, EmacsRT, EmacsEnv};
 use emacs::{Env, Result, HandleFunc};
-use std::os::raw;
 use std::ptr;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -34,7 +33,7 @@ macro_rules! message {
 /// Helper function that enables live-reloading of Emacs's dynamic module. To be reloadable, the
 /// module be loaded by this function (`rs-module/load` in ELisp) instead of Emacs'
 /// `module-load`. (Re)loading is achieved by calling `(rs-module/load "/path/to/module")`.
-fn load_module(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+fn load_module(env: &Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
     let path: String = env.from_emacs(args[0])?;
     let mut libraries = LIBRARIES.lock()
         .expect("Failed to acquire lock for module map");
