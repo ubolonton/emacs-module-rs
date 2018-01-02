@@ -2,8 +2,8 @@ extern crate libc;
 extern crate emacs_module;
 
 use std::ffi::CString;
-use libc::ptrdiff_t;
 use std::ptr;
+use libc::ptrdiff_t;
 use error::HandleExit;
 
 #[macro_use]
@@ -14,23 +14,16 @@ pub use emacs_module::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
 pub use error::{Result, Error};
 pub use func::HandleFunc;
 
-// TODO: How about IntoEmacs (which may include EmacsVal itself)?
+// TODO: CloneToEmacs?
 pub trait ToEmacs {
     fn to_emacs(&self, env: &Env) -> Result<EmacsVal>;
 }
 
-pub trait IntoEmacs {
-    fn into_emacs(self, env: &Env) -> Result<EmacsVal>;
-}
-
-// Technically this is CloneFromEmacs?
+// TODO: CloneFromEmacs?
 pub trait FromEmacs: Sized {
     fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self>;
 }
 
-// TODO: BorrowFromEmacs?
-
-// TODO: Do we need this? How about using an existing type, like Box<EmacsEnv>?
 pub struct Env {
     pub(crate) raw: *mut EmacsEnv
 }
@@ -45,17 +38,9 @@ impl ToEmacs for i64 {
 // complain about conflicting implementations for i64.
 impl ToEmacs for str {
     fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
-//        println!("to_emacs {}", self);
-        // Rust string may fail to convert to CString. Raise non-local exit in that case.
-        let cstring = env.to_cstring(self)?;
+        let cstring = CString::new(self)?;
         let ptr = cstring.as_ptr();
         raw_call!(env, make_string, ptr, libc::strlen(ptr) as ptrdiff_t)
-    }
-}
-
-impl ToEmacs for String {
-    fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
-        self.as_str().to_emacs(env)
     }
 }
 
@@ -65,29 +50,6 @@ impl ToEmacs for [Box<ToEmacs>] {
         env.list(args)
     }
 }
-
-// XXX: Doesn't work, possibly because of blanket implementations of Into. See
-// https://github.com/rust-lang/rust/issues/30191 and
-// https://github.com/rust-lang/rust/issues/19032.
-//impl <T> ToEmacs for T where Vec<u8>: From<T> {
-//    fn into_emacs(self, env: &Env) -> Result<EmacsVal> {
-//        unimplemented!()
-//    }
-//}
-
-impl IntoEmacs for i64 {
-    fn into_emacs(self, env: &Env) -> Result<EmacsVal> {
-        raw_call!(env, make_integer, self)
-    }
-}
-
-// XXX: Cannot do this. Box instances must contain sized types.
-// Maybe related: https://github.com/rust-lang/rust/issues/27779.
-//impl IntoEmacs for [Box<IntoEmacs>] {
-//    fn into_emacs(self, env: &Env) -> Result<EmacsVal> {
-//        unimplemented!()
-//    }
-//}
 
 impl FromEmacs for i64 {
     fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self> {
@@ -127,16 +89,9 @@ impl From<*mut EmacsRT> for Env {
     }
 }
 
-pub type Func = fn(env: &Env, args: &[EmacsVal], data: *mut libc::c_void) -> Result<EmacsVal>;
-
 impl Env {
     pub fn raw(&self) -> *mut EmacsEnv {
         self.raw
-    }
-
-    pub fn to_cstring(&self, s: &str) -> Result<CString> {
-        let cstring = CString::new(s)?;
-        Ok(cstring)
     }
 
     fn string_bytes(&self, value: EmacsVal) -> Result<Vec<u8>> {
@@ -165,25 +120,20 @@ impl Env {
         Ok(bytes)
     }
 
-    // TODO: Return a Symbol.
     pub fn intern(&self, name: &str) -> Result<EmacsVal> {
-        raw_call!(self, intern, self.to_cstring(name)?.as_ptr())
+        raw_call!(self, intern, CString::new(name)?.as_ptr())
     }
 
-    // TODO: Return a Symbol.
+    // TODO: Return an enum?
     pub fn type_of(&self, value: EmacsVal) -> Result<EmacsVal> {
         raw_call!(self, type_of, value)
     }
 
-    // TODO: Should there be variants of this that deal with mixtures of types?
+    // TODO: Add a convenient macro?
     pub fn call(&self, name: &str, args: &mut [EmacsVal]) -> Result<EmacsVal> {
         let symbol = self.intern(name)?;
         raw_call!(self, funcall, symbol, args.len() as ptrdiff_t, args.as_mut_ptr())
     }
-
-//    pub fn call1(&self, name: &str, args: &mut [Box<ToEmacs>]) -> Result<EmacsVal> {
-//        self.call(name,&mut self.to_emacs_args(args)?)
-//    }
 
     fn to_emacs_args(&self, args: &[Box<ToEmacs>]) -> Result<Vec<EmacsVal>> {
         let mut e_args: Vec<EmacsVal> = Vec::with_capacity(args.len());

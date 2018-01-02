@@ -1,7 +1,8 @@
-use libc;
+use std::ffi::CString;
 use std::ops::Range;
-use Env;
+use libc;
 use emacs_module::{EmacsSubr, EmacsVal};
+use Env;
 use error::Result;
 
 // TODO: Consider checking for existence of these upon startup, not on each call.
@@ -34,12 +35,23 @@ pub trait HandleFunc {
     fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal>;
 }
 
+type StatefulFunc = fn(env: &Env, args: &[EmacsVal], data: *mut libc::c_void) -> Result<EmacsVal>;
+
+type Func = fn(env: &Env, args: &[EmacsVal]) -> Result<EmacsVal>;
+
+pub trait HandleFunc1 {
+    fn make_stateful_func(&self, func: StatefulFunc, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal>;
+    fn register_stateful_func(&self, name: &str, func: StatefulFunc, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal>;
+    fn make_func(&self, func: Func, arities: Range<usize>, doc: &str) -> Result<EmacsVal>;
+    fn register_func(&self, name: &str, func: Func, arities: Range<usize>, doc: &str) -> Result<EmacsVal>;
+}
+
 impl HandleFunc for Env {
     fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal> {
         raw_call!(
             self, make_function,
             arities.start as isize, arities.end as isize,
-            Some(function), self.to_cstring(doc)?.as_ptr(), data
+            Some(function), CString::new(doc)?.as_ptr(), data
         )
     }
 
