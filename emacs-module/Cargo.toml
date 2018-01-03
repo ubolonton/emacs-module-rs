@@ -1,9 +1,9 @@
 [package]
 name = "emacs_module"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
-    "Aaron France <aaron.l.france@gmail.com",
-    "Joey Ezechiëls <joey.ezechiels@gmail.com",
+    "Aaron France <aaron.l.france@gmail.com>",
+    "Joey Ezechiëls <joey.ezechiels@gmail.com>",
     "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
 ]
 description = "Raw FFI for emacs-module"
