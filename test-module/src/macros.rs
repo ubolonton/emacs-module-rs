@@ -58,7 +58,7 @@ macro_rules! make_prefix {
 /// ```
 ///
 /// TODO:
-/// - Support custom data `*mut raw::c_void`.
+/// - Support custom data `*mut libc::c_void`.
 /// - Support automatic conversion of arguments .
 /// - Support automatic conversion of return value.
 /// - Support optional args.
@@ -67,28 +67,30 @@ macro_rules! defuns {
         make_prefix!(emacs_prefix, $prefix);
 
         $({
-            extern crate emacs_module_bindings as emacs;
-            use emacs::{EmacsEnv, EmacsVal};
+            extern crate libc;
+            extern crate emacs;
+            use emacs::EmacsVal;
             use emacs::{Env, Result};
             use emacs::error::TriggerExit;
+            use emacs::raw::emacs_env;
 
             #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn extern_name(env: *mut EmacsEnv,
+            unsafe extern "C" fn extern_name(env: *mut emacs_env,
                                              nargs: libc::ptrdiff_t,
                                              args: *mut EmacsVal,
-                                             _data: *mut raw::c_void) -> EmacsVal {
-                let env = &Env::from(env);
+                                             _data: *mut libc::c_void) -> EmacsVal {
+                let mut env = Env::from(env);
                 let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
                 // XXX: .clone()
                 $(let $arg = _iter.next().unwrap().clone();)*
-                let result = intern_name(env $(, $arg)*);
+                let result = intern_name(&mut env $(, $arg)*);
                 env.maybe_exit(result)
             }
 
-            fn intern_name($env: &Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
+            fn intern_name($env: &mut Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
                 $body
             }
 

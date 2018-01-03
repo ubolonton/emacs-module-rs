@@ -1,22 +1,19 @@
 extern crate libc;
 #[macro_use]
-extern crate emacs_module_bindings as emacs;
+extern crate emacs;
 extern crate libloading as lib;
 #[macro_use]
 extern crate lazy_static;
 
-use emacs::{EmacsVal, EmacsRT, EmacsEnv};
+use emacs::EmacsVal;
 use emacs::{Env, Result, HandleFunc};
-use std::os::raw;
+use emacs::raw::emacs_env;
 use std::ptr;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-/// This states that the module is GPL-compliant.
-/// Emacs won't load the module if this symbol is undefined.
-#[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static plugin_is_GPL_compatible: libc::c_int = 0;
+emacs_plugin_is_GPL_compatible!();
+emacs_module_init!(init);
 
 lazy_static! {
     static ref LIBRARIES: Mutex<HashMap<String, lib::Library>> = Mutex::new(HashMap::new());
@@ -34,7 +31,7 @@ macro_rules! message {
 /// Helper function that enables live-reloading of Emacs's dynamic module. To be reloadable, the
 /// module be loaded by this function (`rs-module/load` in ELisp) instead of Emacs'
 /// `module-load`. (Re)loading is achieved by calling `(rs-module/load "/path/to/module")`.
-fn load_module(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+fn load_module(env: &mut Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
     let path: String = env.from_emacs(args[0])?;
     let mut libraries = LIBRARIES.lock()
         .expect("Failed to acquire lock for module map");
@@ -47,7 +44,7 @@ fn load_module(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<
     let l = lib::Library::new(&path)?;
     message!(env, "[{}]: initializing...", &path)?;
     unsafe {
-        let rs_init: lib::Symbol<unsafe extern fn(*mut EmacsEnv) -> u32> =
+        let rs_init: lib::Symbol<unsafe extern fn(*mut emacs_env) -> u32> =
             l.get(INIT_FROM_ENV.as_bytes())?;
         rs_init(env.raw());
     }
@@ -57,7 +54,7 @@ fn load_module(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<
 
 /// This is not exported, since this module should be loaded by Emacs's built-in `module-load`, thus
 /// cannot be reloaded.
-fn init(env: &Env) -> Result<EmacsVal> {
+fn init(env: &mut Env) -> Result<EmacsVal> {
     message!(env, "[{}]: loading...", RS_MODULE)?;
     emacs_subrs!(
         load_module -> f_load_module;
@@ -69,12 +66,4 @@ fn init(env: &Env) -> Result<EmacsVal> {
         ptr::null_mut()
     )?;
     env.provide(RS_MODULE)
-}
-
-#[no_mangle]
-pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
-    match init(&Env::from(ert)) {
-        Ok(_) => 0,
-        Err(_) => 0,
-    }
 }

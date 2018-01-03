@@ -2,42 +2,41 @@ extern crate libc;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
-extern crate emacs_module_bindings as emacs;
+extern crate emacs;
 
 #[macro_use]
 mod macros;
 
-use emacs::{EmacsVal, EmacsRT, EmacsEnv};
+use emacs::EmacsVal;
 use emacs::{Env, ToEmacs, Result};
 use emacs::HandleFunc;
-use std::os::raw;
 use std::ptr;
 
-/// This states that the module is GPL-compliant.
-/// Emacs won't load the module if this symbol is undefined.
-#[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static plugin_is_GPL_compatible: libc::c_int = 0;
+emacs_plugin_is_GPL_compatible!();
+emacs_module_init!(init);
 
 const MODULE: &str = "test-module";
 lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+macro_rules! call {
+    ($env:ident, $name:expr $(, $arg:expr)*) => {{
+        let args = &mut [$($arg.to_emacs($env)?,)*];
+        $env.call($name, args)
+    }}
+}
+
+fn test(env: &mut Env, _args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
     env.to_emacs(5)?;
     match "1\0a".to_emacs(env) {
         Ok(_) => {
             println!("ok");
-            env.call("message", &mut [
-                "Should not get to this because we used a string with a zero byte".to_emacs(env)?
-            ])?;
+            call!(env, "message", "Should not get to this because we used a string with a zero byte")?;
         },
         Err(_) => {
             println!("err");
-            env.call("message", &mut [
-                "Caught error here and continue".to_emacs(env)?
-            ])?;
+            call!(env, "message", "Caught error here and continue")?;
         }
     };
 
@@ -45,47 +44,29 @@ fn test(env: &Env, _args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsV
     let range = std::ops::Range { start: 0, end: 2usize.pow(22) };
     for i in range {
         println!("{}", i);
-        let result = env.call("/", &mut[
-            1.to_emacs(env)?,
-            0.to_emacs(env)?,
-        ]);
+        let result = call!(env, "/", 1, 0);
         match result {
             _ => continue
         }
     }
     println!("Stop");
 
-    env.call("message", &mut [
-        "(+ 1) -> %s".to_emacs(env)?,
-        env.call("+", &mut [
-            1.to_emacs(env)?
-        ])?
-    ])?;
+    let args = &mut [call!(env, "+", 1)?, "(+ 1) -> %s".to_emacs(env)?];
+    env.call("message", args)?;
 
     // Wrong type argument: symbolp, (throw-)
-    env.call("throw-", &mut [
-//        "How about this?".to_emacs(env)?
-        1.to_emacs(env)?
-    ])?;
+    call!(env, "throw-", 1)?;
 
-    env.call("error", &mut [
-//        "How about this?".to_emacs(env)?
-        1.to_emacs(env)?
-    ])?;
-    env.call("+", &mut [
-        "1\0".to_emacs(env)?,
-        2.to_emacs(env)?,
-    ])?;
-    env.call("message", &mut [
-        "Should not ever get here".to_emacs(env)?
-    ])
+    call!(env, "error", 1)?;
+    call!(env, "+", "1\0", 2)?;
+    call!(env, "message", "Should not ever get here")
 }
 
 emacs_subrs! {
     test -> f_test;
 }
 
-fn init(env: &Env) -> Result<EmacsVal> {
+fn init(env: &mut Env) -> Result<EmacsVal> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
     env.message("Hello, Emacs!")?;
@@ -113,14 +94,11 @@ fn init(env: &Env) -> Result<EmacsVal> {
         }
 
         "calling-error", "", (env) {
-            env.call("/", &mut [
-                1.to_emacs(env)?,
-                0.to_emacs(env)?,
-            ])
+            call!(env, "/", 1, 0)
         }
 
         "make-dec", "", (env) {
-            fn dec(env: &Env, args: &[EmacsVal], _data: *mut raw::c_void) -> Result<EmacsVal> {
+            fn dec(env: &Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
                 let i: i64 = env.from_emacs(args[0])?;
                 (i - 1).to_emacs(env)
             }
@@ -132,19 +110,4 @@ fn init(env: &Env) -> Result<EmacsVal> {
     }
 
     env.provide(MODULE)
-}
-
-/// Entry point for live-reloading during development.
-#[no_mangle]
-pub extern "C" fn emacs_rs_module_init(raw: *mut EmacsEnv) -> libc::c_int {
-    match init(&Env::from(raw)) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
-}
-
-/// Entry point for Emacs' loader, for "production".
-#[no_mangle]
-pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
-    emacs_rs_module_init(Env::from(ert).raw())
 }

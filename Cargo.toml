@@ -1,26 +1,20 @@
 [package]
-name = "emacs_module_bindings"
-version = "0.7.0"
+name = "emacs"
+version = "0.2.0"
+description = "Rust library for creating emacs modules"
 authors = [
-    "Aaron France <aaron.l.france@gmail.com",
-    "Joey Ezechiëls <joey.ezechiels@gmail.com",
+    "Aaron France <aaron.l.france@gmail.com>",
+    "Joey Ezechiëls <joey.ezechiels@gmail.com>",
     "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
 ]
-description = "Rust library for creating emacs modules"
 license = "BSD-3-Clause"
-build = "build.rs"
-
-[build-dependencies]
-bindgen = "0.32"
+readme = "README.md"
+keywords = ["emacs", "emacs-module"]
 
 [dependencies]
-libc = "0.2"
-regex = "0.2"
+libc = "0.2.34"
 lazy_static = "1.0.0"
-
-[lib]
-name = "emacs_module_bindings"
-path = "src/lib.rs"
+emacs_module = { path = "emacs-module", version = "0.2.1" }
 
 [workspace]
 members = [

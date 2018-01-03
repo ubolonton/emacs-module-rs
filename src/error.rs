@@ -2,8 +2,8 @@ use std::result;
 use std::error;
 use std::io;
 use std::ffi::NulError;
-use emacs_gen::*;
-use {Env, ToEmacs};
+use emacs_module::*;
+use super::{Env, ToEmacs};
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
@@ -119,22 +119,23 @@ impl HandleExit for Env {
 // TODO: Use these only in the wrapper funcs that give the error back to Emacs. One problem is,
 // wrappers are written (by macros) by user code, which shouldn't have access to these.
 pub trait TriggerExit {
-    fn maybe_exit(&self, result: Result<EmacsVal>) -> EmacsVal;
+    fn maybe_exit(&mut self, result: Result<EmacsVal>) -> EmacsVal;
 }
 
-fn throw(env: &Env, tag: EmacsVal, value: EmacsVal) -> EmacsVal {
+fn throw(env: &mut Env, tag: EmacsVal, value: EmacsVal) -> EmacsVal {
     critical!(env, non_local_exit_throw, tag, value);
     tag
 }
 
-fn signal(env: &Env, symbol: EmacsVal, data: EmacsVal) -> EmacsVal {
+fn signal(env: &mut Env, symbol: EmacsVal, data: EmacsVal) -> EmacsVal {
     critical!(env, non_local_exit_signal, symbol, data);
     symbol
 }
 
 // XXX
-fn error(env: &Env, message: &str) -> Result<EmacsVal> {
-    let data = env.list(&mut [message.to_emacs(env)?])?;
+fn error(env: &mut Env, message: &str) -> Result<EmacsVal> {
+    let message = message.to_emacs(env)?;
+    let data = env.list(&mut [message])?;
     let symbol = env.intern("error")?;
     Ok(signal(env, symbol, data))
 }
@@ -142,7 +143,7 @@ fn error(env: &Env, message: &str) -> Result<EmacsVal> {
 impl TriggerExit for Env {
     /// This is intended to be used at the Rust->Emacs boundary, by the internal macros/functions.
     /// Module code should use [`Error::throw`] and [`Error::signal`] instead.
-    fn maybe_exit(&self, result: Result<EmacsVal>) -> EmacsVal {
+    fn maybe_exit(&mut self, result: Result<EmacsVal>) -> EmacsVal {
         match result {
             Ok(v) => v,
             Err(normal_error) => {

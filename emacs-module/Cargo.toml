@@ -1,0 +1,17 @@
+[package]
+name = "emacs_module"
+version = "0.2.1"
+authors = [
+    "Aaron France <aaron.l.france@gmail.com>",
+    "Joey Ezechiëls <joey.ezechiels@gmail.com>",
+    "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
+]
+description = "Raw FFI for emacs-module"
+license = "BSD-3-Clause"
+build = "build.rs"
+
+[dependencies]
+libc = "0.2.34"
+
+[build-dependencies]
+bindgen = "0.32"
