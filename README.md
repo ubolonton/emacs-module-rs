@@ -17,24 +17,18 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
 3. Add the following to your `src/lib.rs`:
    ```` Rust
    extern crate libc;
+   #[macro_use]
    extern crate emacs;
 
-   use emacs::{Env, EmacsRT};
+   use emacs::{Env, Result, EmacsVal};
 
-   /// This states that the module is GPL-compliant.
-   /// Emacs won't load the module if this symbol is undefined.
-   #[no_mangle]
-   #[allow(non_upper_case_globals)]
-   pub static plugin_is_GPL_compatible: libc::c_int = 0;
+   emacs_plugin_is_GPL_compatible!();
+   emacs_module_init!(init);
 
-   #[no_mangle]
-   pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
-       let env = Env::from(ert);
-
+   pub fn init(env: &mut Env) -> Result<EmacsVal> {
        // Add any other things you need the module to do here
 
-       env.provide("my-fancy-module");
-       0
+       env.provide("my-fancy-module")
    }
    ````
 4. Execute `cargo build`

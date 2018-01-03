@@ -4,15 +4,21 @@ extern crate emacs_module;
 use std::ffi::CString;
 use std::ptr;
 use libc::ptrdiff_t;
-use error::HandleExit;
+use self::error::HandleExit;
 
 #[macro_use]
 pub mod func;
 pub mod error;
+pub mod raw;
 
-pub use emacs_module::{Dtor, EmacsEnv, EmacsRT, EmacsVal, EmacsSubr};
-pub use error::{Result, Error};
-pub use func::HandleFunc;
+pub use emacs_module::{Dtor, EmacsEnv, EmacsVal, EmacsSubr};
+pub use emacs_module::emacs_runtime;
+pub use self::error::{Result, Error};
+pub use self::func::HandleFunc;
+
+pub struct Env {
+    pub(crate) raw: *mut EmacsEnv
+}
 
 // TODO: CloneToEmacs?
 pub trait ToEmacs {
@@ -22,10 +28,6 @@ pub trait ToEmacs {
 // TODO: CloneFromEmacs?
 pub trait FromEmacs: Sized {
     fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self>;
-}
-
-pub struct Env {
-    pub(crate) raw: *mut EmacsEnv
 }
 
 impl ToEmacs for i64 {
@@ -72,8 +74,8 @@ impl From<*mut EmacsEnv> for Env {
     }
 }
 
-impl From<*mut EmacsRT> for Env {
-    fn from(runtime: *mut EmacsRT) -> Env {
+impl From<*mut emacs_runtime> for Env {
+    fn from(runtime: *mut emacs_runtime) -> Env {
         let raw = unsafe {
             let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
             get_env(runtime)

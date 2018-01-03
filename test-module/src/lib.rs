@@ -7,16 +7,13 @@ extern crate emacs;
 #[macro_use]
 mod macros;
 
-use emacs::{EmacsVal, EmacsRT, EmacsEnv};
+use emacs::{EmacsVal, EmacsEnv};
 use emacs::{Env, ToEmacs, Result};
 use emacs::HandleFunc;
 use std::ptr;
 
-/// This states that the module is GPL-compliant.
-/// Emacs won't load the module if this symbol is undefined.
-#[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static plugin_is_GPL_compatible: libc::c_int = 0;
+emacs_plugin_is_GPL_compatible!();
+emacs_module_init!(init);
 
 const MODULE: &str = "test-module";
 lazy_static! {
@@ -113,19 +110,4 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
     }
 
     env.provide(MODULE)
-}
-
-/// Entry point for live-reloading during development.
-#[no_mangle]
-pub extern "C" fn emacs_rs_module_init(raw: *mut EmacsEnv) -> libc::c_int {
-    match init(&mut Env::from(raw)) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
-}
-
-/// Entry point for Emacs' loader, for "production".
-#[no_mangle]
-pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
-    emacs_rs_module_init(Env::from(ert).raw())
 }

@@ -2,8 +2,8 @@ use std::ffi::CString;
 use std::ops::Range;
 use libc;
 use emacs_module::{EmacsSubr, EmacsVal};
-use Env;
-use error::Result;
+use super::Env;
+use super::error::Result;
 
 // TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
@@ -22,6 +22,45 @@ macro_rules! raw_call {
                 $name($env.raw $(, $args)*)
             };
             $crate::error::HandleExit::handle_exit($env, result)
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! emacs_plugin_is_GPL_compatible {
+    () => {
+        /// This states that the module is GPL-compliant.
+        /// Emacs won't load the module if this symbol is undefined.
+        #[no_mangle]
+        #[allow(non_upper_case_globals)]
+        pub static plugin_is_GPL_compatible: libc::c_int = 0;
+    }
+}
+
+/// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
+/// signature must be `fn(&mut Env) -> Result<EmacsVal>`.
+#[macro_export]
+macro_rules! emacs_module_init {
+    ($init:ident) => {
+        /// Entry point for Emacs's module loader.
+        #[no_mangle]
+        pub extern "C" fn emacs_module_init(raw: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
+            match $init(&mut $crate::Env::from(raw)) {
+                Ok(_) => 0,
+                // TODO: Try to signal error to Emacs as well
+                Err(_) => 1,
+            }
+        }
+
+        // TODO: Exclude this in release build.
+        /// Entry point for live-reloading (by `rs-module`) during development.
+        #[no_mangle]
+        pub extern "C" fn emacs_rs_module_init(raw: *mut $crate::EmacsEnv) -> ::libc::c_int {
+            match $init(&mut $crate::Env::from(raw)) {
+                Ok(_) => 0,
+                // TODO: Try to signal error to Emacs as well
+                Err(_) => 1,
+            }
         }
     };
 }

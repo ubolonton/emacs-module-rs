@@ -3,7 +3,7 @@ use std::error;
 use std::io;
 use std::ffi::NulError;
 use emacs_module::*;
-use {Env, ToEmacs};
+use super::{Env, ToEmacs};
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more

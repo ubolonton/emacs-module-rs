@@ -5,17 +5,14 @@ extern crate libloading as lib;
 #[macro_use]
 extern crate lazy_static;
 
-use emacs::{EmacsVal, EmacsRT, EmacsEnv};
+use emacs::{EmacsVal, EmacsEnv};
 use emacs::{Env, Result, HandleFunc};
 use std::ptr;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-/// This states that the module is GPL-compliant.
-/// Emacs won't load the module if this symbol is undefined.
-#[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static plugin_is_GPL_compatible: libc::c_int = 0;
+emacs_plugin_is_GPL_compatible!();
+emacs_module_init!(init);
 
 lazy_static! {
     static ref LIBRARIES: Mutex<HashMap<String, lib::Library>> = Mutex::new(HashMap::new());
@@ -68,12 +65,4 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
         ptr::null_mut()
     )?;
     env.provide(RS_MODULE)
-}
-
-#[no_mangle]
-pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
-    match init(&mut Env::from(ert)) {
-        Ok(_) => 0,
-        Err(_) => 0,
-    }
 }
