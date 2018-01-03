@@ -1,13 +1,15 @@
 [package]
 name = "emacs"
 version = "0.2.0"
+description = "Rust library for creating emacs modules"
 authors = [
     "Aaron France <aaron.l.france@gmail.com>",
     "Joey Ezechiëls <joey.ezechiels@gmail.com>",
     "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
 ]
-description = "Rust library for creating emacs modules"
 license = "BSD-3-Clause"
+readme = "README.md"
+keywords = ["emacs", "emacs-module"]
 
 [dependencies]
 libc = "0.2.34"
