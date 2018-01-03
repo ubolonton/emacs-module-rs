@@ -69,12 +69,13 @@ macro_rules! defuns {
         $({
             extern crate libc;
             extern crate emacs;
-            use emacs::{EmacsEnv, EmacsVal};
+            use emacs::EmacsVal;
             use emacs::{Env, Result};
             use emacs::error::TriggerExit;
+            use emacs::raw::emacs_env;
 
             #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn extern_name(env: *mut EmacsEnv,
+            unsafe extern "C" fn extern_name(env: *mut emacs_env,
                                              nargs: libc::ptrdiff_t,
                                              args: *mut EmacsVal,
                                              _data: *mut libc::c_void) -> EmacsVal {

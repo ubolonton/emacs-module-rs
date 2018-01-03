@@ -5,8 +5,9 @@ extern crate libloading as lib;
 #[macro_use]
 extern crate lazy_static;
 
-use emacs::{EmacsVal, EmacsEnv};
+use emacs::EmacsVal;
 use emacs::{Env, Result, HandleFunc};
+use emacs::raw::emacs_env;
 use std::ptr;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -43,7 +44,7 @@ fn load_module(env: &mut Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Re
     let l = lib::Library::new(&path)?;
     message!(env, "[{}]: initializing...", &path)?;
     unsafe {
-        let rs_init: lib::Symbol<unsafe extern fn(*mut EmacsEnv) -> u32> =
+        let rs_init: lib::Symbol<unsafe extern fn(*mut emacs_env) -> u32> =
             l.get(INIT_FROM_ENV.as_bytes())?;
         rs_init(env.raw());
     }

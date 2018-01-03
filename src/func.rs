@@ -55,7 +55,7 @@ macro_rules! emacs_module_init {
         // TODO: Exclude this in release build.
         /// Entry point for live-reloading (by `rs-module`) during development.
         #[no_mangle]
-        pub extern "C" fn emacs_rs_module_init(raw: *mut $crate::EmacsEnv) -> ::libc::c_int {
+        pub extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
             match $init(&mut $crate::Env::from(raw)) {
                 Ok(_) => 0,
                 // TODO: Try to signal error to Emacs as well
@@ -99,7 +99,7 @@ macro_rules! emacs_subrs {
     ($($name:ident -> $extern_name:ident;)*) => {
         $(
             #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn $extern_name(env: *mut $crate::EmacsEnv,
+            unsafe extern "C" fn $extern_name(env: *mut $crate::raw::emacs_env,
                                               nargs: libc::ptrdiff_t,
                                               args: *mut $crate::EmacsVal,
                                               data: *mut libc::c_void) -> $crate::EmacsVal {

@@ -4,6 +4,7 @@ extern crate emacs_module;
 use std::ffi::CString;
 use std::ptr;
 use libc::ptrdiff_t;
+use emacs_module::{emacs_runtime, emacs_env};
 use self::error::HandleExit;
 
 #[macro_use]
@@ -11,13 +12,12 @@ pub mod func;
 pub mod error;
 pub mod raw;
 
-pub use emacs_module::{Dtor, EmacsEnv, EmacsVal, EmacsSubr};
-pub use emacs_module::emacs_runtime;
+pub use emacs_module::{Dtor, EmacsVal, EmacsSubr};
 pub use self::error::{Result, Error};
 pub use self::func::HandleFunc;
 
 pub struct Env {
-    pub(crate) raw: *mut EmacsEnv
+    pub(crate) raw: *mut emacs_env
 }
 
 // TODO: CloneToEmacs?
@@ -68,8 +68,8 @@ impl FromEmacs for String {
     }
 }
 
-impl From<*mut EmacsEnv> for Env {
-    fn from(raw: *mut EmacsEnv) -> Env {
+impl From<*mut emacs_env> for Env {
+    fn from(raw: *mut emacs_env) -> Env {
         Env { raw }
     }
 }
@@ -85,7 +85,7 @@ impl From<*mut emacs_runtime> for Env {
 }
 
 impl Env {
-    pub fn raw(&self) -> *mut EmacsEnv {
+    pub fn raw(&self) -> *mut emacs_env {
         self.raw
     }
 

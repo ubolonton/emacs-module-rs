@@ -7,7 +7,7 @@ extern crate emacs;
 #[macro_use]
 mod macros;
 
-use emacs::{EmacsVal, EmacsEnv};
+use emacs::EmacsVal;
 use emacs::{Env, ToEmacs, Result};
 use emacs::HandleFunc;
 use std::ptr;
