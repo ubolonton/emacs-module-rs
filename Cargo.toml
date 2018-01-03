@@ -12,7 +12,7 @@ license = "BSD-3-Clause"
 [dependencies]
 libc = "0.2.34"
 lazy_static = "1.0.0"
-emacs_module = { path = "emacs-module" }
+emacs_module = { path = "emacs-module", version = "0.2.0" }
 
 [workspace]
 members = [
