@@ -67,8 +67,8 @@ macro_rules! defuns {
         make_prefix!(emacs_prefix, $prefix);
 
         $({
-            extern crate emacs;
             extern crate libc;
+            extern crate emacs;
             use emacs::{EmacsEnv, EmacsVal};
             use emacs::{Env, Result};
             use emacs::error::TriggerExit;
@@ -78,18 +78,18 @@ macro_rules! defuns {
                                              nargs: libc::ptrdiff_t,
                                              args: *mut EmacsVal,
                                              _data: *mut libc::c_void) -> EmacsVal {
-                let env = &Env::from(env);
+                let mut env = Env::from(env);
                 let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
                 // XXX: .clone()
                 $(let $arg = _iter.next().unwrap().clone();)*
-                let result = intern_name(env $(, $arg)*);
+                let result = intern_name(&mut env $(, $arg)*);
                 env.maybe_exit(result)
             }
 
-            fn intern_name($env: &Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
+            fn intern_name($env: &mut Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
                 $body
             }
 

@@ -44,13 +44,6 @@ impl ToEmacs for str {
     }
 }
 
-impl ToEmacs for [Box<ToEmacs>] {
-    fn to_emacs(&self, env: &Env) -> Result<EmacsVal> {
-        let args = &mut env.to_emacs_args(self)?;
-        env.list(args)
-    }
-}
-
 impl FromEmacs for i64 {
     fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self> {
         raw_call!(env, extract_integer, value)
@@ -120,7 +113,7 @@ impl Env {
         Ok(bytes)
     }
 
-    pub fn intern(&self, name: &str) -> Result<EmacsVal> {
+    pub fn intern(&mut self, name: &str) -> Result<EmacsVal> {
         raw_call!(self, intern, CString::new(name)?.as_ptr())
     }
 
@@ -130,17 +123,9 @@ impl Env {
     }
 
     // TODO: Add a convenient macro?
-    pub fn call(&self, name: &str, args: &mut [EmacsVal]) -> Result<EmacsVal> {
+    pub fn call(&mut self, name: &str, args: &mut [EmacsVal]) -> Result<EmacsVal> {
         let symbol = self.intern(name)?;
         raw_call!(self, funcall, symbol, args.len() as ptrdiff_t, args.as_mut_ptr())
-    }
-
-    fn to_emacs_args(&self, args: &[Box<ToEmacs>]) -> Result<Vec<EmacsVal>> {
-        let mut e_args: Vec<EmacsVal> = Vec::with_capacity(args.len());
-        for value in args.iter() {
-            e_args.push(value.to_emacs(self)?);
-        }
-        Ok(e_args)
     }
 
     pub fn to_emacs<T: ToEmacs>(&self, value: T) -> Result<EmacsVal> {
@@ -148,7 +133,7 @@ impl Env {
     }
 
     pub fn from_emacs<T: FromEmacs>(&self, value: EmacsVal) -> Result<T> {
-        FromEmacs::from_emacs(&self, value)
+        FromEmacs::from_emacs(self, value)
     }
 
     pub fn is_not_nil(&self, value: EmacsVal) -> Result<bool> {
@@ -159,17 +144,18 @@ impl Env {
         raw_call!(self, eq, a, b)
     }
 
-    pub fn list(&self, args: &mut [EmacsVal]) -> Result<EmacsVal> {
+    // TODO: Add a private call_shared to allow certain built-in to use &self.
+    pub fn list(&mut self, args: &mut [EmacsVal]) -> Result<EmacsVal> {
         self.call("list", args)
     }
 
-    pub fn provide(&self, name: &str) -> Result<EmacsVal> {
-        self.call("provide", &mut [self.intern(name)?])
+    pub fn provide(&mut self, name: &str) -> Result<EmacsVal> {
+        let name = self.intern(name)?;
+        self.call("provide", &mut [name])
     }
 
-    pub fn message(&self, text: &str) -> Result<EmacsVal> {
-        self.call("message", &mut [
-            text.to_emacs(self)?
-        ])
+    pub fn message(&mut self, text: &str) -> Result<EmacsVal> {
+        let text = text.to_emacs(self)?;
+        self.call("message", &mut [text])
     }
 }

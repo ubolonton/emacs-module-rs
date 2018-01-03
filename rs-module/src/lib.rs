@@ -33,7 +33,7 @@ macro_rules! message {
 /// Helper function that enables live-reloading of Emacs's dynamic module. To be reloadable, the
 /// module be loaded by this function (`rs-module/load` in ELisp) instead of Emacs'
 /// `module-load`. (Re)loading is achieved by calling `(rs-module/load "/path/to/module")`.
-fn load_module(env: &Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
+fn load_module(env: &mut Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
     let path: String = env.from_emacs(args[0])?;
     let mut libraries = LIBRARIES.lock()
         .expect("Failed to acquire lock for module map");
@@ -56,7 +56,7 @@ fn load_module(env: &Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result
 
 /// This is not exported, since this module should be loaded by Emacs's built-in `module-load`, thus
 /// cannot be reloaded.
-fn init(env: &Env) -> Result<EmacsVal> {
+fn init(env: &mut Env) -> Result<EmacsVal> {
     message!(env, "[{}]: loading...", RS_MODULE)?;
     emacs_subrs!(
         load_module -> f_load_module;
@@ -72,7 +72,7 @@ fn init(env: &Env) -> Result<EmacsVal> {
 
 #[no_mangle]
 pub extern "C" fn emacs_module_init(ert: *mut EmacsRT) -> libc::c_int {
-    match init(&Env::from(ert)) {
+    match init(&mut Env::from(ert)) {
         Ok(_) => 0,
         Err(_) => 0,
     }
