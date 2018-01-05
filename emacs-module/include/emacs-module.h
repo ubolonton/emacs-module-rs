@@ -1,13 +1,13 @@
 /* emacs-module.h - GNU Emacs module API.
 
-Copyright (C) 2015-2016 Free Software Foundation, Inc.
+Copyright (C) 2015 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or (at
-your option) any later version.
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -26,8 +26,19 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #if defined __cplusplus && __cplusplus >= 201103L
 # define EMACS_NOEXCEPT noexcept
+
+/* Function prototype for module user-pointer finalizers.
+
+   NOTE: C++11 15.4: An exception-specification shall not appear in a
+                     typedef declaration or alias-declaration.
+
+*/
+void emacs_dummy_finalizer_function (void *) noexcept;
+typedef decltype(emacs_dummy_finalizer_function) *emacs_finalizer_function;
+
 #else
 # define EMACS_NOEXCEPT
+typedef void (*emacs_finalizer_function) (void *);
 #endif
 
 #ifdef __cplusplus
@@ -41,7 +52,7 @@ typedef struct emacs_env_25 emacs_env;
    BEWARE: Do not assume NULL is a valid value!  */
 typedef struct emacs_value_tag *emacs_value;
 
-enum { emacs_variadic_function = -2 };
+enum emacs_arity { emacs_variadic_function = -2 };
 
 /* Struct passed to a module init function (emacs_module_init).  */
 struct emacs_runtime
@@ -56,6 +67,13 @@ struct emacs_runtime
   emacs_env *(*get_environment) (struct emacs_runtime *ert);
 };
 
+
+/* Function prototype for the module init function.  */
+typedef int (*emacs_init_function) (struct emacs_runtime *ert);
+
+/* Function prototype for the module Lisp functions.  */
+typedef emacs_value (*emacs_subr) (emacs_env *env, ptrdiff_t nargs,
+				   emacs_value args[], void *data);
 
 /* Possible Emacs function call outcomes.  */
 enum emacs_funcall_exit
@@ -166,17 +184,17 @@ struct emacs_env_25
 
   /* Embedded pointer type.  */
   emacs_value (*make_user_ptr) (emacs_env *env,
-				void (*fin) (void *) EMACS_NOEXCEPT,
+				emacs_finalizer_function fin,
 				void *ptr);
 
   void *(*get_user_ptr) (emacs_env *env, emacs_value uptr);
   void (*set_user_ptr) (emacs_env *env, emacs_value uptr, void *ptr);
 
-  void (*(*get_user_finalizer) (emacs_env *env, emacs_value uptr))
-    (void *) EMACS_NOEXCEPT;
+  emacs_finalizer_function (*get_user_finalizer) (emacs_env *env,
+						  emacs_value uptr);
   void (*set_user_finalizer) (emacs_env *env,
 			      emacs_value uptr,
-			      void (*fin) (void *) EMACS_NOEXCEPT);
+			      emacs_finalizer_function fin);
 
   /* Vector functions.  */
   emacs_value (*vec_get) (emacs_env *env, emacs_value vec, ptrdiff_t i);
