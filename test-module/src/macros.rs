@@ -74,6 +74,10 @@ macro_rules! defuns {
             use emacs::error::TriggerExit;
             use emacs::raw::emacs_env;
 
+            // TODO: Construct an identifier from $name, to get better debug symbols. Seems hard.
+            // See https://github.com/rust-lang/rust/issues/29599 (`concat_idents` is useless),
+            // https://github.com/rust-lang/rfcs/pull/1628,
+            // and https://crates.io/crates/interpolate_idents (procedural macros, nightly).
             #[allow(non_snake_case, unused_variables)]
             unsafe extern "C" fn extern_name(env: *mut emacs_env,
                                              nargs: libc::ptrdiff_t,

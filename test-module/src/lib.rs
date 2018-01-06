@@ -9,6 +9,7 @@ mod macros;
 
 use emacs::EmacsVal;
 use emacs::{Env, ToEmacs, Result};
+use emacs::Transfer;
 use emacs::HandleFunc;
 use std::ptr;
 
@@ -66,6 +67,22 @@ emacs_subrs! {
     test -> f_test;
 }
 
+struct Point {
+    pub x: i64,
+    pub y: i64,
+}
+
+struct StringWrapper {
+    pub s: String
+}
+
+impl Transfer for Point {
+    fn type_name() -> &'static str { "Point" }
+}
+impl Transfer for StringWrapper {
+    fn type_name() -> &'static str { "StringWrapper" }
+}
+
 fn init(env: &mut Env) -> Result<EmacsVal> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
@@ -106,6 +123,27 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
                 dec -> f_dec;
             }
             env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
+        }
+
+        "make-point", "", (env, x, y) {
+            let x: i64 = env.from_emacs(x)?;
+            let y: i64 = env.from_emacs(y)?;
+            let b = Box::new(Point { x, y });
+            env.take(b)
+        }
+
+        "wrap-string", "", (env, s) {
+            let s: String = env.from_emacs(s)?;
+            let b = Box::new(StringWrapper { s });
+            env.take(b)
+        }
+
+        "check-point", "", (env, v) {
+            let value = {
+                let v: &Point = env.lend(v)?;
+                v.x + v.y
+            };
+            value.to_emacs(env)
         }
     }
 

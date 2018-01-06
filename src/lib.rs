@@ -13,7 +13,7 @@ pub mod error;
 pub mod raw;
 
 pub use emacs_module::{Dtor, EmacsVal, EmacsSubr};
-pub use self::error::{Result, Error};
+pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
 pub struct Env {
@@ -28,6 +28,32 @@ pub trait ToEmacs {
 // TODO: CloneFromEmacs?
 pub trait FromEmacs: Sized {
     fn from_emacs(env: &Env, value: EmacsVal) -> Result<Self>;
+}
+
+// TODO: Is it ok to do a blanket implementation so almost anything can be transferred to Emacs?
+/// Used to allow a type to be exposed to Emacs Lisp, where its values appear as opaque objects, or
+/// "embedded user pointers" (`#<user-ptr ...>`).
+///
+/// When a (boxed) value of this type is transferred to Emacs Lisp, the GC becomes its owner.
+/// Afterwards, module code can only access it through references.
+pub trait Transfer: Sized {
+    /// Finalizes a value. This is called by the GC when it discards a value of this type. Module
+    /// code that needs custom destructor logic should implement [`Drop`], instead of overriding
+    /// this.
+    ///
+    /// This function also serves as a form of runtime type tag.
+    unsafe extern "C" fn finalizer(ptr: *mut libc::c_void) {
+        #[cfg(build = "debug")]
+        println!("Finalizing {} {:#?}", Self::type_name(), ptr);
+        Box::from_raw(ptr as *mut Self);
+    }
+
+    /// Returns the name of this type. This is used to report runtime type error, when a function
+    /// expects this type, but some Lisp code passes a different type of "user pointer".
+    fn type_name() -> &'static str;
+
+    // TODO: Consider using a wrapper struct to carry the type info, to enable better runtime
+    // reporting of type error (and to enable something like `rs-module/type-of`).
 }
 
 impl ToEmacs for i64 {
@@ -136,6 +162,30 @@ impl Env {
 
     pub fn from_emacs<T: FromEmacs>(&self, value: EmacsVal) -> Result<T> {
         FromEmacs::from_emacs(self, value)
+    }
+
+    pub fn take<T: Transfer>(&mut self, container: Box<T>) -> Result<EmacsVal> {
+        let raw = Box::into_raw(container);
+        let ptr = raw as *mut libc::c_void;
+        raw_call!(self, make_user_ptr, Some(T::finalizer), ptr)
+    }
+
+    pub fn lend<'e, T: Transfer>(&'e mut self, value: EmacsVal) -> Result<&'e mut T> {
+        match raw_call!(self, get_user_finalizer, value)? {
+            Some(fin) if fin == T::finalizer => {
+                let ptr = raw_call!(self, get_user_ptr, value)?;
+                let raw = ptr as *mut T;
+                unsafe { Ok(&mut *raw) }
+            },
+            Some(_) => {
+                let expected = T::type_name();
+                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
+            },
+            None => {
+                let expected = T::type_name();
+                Err(ErrorKind::UnknownUserPtr { expected }.into())
+            }
+        }
     }
 
     pub fn is_not_nil(&self, value: EmacsVal) -> Result<bool> {

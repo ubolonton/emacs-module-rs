@@ -24,6 +24,8 @@ pub struct Error {
 pub enum ErrorKind {
     Signal { symbol: EmacsVal, data: EmacsVal },
     Throw { tag: EmacsVal, value: EmacsVal },
+    UserPtrHasWrongType { expected: &'static str },
+    UnknownUserPtr { expected: &'static str },
     IO { error: io::Error },
     Other { error: Box<error::Error> },
     CoreFnMissing(String),
@@ -50,16 +52,22 @@ impl Error {
     }
 }
 
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Self { kind }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
-        Self { kind: ErrorKind::IO { error } }
+        ErrorKind::IO { error }.into()
     }
 }
 
 // TODO: Better reporting.
 impl From<NulError> for Error {
     fn from(error: NulError) -> Self {
-        Self { kind: ErrorKind::Other { error: Box::new(error) } }
+        ErrorKind::Other { error: Box::new(error) }.into()
     }
 }
 
