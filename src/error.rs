@@ -75,19 +75,6 @@ pub(crate) trait HandleExit {
     fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T>;
 }
 
-/// Note: Some functions in emacs-module.h are critically important, like those that support error
-/// reporting to Emacs. If they are missing, the only sensible thing to do is crashing. Use this
-/// macro to call them instead of [`raw_call!`].
-macro_rules! critical {
-    ($env:ident, $name:ident $(, $args:expr)*) => {
-        unsafe {
-            let $name = raw_fn!($env, $name)
-                .expect(&format!("Required function {} cannot be found", stringify!($name)));
-            $name($env.raw $(, $args)*)
-        }
-    };
-}
-
 fn non_local_exit_get(env: &Env) -> (FuncallExit, Value, Value) {
     let mut buffer = Vec::<emacs_value>::with_capacity(2);
     let symbol = buffer.as_mut_ptr();

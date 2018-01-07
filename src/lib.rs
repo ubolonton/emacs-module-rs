@@ -9,6 +9,8 @@ use emacs_module::{emacs_runtime, emacs_env, emacs_value};
 use self::error::HandleExit;
 
 #[macro_use]
+mod macros;
+
 pub mod func;
 pub mod error;
 pub mod raw;
