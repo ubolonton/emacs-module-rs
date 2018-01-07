@@ -111,3 +111,10 @@ macro_rules! custom_types {
         }
     )*};
 }
+
+macro_rules! call {
+    ($env:ident, $name:expr $(, $arg:expr)*) => {{
+        let args = &mut [$($arg.to_emacs($env)?,)*];
+        $env.call($name, args)
+    }}
+}

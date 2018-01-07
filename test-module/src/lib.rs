@@ -14,16 +14,9 @@ use std::ptr;
 emacs_plugin_is_GPL_compatible!();
 emacs_module_init!(init);
 
-const MODULE: &str = "test-module";
+const MODULE: &str = "t";
 lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
-}
-
-macro_rules! call {
-    ($env:ident, $name:expr $(, $arg:expr)*) => {{
-        let args = &mut [$($arg.to_emacs($env)?,)*];
-        $env.call($name, args)
-    }}
 }
 
 fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
@@ -61,22 +54,52 @@ fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Valu
     call!(env, "message", "Should not ever get here")
 }
 
-emacs_subrs! {
-    test -> f_test;
-}
+fn init_vector_functions(env: &mut Env) -> Result<()> {
+    struct Vector {
+        pub x: i64,
+        pub y: i64,
+    }
 
-struct Vector {
-    pub x: i64,
-    pub y: i64,
-}
+    custom_types! {
+        Vector as "Vector";
+    }
 
-struct StringWrapper {
-    pub s: String
-}
+    defuns! {
+        env, format!("{}vector:", *MODULE_PREFIX);
 
-custom_types! {
-    Vector as "Vector";
-    StringWrapper as "StrWrapper";
+        "make", "", (env, x, y) {
+            let x: i64 = env.from_emacs(x)?;
+            let y: i64 = env.from_emacs(y)?;
+            let b = Box::new(Vector { x, y });
+            env.take(b)
+        }
+
+        "to-list", "", (env, v) {
+            env.try_ref::<Vector>(&v)?;
+            let v: &Vector = env.try_ref(&v)?;
+            let x = v.x.to_emacs(env)?;
+            let y = v.y.to_emacs(env)?;
+            env.list(&mut [x, y])
+        }
+
+        "add", "", (env, a, b) {
+            let a: &Vector = env.try_ref(&a)?;
+            let b: &Vector = b.try_borrow(env)?;
+            let (x, y) = (b.x + a.x, b.y + a.y);
+            env.take(Box::new(Vector { x, y }))
+        }
+
+        "scale-mutably", "", (env, times, v) {
+            let times: i64 = env.from_emacs(&times)?;
+            {
+                let v: &mut Vector = env.try_mut(v)?;
+                v.x *= times;
+                v.y *= times;
+            }
+            env.intern("nil")
+        }
+    }
+    Ok(())
 }
 
 fn init(env: &mut Env) -> Result<Value> {
@@ -84,10 +107,24 @@ fn init(env: &mut Env) -> Result<Value> {
 
     env.message("Hello, Emacs!")?;
 
+    emacs_subrs! {
+        test -> f_test;
+    }
+
     env.register(
         prefix!(test), f_test, 0..0,
         "", ptr::null_mut()
     )?;
+
+    init_vector_functions(env)?;
+
+    struct StringWrapper {
+        pub s: String
+    }
+
+    custom_types! {
+        StringWrapper as "StrWrapper";
+    }
 
     defuns! {
         env, *MODULE_PREFIX;
@@ -121,42 +158,10 @@ fn init(env: &mut Env) -> Result<Value> {
             env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
         }
 
-        "make-vector", "", (env, x, y) {
-            let x: i64 = env.from_emacs(x)?;
-            let y: i64 = env.from_emacs(y)?;
-            let b = Box::new(Vector { x, y });
-            env.take(b)
-        }
-
         "wrap-string", "", (env, s) {
             let s: String = env.from_emacs(s)?;
             let b = Box::new(StringWrapper { s });
             env.take(b)
-        }
-
-        "vector-to-list", "", (env, v) {
-            env.try_ref::<Vector>(&v)?;
-            let v: &Vector = env.try_ref(&v)?;
-            let x = v.x.to_emacs(env)?;
-            let y = v.y.to_emacs(env)?;
-            env.list(&mut [x, y])
-        }
-
-        "add-vectors", "", (env, a, b) {
-            let a: &Vector = env.try_ref(&a)?;
-            let b: &Vector = b.try_borrow(env)?;
-            let (x, y) = (b.x + a.x, b.y + a.y);
-            env.take(Box::new(Vector { x, y }))
-        }
-
-        "scale-vector-mutably", "", (env, times, v) {
-            let times: i64 = env.from_emacs(&times)?;
-            {
-                let v: &mut Vector = env.try_mut(v)?;
-                v.x *= times;
-                v.y *= times;
-            }
-            env.intern("nil")
         }
     }
 
