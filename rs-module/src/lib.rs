@@ -31,7 +31,7 @@ macro_rules! message {
 /// module be loaded by this function (`rs-module/load` in ELisp) instead of Emacs'
 /// `module-load`. (Re)loading is achieved by calling `(rs-module/load "/path/to/module")`.
 fn load_module(env: &mut Env, args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
-    let path: String = env.from_emacs(&args[0])?;
+    let path: String = env.get_owned(&args[0])?;
     let mut libraries = LIBRARIES.lock()
         .expect("Failed to acquire lock for module map");
     // TODO: How about tracking by feature name?

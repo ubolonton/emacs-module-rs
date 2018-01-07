@@ -25,7 +25,7 @@ impl HandleFunc for Env {
 
     fn fset(&mut self, name: &str, func: Value) -> Result<Value> {
         let symbol = self.intern(name)?;
-        self.call("fset", &mut [symbol, func])
+        self.call("fset", &[symbol, func])
     }
 
     fn register(&mut self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {

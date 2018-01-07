@@ -3,7 +3,7 @@ use std::error;
 use std::io;
 use std::ffi::NulError;
 use emacs_module::*;
-use super::{Env, Value, ToEmacs};
+use super::{Env, Value, ToLisp};
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
@@ -72,6 +72,10 @@ impl From<NulError> for Error {
 }
 
 pub(crate) trait HandleExit {
+    // Technically this should be '&mut self', but that would require almost all functions on Env
+    // that call into Emacs to take '&mut self' as well. Using '&self' is ok as long as the caller
+    // knows how to use it properly. Since it's internal to the crate, it's ok. Each function in
+    // Env decides which interface it exposes, depending on the actual semantics.
     fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T>;
 }
 
@@ -94,10 +98,6 @@ impl HandleExit for Env {
         match non_local_exit_get(self) {
             (RETURN, ..) => Ok(result.into()),
             (SIGNAL, symbol, data) => {
-                // TODO: Shouldn't we call make_global_ref here to make sure symbol and data are
-                // not GC'ed? Maybe in a wrapper type that calls free_global_ref when dropped.
-                // The only issue is that free_global_ref requires emacs_env (even though it
-                // doesn't currently use that).
                 non_local_exit_clear(self);
                 Err(Error::signal(symbol, data))
             },
@@ -131,8 +131,8 @@ fn signal(env: &mut Env, symbol: Value, data: Value) -> emacs_value {
 
 // XXX
 fn error(env: &mut Env, message: &str) -> Result<emacs_value> {
-    let message = message.to_emacs(env)?;
-    let data = env.list(&mut [message])?.into();
+    let message = message.to_lisp(env)?;
+    let data = env.list(&[message])?.into();
     let symbol = env.intern("error")?.into();
     Ok(signal(env, symbol, data))
 }

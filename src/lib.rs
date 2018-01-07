@@ -31,17 +31,15 @@ pub struct Value {
     pub(crate) raw: emacs_value,
 }
 
-// TODO: CloneToEmacs?
-pub trait ToEmacs {
-    fn to_emacs(&self, env: &Env) -> Result<Value>;
+// CloneToLisp
+pub trait ToLisp {
+    fn to_lisp(&self, env: &Env) -> Result<Value>;
 }
 
-// TODO: CloneFromEmacs?
-pub trait FromEmacs: Sized {
-    fn from_emacs<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self>;
+// CloneFromLisp
+pub trait FromLisp: Sized {
+    fn from_lisp<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self>;
 }
-
-pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
 // TODO: Is it ok to do a blanket implementation so almost anything can be transferred to Emacs?
 /// Used to allow a type to be exposed to Emacs Lisp, where its values appear as opaque objects, or
@@ -69,6 +67,13 @@ pub trait Transfer: Sized {
     // reporting of type error (and to enable something like `rs-module/type-of`).
 }
 
+pub trait IntoLisp {
+    fn into_lisp(self, env: &Env) -> Result<Value>;
+}
+
+pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
+
+// TODO: Consider using '&mut self' instead of '&self' for some functions
 impl Env {
     pub fn raw(&self) -> *mut emacs_env {
         self.raw
@@ -108,7 +113,7 @@ impl Env {
         Ok(bytes)
     }
 
-    pub fn intern(&mut self, name: &str) -> Result<Value> {
+    pub fn intern(&self, name: &str) -> Result<Value> {
         raw_call!(self, intern, CString::new(name)?.as_ptr())
     }
 
@@ -118,33 +123,31 @@ impl Env {
     }
 
     // TODO: Add a convenient macro?
-    pub fn call(&mut self, name: &str, args: &mut [Value]) -> Result<Value> {
+    pub fn call(&self, name: &str, args: &[Value]) -> Result<Value> {
         let symbol = self.intern(name)?;
         // XXX Hmm
-        let mut args: Vec<emacs_value> = args.iter_mut().map(|v| v.raw).collect();
+        let mut args: Vec<emacs_value> = args.iter().map(|v| v.raw).collect();
         raw_call!(self, funcall, symbol.raw, args.len() as ptrdiff_t, args.as_mut_ptr())
     }
 
-    pub fn to_emacs<T: ToEmacs>(&self, value: T) -> Result<Value> {
-        value.to_emacs(self)
+    pub fn clone_to_lisp<T, U>(&self, value: U) -> Result<Value> where T: ToLisp, U: Borrow<T> {
+        value.borrow().to_lisp(self)
     }
 
-    pub fn from_emacs<T, U>(&self, value: U) -> Result<T> where T: FromEmacs, U: Borrow<Value> {
-        FromEmacs::from_emacs(self, value.borrow())
+    pub fn move_to_lisp<T>(&self, value: T) -> Result<Value> where T: IntoLisp {
+        value.into_lisp(self)
     }
 
-    pub fn take<T: Transfer>(&mut self, container: Box<T>) -> Result<Value> {
-        let raw = Box::into_raw(container);
-        let ptr = raw as *mut libc::c_void;
-        raw_call!(self, make_user_ptr, Some(T::finalizer), ptr)
+    pub fn get_owned<T, U>(&self, lisp_value: U) -> Result<T> where T: FromLisp, U: Borrow<Value> {
+        lisp_value.borrow().to_owned(self)
     }
 
-    pub fn try_ref<'v, T: Transfer>(&self, value: &'v Value) -> Result<&'v T> {
-        value.try_borrow(self)
+    pub fn get_ref<'v, T>(&self, lisp_value: &'v Value) -> Result<&'v T> where T: Transfer {
+        lisp_value.to_ref(self)
     }
 
-    pub fn try_mut<T: Transfer>(&self, value: Value) -> Result<&mut T> {
-        value.try_into_mut(self)
+    pub fn get_mut<T>(&self, lisp_value: Value) -> Result<&mut T> where T: Transfer {
+        lisp_value.into_mut(self)
     }
 
     fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
@@ -172,19 +175,18 @@ impl Env {
         raw_call!(self, eq, a.raw, b.raw)
     }
 
-    // TODO: Add a private call_shared to allow certain built-in to use &self.
-    pub fn list(&mut self, args: &mut [Value]) -> Result<Value> {
+    pub fn list(&self, args: &[Value]) -> Result<Value> {
         self.call("list", args)
     }
 
-    pub fn provide(&mut self, name: &str) -> Result<Value> {
+    pub fn provide(&self, name: &str) -> Result<Value> {
         let name = self.intern(name)?;
-        self.call("provide", &mut [name])
+        self.call("provide", &[name])
     }
 
-    pub fn message(&mut self, text: &str) -> Result<Value> {
-        let text = text.to_emacs(self)?;
-        self.call("message", &mut [text])
+    pub fn message(&self, text: &str) -> Result<Value> {
+        let text = text.to_lisp(self)?;
+        self.call("message", &[text])
     }
 }
 
@@ -205,15 +207,19 @@ impl From<*mut emacs_runtime> for Env {
 }
 
 impl Value {
-    pub fn try_into_mut<T: Transfer>(self, env: &Env) -> Result<&mut T> {
+    pub fn to_owned<T: FromLisp>(&self, env: &Env) -> Result<T> {
+        FromLisp::from_lisp(env, self)
+    }
+
+    pub fn to_ref<T: Transfer>(&self, env: &Env) -> Result<&T> {
         env.get_raw_pointer(self.raw).map(|r| unsafe {
-            &mut *r
+            &*r
         })
     }
 
-    pub fn try_borrow<T: Transfer>(&self, env: &Env) -> Result<&T> {
+    pub fn into_mut<T: Transfer>(self, env: &Env) -> Result<&mut T> {
         env.get_raw_pointer(self.raw).map(|r| unsafe {
-            &*r
+            &mut *r
         })
     }
 }
@@ -224,32 +230,41 @@ impl From<emacs_value> for Value {
     }
 }
 
-impl ToEmacs for i64 {
-    fn to_emacs(&self, env: &Env) -> Result<Value> {
+impl ToLisp for i64 {
+    fn to_lisp(&self, env: &Env) -> Result<Value> {
         raw_call!(env, make_integer, *self)
     }
 }
 
 // TODO: Make this more elegant. Can't implement it for trait bound Into<Vec<u8>>, since that would
 // complain about conflicting implementations for i64.
-impl ToEmacs for str {
-    fn to_emacs(&self, env: &Env) -> Result<Value> {
+impl ToLisp for str {
+    fn to_lisp(&self, env: &Env) -> Result<Value> {
         let cstring = CString::new(self)?;
         let ptr = cstring.as_ptr();
         raw_call!(env, make_string, ptr, libc::strlen(ptr) as ptrdiff_t)
     }
 }
 
-impl FromEmacs for i64 {
-    fn from_emacs<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self> {
+impl FromLisp for i64 {
+    fn from_lisp<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self> {
         raw_call!(env, extract_integer, value.borrow().raw)
     }
 }
 
-impl FromEmacs for String {
-    fn from_emacs<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self> {
+impl FromLisp for String {
+    // TODO: Optimize this.
+    fn from_lisp<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self> {
         let bytes = env.string_bytes(value.borrow())?;
         // FIX
         Ok(String::from_utf8(bytes).unwrap())
+    }
+}
+
+impl<T: Transfer> IntoLisp for Box<T> {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        let raw = Box::into_raw(self);
+        let ptr = raw as *mut libc::c_void;
+        raw_call!(env, make_user_ptr, Some(T::finalizer), ptr)
     }
 }

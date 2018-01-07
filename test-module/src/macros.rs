@@ -36,7 +36,7 @@ macro_rules! make_prefix {
 ///     // Defines "my-module/plus"
 ///     plus, "x + y", (env, x, y) {
 ///         let result = env.from_emacs(x)? + env.from_emacs(y)?;
-///         result.to_emacs(env)
+///         result.to_lisp(env)
 ///     }
 ///     // Defines "my-module/my-identity"
 ///     "my-identity", "", (_env, x) {
@@ -114,7 +114,7 @@ macro_rules! custom_types {
 
 macro_rules! call {
     ($env:ident, $name:expr $(, $arg:expr)*) => {{
-        let args = &mut [$($arg.to_emacs($env)?,)*];
+        let args = &[$($arg.to_lisp($env)?,)*];
         $env.call($name, args)
     }}
 }

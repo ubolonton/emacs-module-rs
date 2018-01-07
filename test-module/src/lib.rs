@@ -7,7 +7,7 @@ extern crate emacs;
 #[macro_use]
 mod macros;
 
-use emacs::{Env, Value, ToEmacs, Result};
+use emacs::{Env, Value, ToLisp, IntoLisp, Result};
 use emacs::HandleFunc;
 use std::ptr;
 
@@ -20,8 +20,8 @@ lazy_static! {
 }
 
 fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
-    env.to_emacs(5)?;
-    match "1\0a".to_emacs(env) {
+    env.clone_to_lisp(5)?;
+    match "1\0a".to_lisp(env) {
         Ok(_) => {
             println!("ok");
             call!(env, "message", "Should not get to this because we used a string with a zero byte")?;
@@ -43,7 +43,7 @@ fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Valu
     }
     println!("Stop");
 
-    let args = &mut [call!(env, "+", 1)?, "(+ 1) -> %s".to_emacs(env)?];
+    let args = &[call!(env, "+", 1)?, "(+ 1) -> %s".to_lisp(env)?];
     env.call("message", args)?;
 
     // Wrong type argument: symbolp, (throw-)
@@ -68,31 +68,31 @@ fn init_vector_functions(env: &mut Env) -> Result<()> {
         env, format!("{}vector:", *MODULE_PREFIX);
 
         "make", "", (env, x, y) {
-            let x: i64 = env.from_emacs(x)?;
-            let y: i64 = env.from_emacs(y)?;
+            let x: i64 = x.to_owned(env)?;
+            let y: i64 = env.get_owned(y)?;
             let b = Box::new(Vector { x, y });
-            env.take(b)
+            env.move_to_lisp(b)
         }
 
         "to-list", "", (env, v) {
-            env.try_ref::<Vector>(&v)?;
-            let v: &Vector = env.try_ref(&v)?;
-            let x = v.x.to_emacs(env)?;
-            let y = v.y.to_emacs(env)?;
-            env.list(&mut [x, y])
+            env.get_ref::<Vector>(&v)?;
+            let v: &Vector = env.get_ref(&v)?;
+            let x = v.x.to_lisp(env)?;
+            let y = v.y.to_lisp(env)?;
+            env.list(&[x, y])
         }
 
         "add", "", (env, a, b) {
-            let a: &Vector = env.try_ref(&a)?;
-            let b: &Vector = b.try_borrow(env)?;
+            let a: &Vector = a.to_ref(env)?;
+            let b: &Vector = b.to_ref(env)?;
             let (x, y) = (b.x + a.x, b.y + a.y);
-            env.take(Box::new(Vector { x, y }))
+            Box::new(Vector { x, y }).into_lisp(env)
         }
 
         "scale-mutably", "", (env, times, v) {
-            let times: i64 = env.from_emacs(&times)?;
+            let times: i64 = times.to_owned(env)?;
             {
-                let v: &mut Vector = env.try_mut(v)?;
+                let v = v.into_mut::<Vector>(env)?;
                 v.x *= times;
                 v.y *= times;
             }
@@ -130,8 +130,8 @@ fn init(env: &mut Env) -> Result<Value> {
         env, *MODULE_PREFIX;
 
         inc, "1+", (env, x) {
-            let i: i64 = env.from_emacs(x)?;
-            (i + 1).to_emacs(env)
+            let i: i64 = x.to_owned(env)?;
+            (i + 1).to_lisp(env)
         }
 
         identity, "not even doing any conversion", (_env, x) {
@@ -139,8 +139,8 @@ fn init(env: &mut Env) -> Result<Value> {
         }
 
         "to-uppercase", "", (env, s) {
-            let s: String = env.from_emacs(s)?;
-            s.to_uppercase().to_emacs(env)
+            let s: String = s.to_owned(env)?;
+            s.to_uppercase().to_lisp(env)
         }
 
         "calling-error", "", (env) {
@@ -149,8 +149,8 @@ fn init(env: &mut Env) -> Result<Value> {
 
         "make-dec", "", (env) {
             fn dec(env: &Env, args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
-                let i: i64 = env.from_emacs(&args[0])?;
-                (i - 1).to_emacs(env)
+                let i: i64 = args[0].to_owned(env)?;
+                (i - 1).to_lisp(env)
             }
             emacs_subrs! {
                 dec -> f_dec;
@@ -159,9 +159,9 @@ fn init(env: &mut Env) -> Result<Value> {
         }
 
         "wrap-string", "", (env, s) {
-            let s: String = env.from_emacs(s)?;
+            let s: String = s.to_owned(env)?;
             let b = Box::new(StringWrapper { s });
-            env.take(b)
+            env.move_to_lisp(b)
         }
     }
 
