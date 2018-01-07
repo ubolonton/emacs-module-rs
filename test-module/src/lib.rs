@@ -7,8 +7,7 @@ extern crate emacs;
 #[macro_use]
 mod macros;
 
-use emacs::EmacsVal;
-use emacs::{Env, ToEmacs, Result};
+use emacs::{Env, Value, ToEmacs, Result};
 use emacs::HandleFunc;
 use std::ptr;
 
@@ -27,7 +26,7 @@ macro_rules! call {
     }}
 }
 
-fn test(env: &mut Env, _args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
+fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
     env.to_emacs(5)?;
     match "1\0a".to_emacs(env) {
         Ok(_) => {
@@ -66,7 +65,7 @@ emacs_subrs! {
     test -> f_test;
 }
 
-struct Point {
+struct Vector {
     pub x: i64,
     pub y: i64,
 }
@@ -76,11 +75,11 @@ struct StringWrapper {
 }
 
 custom_types! {
-    Point as "Point";
+    Vector as "Vector";
     StringWrapper as "StrWrapper";
 }
 
-fn init(env: &mut Env) -> Result<EmacsVal> {
+fn init(env: &mut Env) -> Result<Value> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
     env.message("Hello, Emacs!")?;
@@ -112,8 +111,8 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
         }
 
         "make-dec", "", (env) {
-            fn dec(env: &Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
-                let i: i64 = env.from_emacs(args[0])?;
+            fn dec(env: &Env, args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
+                let i: i64 = env.from_emacs(&args[0])?;
                 (i - 1).to_emacs(env)
             }
             emacs_subrs! {
@@ -122,10 +121,10 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
             env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
         }
 
-        "make-point", "", (env, x, y) {
+        "make-vector", "", (env, x, y) {
             let x: i64 = env.from_emacs(x)?;
             let y: i64 = env.from_emacs(y)?;
-            let b = Box::new(Point { x, y });
+            let b = Box::new(Vector { x, y });
             env.take(b)
         }
 
@@ -135,12 +134,29 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
             env.take(b)
         }
 
-        "check-point", "", (env, v) {
-            let value = {
-                let v: &Point = env.lend(v)?;
-                v.x + v.y
-            };
-            value.to_emacs(env)
+        "vector-to-list", "", (env, v) {
+            env.try_ref::<Vector>(&v)?;
+            let v: &Vector = env.try_ref(&v)?;
+            let x = v.x.to_emacs(env)?;
+            let y = v.y.to_emacs(env)?;
+            env.list(&mut [x, y])
+        }
+
+        "add-vectors", "", (env, a, b) {
+            let a: &Vector = env.try_ref(&a)?;
+            let b: &Vector = b.try_borrow(env)?;
+            let (x, y) = (b.x + a.x, b.y + a.y);
+            env.take(Box::new(Vector { x, y }))
+        }
+
+        "scale-vector-mutably", "", (env, times, v) {
+            let times: i64 = env.from_emacs(&times)?;
+            {
+                let v: &mut Vector = env.try_mut(v)?;
+                v.x *= times;
+                v.y *= times;
+            }
+            env.intern("nil")
         }
     }
 

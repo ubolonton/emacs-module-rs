@@ -14,8 +14,8 @@ extern crate libc;
 pub type EmacsSubr =
     unsafe extern "C" fn(env: *mut emacs_env,
                          nargs: libc::ptrdiff_t,
-                         args: *mut EmacsVal,
-                         data: *mut libc::c_void) -> EmacsVal;
+                         args: *mut emacs_value,
+                         data: *mut libc::c_void) -> emacs_value;
 
 pub type EmacsVal = emacs_value;
 

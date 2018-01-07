@@ -28,16 +28,32 @@
 
 (ert-deftest user-ptr ()
 
-  (let ((p (test-module/make-point 5 6)))
-    (should (string-prefix-p "#<user-ptr" (format "%s" p)))
-    (should (= (test-module/check-point p) 11)))
+  (let* ((v1 (test-module/make-vector 5 6))
+         (v2 (test-module/make-vector 1 3)))
+    (should (string-prefix-p "#<user-ptr" (format "%s" v1)))
+    (should (equal (test-module/vector-to-list v1) '(5 6)))
+    (should (equal (test-module/vector-to-list
+                    (test-module/add-vectors v1 v2))
+                   '(6 9)))
+    ;; Emacs doesn't support custom equality...
+    (should (not (equal (test-module/add-vectors v1 v2)
+                        (test-module/add-vectors v1 v2))))
+    ;; ... but should consider an object equal to itself.
+    (should (let* ((v3 (test-module/add-vectors v1 v2))
+                   (v4 (test-module/identity v3)))
+              (equal v3 v4)))
+
+    (test-module/scale-vector-mutably 3 v1)
+    (should (equal (test-module/vector-to-list v1)
+                   '(15 18)))
+    )
 
   ;; ;; This is to trigger the finalizer. TODO: Somehow validate they actually runs.
   ;; (dotimes (i 100)
-  ;;   (test-module/make-point 1 2))
+  ;;   (test-module/make-vector 1 2))
   ;; (garbage-collect)
 
   (let ((s (test-module/wrap-string "abc")))
     (should (string-prefix-p "#<user-ptr" (format "%s" s)))
     ;; TODO: :type
-    (should-error (test-module/check-point s))))
+    (should-error (test-module/vector-to-list s))))

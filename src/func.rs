@@ -1,8 +1,8 @@
 use std::ffi::CString;
 use std::ops::Range;
 use libc;
-use emacs_module::{EmacsSubr, EmacsVal};
-use super::Env;
+use emacs_module::{EmacsSubr};
+use super::{Env, Value};
 use super::error::Result;
 
 // TODO: Consider checking for existence of these upon startup, not on each call.
@@ -38,7 +38,7 @@ macro_rules! emacs_plugin_is_GPL_compatible {
 }
 
 /// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
-/// signature must be `fn(&mut Env) -> Result<EmacsVal>`.
+/// signature must be `fn(&mut Env) -> Result<Value>`.
 #[macro_export]
 macro_rules! emacs_module_init {
     ($init:ident) => {
@@ -69,13 +69,13 @@ macro_rules! emacs_module_init {
 // TODO: Enable creating a Lisp function from a Rust fn. That probably requires procedural macros,
 // macro_rules! is inadequate.
 pub trait HandleFunc {
-    fn make_function(&mut self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal>;
-    fn fset(&mut self, name: &str, func: EmacsVal) -> Result<EmacsVal>;
-    fn register(&mut self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal>;
+    fn make_function(&mut self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
+    fn fset(&mut self, name: &str, func: Value) -> Result<Value>;
+    fn register(&mut self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
 }
 
 impl HandleFunc for Env {
-    fn make_function(&mut self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal> {
+    fn make_function(&mut self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
         raw_call!(
             self, make_function,
             arities.start as isize, arities.end as isize,
@@ -83,12 +83,12 @@ impl HandleFunc for Env {
         )
     }
 
-    fn fset(&mut self, name: &str, func: EmacsVal) -> Result<EmacsVal> {
+    fn fset(&mut self, name: &str, func: Value) -> Result<Value> {
         let symbol = self.intern(name)?;
         self.call("fset", &mut [symbol, func])
     }
 
-    fn register(&mut self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<EmacsVal> {
+    fn register(&mut self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
         let function = self.make_function(function, arities, doc, data)?;
         self.fset(name, function)
     }
@@ -101,11 +101,13 @@ macro_rules! emacs_subrs {
             #[allow(non_snake_case, unused_variables)]
             unsafe extern "C" fn $extern_name(env: *mut $crate::raw::emacs_env,
                                               nargs: libc::ptrdiff_t,
-                                              args: *mut $crate::EmacsVal,
-                                              data: *mut libc::c_void) -> $crate::EmacsVal {
+                                              args: *mut $crate::raw::emacs_value,
+                                              data: *mut libc::c_void) -> $crate::raw::emacs_value {
                 let mut env = $crate::Env::from(env);
-                let args: &[$crate::EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
-                let result = $name(&mut env, args, data);
+                let args: &[$crate::raw::emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
+                //XXX: Hmmm
+                let args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
+                let result = $name(&mut env, &args, data);
                 $crate::error::TriggerExit::maybe_exit(&mut env, result)
             }
         )*

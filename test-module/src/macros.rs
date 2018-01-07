@@ -69,10 +69,10 @@ macro_rules! defuns {
         $({
             extern crate libc;
             extern crate emacs;
-            use emacs::EmacsVal;
+            use emacs::Value;
             use emacs::{Env, Result};
             use emacs::error::TriggerExit;
-            use emacs::raw::emacs_env;
+            use emacs::raw::{emacs_env, emacs_value};
 
             // TODO: Construct an identifier from $name, to get better debug symbols. Seems hard.
             // See https://github.com/rust-lang/rust/issues/29599 (`concat_idents` is useless),
@@ -81,20 +81,20 @@ macro_rules! defuns {
             #[allow(non_snake_case, unused_variables)]
             unsafe extern "C" fn extern_name(env: *mut emacs_env,
                                              nargs: libc::ptrdiff_t,
-                                             args: *mut EmacsVal,
-                                             _data: *mut libc::c_void) -> EmacsVal {
+                                             args: *mut emacs_value,
+                                             _data: *mut libc::c_void) -> emacs_value {
                 let mut env = Env::from(env);
-                let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
+                let args: &[emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
                 // XXX: .clone()
-                $(let $arg = _iter.next().unwrap().clone();)*
+                $(let $arg: Value = (*_iter.next().unwrap()).into();)*
                 let result = intern_name(&mut env $(, $arg)*);
                 env.maybe_exit(result)
             }
 
-            fn intern_name($env: &mut Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
+            fn intern_name($env: &mut Env $(, $arg: Value)*) -> Result<Value> {
                 $body
             }
 

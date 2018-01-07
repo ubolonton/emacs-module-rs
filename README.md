@@ -20,12 +20,12 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
    #[macro_use]
    extern crate emacs;
 
-   use emacs::{Env, Result, EmacsVal};
+   use emacs::{Env, Result, Value};
 
    emacs_plugin_is_GPL_compatible!();
    emacs_module_init!(init);
 
-   pub fn init(env: &mut Env) -> Result<EmacsVal> {
+   pub fn init(env: &mut Env) -> Result<Value> {
        // Add any other things you need the module to do here
 
        env.provide("my-fancy-module")
