@@ -19,8 +19,4 @@ pub type EmacsSubr =
 
 pub type EmacsVal = emacs_value;
 
-/// The type of destructors
-pub type Dtor = unsafe extern "C" fn(arg: *mut libc::c_void);
-
-
 include!(concat!(env!("OUT_DIR"), "/emacs_module.rs"));

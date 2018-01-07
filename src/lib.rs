@@ -12,12 +12,12 @@ pub mod func;
 pub mod error;
 pub mod raw;
 
-pub use emacs_module::{Dtor, EmacsVal, EmacsSubr};
+pub use emacs_module::{EmacsVal, EmacsSubr};
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
 pub struct Env {
-    pub(crate) raw: *mut emacs_env
+    pub(crate) raw: *mut emacs_env,
 }
 
 // TODO: CloneToEmacs?
