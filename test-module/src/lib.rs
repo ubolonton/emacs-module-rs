@@ -9,7 +9,6 @@ mod macros;
 
 use emacs::EmacsVal;
 use emacs::{Env, ToEmacs, Result};
-use emacs::Transfer;
 use emacs::HandleFunc;
 use std::ptr;
 
@@ -76,11 +75,9 @@ struct StringWrapper {
     pub s: String
 }
 
-impl Transfer for Point {
-    fn type_name() -> &'static str { "Point" }
-}
-impl Transfer for StringWrapper {
-    fn type_name() -> &'static str { "StringWrapper" }
+custom_types! {
+    Point as "Point";
+    StringWrapper as "StrWrapper";
 }
 
 fn init(env: &mut Env) -> Result<EmacsVal> {
