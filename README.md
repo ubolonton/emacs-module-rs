@@ -10,7 +10,7 @@ This provides a high level binding to emacs-module, and some tools that make wri
     crate-type = ["cdylib"]
 
     [dependencies]
-    emacs = "0.2.1"
+    emacs = "0.3.0"
     ```
 - Write some code in your `src/lib.rs` following this skeleton.
     ```rust
