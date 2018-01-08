@@ -36,7 +36,7 @@ macro_rules! make_prefix {
 ///     // Defines "my-module/plus"
 ///     plus, "x + y", (env, x, y) {
 ///         let result = env.from_emacs(x)? + env.from_emacs(y)?;
-///         result.to_emacs(env)
+///         result.to_lisp(env)
 ///     }
 ///     // Defines "my-module/my-identity"
 ///     "my-identity", "", (_env, x) {
@@ -69,28 +69,32 @@ macro_rules! defuns {
         $({
             extern crate libc;
             extern crate emacs;
-            use emacs::EmacsVal;
+            use emacs::Value;
             use emacs::{Env, Result};
             use emacs::error::TriggerExit;
-            use emacs::raw::emacs_env;
+            use emacs::raw::{emacs_env, emacs_value};
 
+            // TODO: Construct an identifier from $name, to get better debug symbols. Seems hard.
+            // See https://github.com/rust-lang/rust/issues/29599 (`concat_idents` is useless),
+            // https://github.com/rust-lang/rfcs/pull/1628,
+            // and https://crates.io/crates/interpolate_idents (procedural macros, nightly).
             #[allow(non_snake_case, unused_variables)]
             unsafe extern "C" fn extern_name(env: *mut emacs_env,
                                              nargs: libc::ptrdiff_t,
-                                             args: *mut EmacsVal,
-                                             _data: *mut libc::c_void) -> EmacsVal {
+                                             args: *mut emacs_value,
+                                             _data: *mut libc::c_void) -> emacs_value {
                 let mut env = Env::from(env);
-                let args: &[EmacsVal] = std::slice::from_raw_parts(args, nargs as usize);
+                let args: &[emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
                 // XXX: .clone()
-                $(let $arg = _iter.next().unwrap().clone();)*
+                $(let $arg: Value = (*_iter.next().unwrap()).into();)*
                 let result = intern_name(&mut env $(, $arg)*);
                 env.maybe_exit(result)
             }
 
-            fn intern_name($env: &mut Env $(, $arg: EmacsVal)*) -> Result<EmacsVal> {
+            fn intern_name($env: &mut Env $(, $arg: Value)*) -> Result<Value> {
                 $body
             }
 
@@ -98,4 +102,19 @@ macro_rules! defuns {
             $env_var.register(emacs_prefix!($name), extern_name, nargs..nargs, $doc, std::ptr::null_mut())?;
         })*
     };
+}
+
+macro_rules! custom_types {
+    ($($name:ident as $lisp_name:expr;)*) => {$(
+        impl emacs::Transfer for $name {
+            fn type_name() -> &'static str { $lisp_name }
+        }
+    )*};
+}
+
+macro_rules! call {
+    ($env:ident, $name:expr $(, $arg:expr)*) => {{
+        let args = &[$($arg.to_lisp($env)?,)*];
+        $env.call($name, args)
+    }}
 }

@@ -7,29 +7,21 @@ extern crate emacs;
 #[macro_use]
 mod macros;
 
-use emacs::EmacsVal;
-use emacs::{Env, ToEmacs, Result};
+use emacs::{Env, Value, ToLisp, IntoLisp, Result};
 use emacs::HandleFunc;
 use std::ptr;
 
 emacs_plugin_is_GPL_compatible!();
 emacs_module_init!(init);
 
-const MODULE: &str = "test-module";
+const MODULE: &str = "t";
 lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-macro_rules! call {
-    ($env:ident, $name:expr $(, $arg:expr)*) => {{
-        let args = &mut [$($arg.to_emacs($env)?,)*];
-        $env.call($name, args)
-    }}
-}
-
-fn test(env: &mut Env, _args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
-    env.to_emacs(5)?;
-    match "1\0a".to_emacs(env) {
+fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
+    env.clone_to_lisp(5)?;
+    match "1\0a".to_lisp(env) {
         Ok(_) => {
             println!("ok");
             call!(env, "message", "Should not get to this because we used a string with a zero byte")?;
@@ -51,7 +43,7 @@ fn test(env: &mut Env, _args: &[EmacsVal], _data: *mut libc::c_void) -> Result<E
     }
     println!("Stop");
 
-    let args = &mut [call!(env, "+", 1)?, "(+ 1) -> %s".to_emacs(env)?];
+    let args = &[call!(env, "+", 1)?, "(+ 1) -> %s".to_lisp(env)?];
     env.call("message", args)?;
 
     // Wrong type argument: symbolp, (throw-)
@@ -62,26 +54,84 @@ fn test(env: &mut Env, _args: &[EmacsVal], _data: *mut libc::c_void) -> Result<E
     call!(env, "message", "Should not ever get here")
 }
 
-emacs_subrs! {
-    test -> f_test;
+fn init_vector_functions(env: &mut Env) -> Result<()> {
+    struct Vector {
+        pub x: i64,
+        pub y: i64,
+    }
+
+    custom_types! {
+        Vector as "Vector";
+    }
+
+    defuns! {
+        env, format!("{}vector:", *MODULE_PREFIX);
+
+        "make", "", (env, x, y) {
+            let x: i64 = x.to_owned(env)?;
+            let y: i64 = env.get_owned(y)?;
+            let b = Box::new(Vector { x, y });
+            env.move_to_lisp(b)
+        }
+
+        "to-list", "", (env, v) {
+            env.get_ref::<Vector>(&v)?;
+            let v: &Vector = env.get_ref(&v)?;
+            let x = v.x.to_lisp(env)?;
+            let y = v.y.to_lisp(env)?;
+            env.list(&[x, y])
+        }
+
+        "add", "", (env, a, b) {
+            let a: &Vector = a.to_ref(env)?;
+            let b: &Vector = b.to_ref(env)?;
+            let (x, y) = (b.x + a.x, b.y + a.y);
+            Box::new(Vector { x, y }).into_lisp(env)
+        }
+
+        "scale-mutably", "", (env, times, v) {
+            let times: i64 = times.to_owned(env)?;
+            {
+                let v = v.into_mut::<Vector>(env)?;
+                v.x *= times;
+                v.y *= times;
+            }
+            env.intern("nil")
+        }
+    }
+    Ok(())
 }
 
-fn init(env: &mut Env) -> Result<EmacsVal> {
+fn init(env: &mut Env) -> Result<Value> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
     env.message("Hello, Emacs!")?;
+
+    emacs_subrs! {
+        test -> f_test;
+    }
 
     env.register(
         prefix!(test), f_test, 0..0,
         "", ptr::null_mut()
     )?;
 
+    init_vector_functions(env)?;
+
+    struct StringWrapper {
+        pub s: String
+    }
+
+    custom_types! {
+        StringWrapper as "StrWrapper";
+    }
+
     defuns! {
         env, *MODULE_PREFIX;
 
         inc, "1+", (env, x) {
-            let i: i64 = env.from_emacs(x)?;
-            (i + 1).to_emacs(env)
+            let i: i64 = x.to_owned(env)?;
+            (i + 1).to_lisp(env)
         }
 
         identity, "not even doing any conversion", (_env, x) {
@@ -89,8 +139,8 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
         }
 
         "to-uppercase", "", (env, s) {
-            let s: String = env.from_emacs(s)?;
-            s.to_uppercase().to_emacs(env)
+            let s: String = s.to_owned(env)?;
+            s.to_uppercase().to_lisp(env)
         }
 
         "calling-error", "", (env) {
@@ -98,14 +148,20 @@ fn init(env: &mut Env) -> Result<EmacsVal> {
         }
 
         "make-dec", "", (env) {
-            fn dec(env: &Env, args: &[EmacsVal], _data: *mut libc::c_void) -> Result<EmacsVal> {
-                let i: i64 = env.from_emacs(args[0])?;
-                (i - 1).to_emacs(env)
+            fn dec(env: &Env, args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
+                let i: i64 = args[0].to_owned(env)?;
+                (i - 1).to_lisp(env)
             }
             emacs_subrs! {
                 dec -> f_dec;
             }
             env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
+        }
+
+        "wrap-string", "", (env, s) {
+            let s: String = s.to_owned(env)?;
+            let b = Box::new(StringWrapper { s });
+            env.move_to_lisp(b)
         }
     }
 
