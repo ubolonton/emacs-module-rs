@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Load the dynamic module into
+# (Re)load test-module into a running Emacs instance.
 
 here=`cd $(dirname $BASH_SOURCE); pwd`
 root=`cd $here/..; pwd`

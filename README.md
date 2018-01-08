@@ -1,22 +1,19 @@
-Emacs Module Bindings
-====
+# Emacs Module in Rust #
 
-This crate provides access to the new `Emacs module` functionality recently
-introduced in Emacs 25.
+This provides a high level binding to emacs-module, and some tools that make writing Emacs (dynamic) modules easier.
 
-Usage aka How to write an oxidized Emacs module in a few easy steps
-----
-1. Create a new Cargo `lib` project, say `my_fancy_module`
-2. Open up `Cargo.toml` in an editor, and:
-   * Add `crate-type = ["cdylib"]` to the `[lib]` section
-   * Add the following dependencies:
-   ```` toml
-   libc = "0.2.34"
-   emacs = { path = "$EMB_PATH" }
-   ````
-3. Add the following to your `src/lib.rs`:
-   ```` Rust
-   extern crate libc;
+## Writing a Module ##
+
+- Modify your `Cargo.toml`:
+    ```toml
+    [lib]
+    crate-type = ["cdylib"]
+
+    [dependencies]
+    emacs = "0.2.1"
+    ```
+- Write some code in your `src/lib.rs` following this skeleton.
+    ```rust
    #[macro_use]
    extern crate emacs;
 
@@ -26,31 +23,42 @@ Usage aka How to write an oxidized Emacs module in a few easy steps
    emacs_module_init!(init);
 
    pub fn init(env: &mut Env) -> Result<Value> {
-       // Add any other things you need the module to do here
+       // Initialization code
 
-       env.provide("my-fancy-module")
+       env.provide("my-module")
    }
-   ````
-4. Execute `cargo build`
-5. If you're on OS X, copy `target/debug/libmy_fancy_module.dylib`
-    to `target/debug/libmy_fancy_module.so`
-6. Load it in emacs with `(require 'my-fancy-module "/path/to/libmy_fancy_module.so")`.
-   Note that this requires Emacs to be configured and compiled with
-   the `--with-modules` flag.
+    ```
+- Build the code with `cargo build`
+- Create a symlink with `.so` extension
+    ```shell
+    cd target/debug
+    ln -s libmy_module.dylib my-module.so
+    ```
+- Add `target/debug` to your Emacs's `load-path`.
+- Load it in Emacs
+    ```emacs-lisp
+    (require 'my-module)
+    ```
 
-For a more elaborate example, check out [test-module](test-module).
+## Live Reloading ##
 
-Development
-----
+Emacs does not support unloading modules. Live reloading thus requires a custom module loader. [rs-module](rs-module) is one such loader (which itself is a module that must be loaded by Emacs's normal loading mechanism). See [load.sh](bin/load.sh).
+
+## Sample Modules ##
+
+[test-module](test-module) uses most of the provided features.
+
+## Development ##
+
 - Building:
-    ````shell
+    ```shell
     cargo build --all
-    ````
+    ```
 - Testing:
-    ````shell
+    ```shell
     bin/test.sh
-    ````
+    ```
 - Continuous testing (requires `cargo-watch`):
-    ````shell
+    ```shell
     cargo watch -x 'build --all' -s bin/test.sh
-    ````
+    ```
