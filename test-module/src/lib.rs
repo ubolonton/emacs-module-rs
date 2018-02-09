@@ -92,7 +92,8 @@ fn init_vector_functions(env: &mut Env) -> Result<()> {
         "scale-mutably", "", (env, times, v) {
             let times: i64 = times.to_owned(env)?;
             {
-                let v = v.into_mut::<Vector>(env)?;
+                let mut v = v;
+                let v = v.to_mut::<Vector>(env)?;
                 v.x *= times;
                 v.y *= times;
             }

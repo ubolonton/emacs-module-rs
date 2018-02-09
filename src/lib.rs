@@ -146,8 +146,8 @@ impl Env {
         lisp_value.to_ref(self)
     }
 
-    pub fn get_mut<T>(&self, lisp_value: Value) -> Result<&mut T> where T: Transfer {
-        lisp_value.into_mut(self)
+    pub fn get_mut<'v, T>(&self, lisp_value: &'v mut Value) -> Result<&'v mut T> where T: Transfer {
+        lisp_value.to_mut(self)
     }
 
     fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
@@ -217,7 +217,7 @@ impl Value {
         })
     }
 
-    pub fn into_mut<T: Transfer>(self, env: &Env) -> Result<&mut T> {
+    pub fn to_mut<T: Transfer>(&mut self, env: &Env) -> Result<&mut T> {
         env.get_raw_pointer(self.raw).map(|r| unsafe {
             &mut *r
         })
