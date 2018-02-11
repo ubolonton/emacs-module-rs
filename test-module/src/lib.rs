@@ -55,6 +55,8 @@ fn test(env: &Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
 }
 
 fn init_vector_functions(env: &Env) -> Result<()> {
+    make_prefix!(prefix, *MODULE_PREFIX);
+
     struct Vector {
         pub x: i64,
         pub y: i64,
@@ -63,6 +65,26 @@ fn init_vector_functions(env: &Env) -> Result<()> {
     custom_types! {
         Vector as "Vector";
     }
+
+    fn swap_components<'v>(env: &Env, args: &'v mut [Value], _data: *mut libc::c_void) -> Result<&'v Value> {
+        let v: &mut Value = &mut args[0];
+        {
+            let vec: &mut Vector = v.to_mut(env)?;
+            vec.x = vec.x ^ vec.y;
+            vec.y = vec.x ^ vec.y;
+            vec.x = vec.x ^ vec.y;
+        }
+        Ok(v)
+    }
+
+    emacs_subrs! {
+        swap_components -> f_swap_components;
+    }
+
+    env.register(
+        prefix!("vector:swap-components"), f_swap_components, 1..1,
+        "", ptr::null_mut()
+    )?;
 
     defuns! {
         env, format!("{}vector:", *MODULE_PREFIX);

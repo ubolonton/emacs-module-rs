@@ -23,7 +23,7 @@
     (should (equal (documentation dec) "decrement"))
     (should-error (funcall dec) :type 'wrong-number-of-arguments)))
 
-(ert-deftest from-emac-string ()
+(ert-deftest from-emacs-string ()
   (should (equal (t/to-uppercase "abc") "ABC")))
 
 (ert-deftest user-ptr ()
@@ -41,12 +41,14 @@
     ;; ... but should consider an object equal to itself.
     (should (let* ((v3 (t/vector:add v1 v2))
                    (v4 (t/identity v3)))
-              (equal v3 v4)))
+              (equal v3 v4))))
 
-    (t/vector:scale-mutably 3 v1)
-    (should (equal (t/vector:to-list v1)
-                   '(15 18)))
-    )
+  ;; Mutation.
+  (let ((v (t/vector:make 5 6)))
+    (t/vector:scale-mutably 3 v)
+    (should (equal (t/vector:to-list v) '(15 18)))
+    (t/vector:swap-components v)
+    (should (equal (t/vector:to-list v) '(18 15))))
 
   ;; ;; This is to trigger the finalizer. TODO: Somehow validate they actually runs.
   ;; (dotimes (i 100)

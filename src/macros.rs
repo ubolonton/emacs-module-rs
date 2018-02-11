@@ -83,8 +83,8 @@ macro_rules! emacs_subrs {
                 let env = $crate::Env::from(env);
                 let args: &[$crate::raw::emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
                 //XXX: Hmmm
-                let args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
-                let result = $name(&env, &args, data);
+                let mut args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
+                let result = $name(&env, &mut args, data);
                 $crate::error::TriggerExit::maybe_exit(&env, result)
             }
         )*
