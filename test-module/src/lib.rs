@@ -19,7 +19,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
+fn test(env: &Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
     env.clone_to_lisp(5)?;
     match "1\0a".to_lisp(env) {
         Ok(_) => {
@@ -54,7 +54,7 @@ fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Valu
     call!(env, "message", "Should not ever get here")
 }
 
-fn init_vector_functions(env: &mut Env) -> Result<()> {
+fn init_vector_functions(env: &Env) -> Result<()> {
     struct Vector {
         pub x: i64,
         pub y: i64,
@@ -103,7 +103,7 @@ fn init_vector_functions(env: &mut Env) -> Result<()> {
     Ok(())
 }
 
-fn init(env: &mut Env) -> Result<Value> {
+fn init(env: &Env) -> Result<Value> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
     env.message("Hello, Emacs!")?;

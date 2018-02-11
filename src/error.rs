@@ -1,6 +1,7 @@
 use std::result;
 use std::error;
 use std::io;
+use std::borrow::Borrow;
 use std::ffi::NulError;
 use emacs_module::*;
 use super::{Env, Value, ToLisp};
@@ -72,10 +73,6 @@ impl From<NulError> for Error {
 }
 
 pub(crate) trait HandleExit {
-    // Technically this should be '&mut self', but that would require almost all functions on Env
-    // that call into Emacs to take '&mut self' as well. Using '&self' is ok as long as the caller
-    // knows how to use it properly. Since it's internal to the crate, it's ok. Each function in
-    // Env decides which interface it exposes, depending on the actual semantics.
     fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T>;
 }
 
@@ -114,23 +111,23 @@ impl HandleExit for Env {
 // TODO: Use these only in the wrapper funcs that give the error back to Emacs. One problem is,
 // wrappers are written (by macros) by user code, which shouldn't have access to these.
 pub trait TriggerExit {
-    fn maybe_exit(&mut self, result: Result<Value>) -> emacs_value;
+    unsafe fn maybe_exit<T: Borrow<Value>>(&self, result: Result<T>) -> emacs_value;
 }
 
-fn throw(env: &mut Env, tag: Value, value: Value) -> emacs_value {
+fn throw(env: &Env, tag: Value, value: Value) -> emacs_value {
     let (tag, value) = (tag.raw, value.raw);
     critical!(env, non_local_exit_throw, tag, value);
     tag
 }
 
-fn signal(env: &mut Env, symbol: Value, data: Value) -> emacs_value {
+fn signal(env: &Env, symbol: Value, data: Value) -> emacs_value {
     let (symbol, data) = (symbol.raw, data.raw);
     critical!(env, non_local_exit_signal, symbol, data);
     symbol
 }
 
 // XXX
-fn error(env: &mut Env, message: &str) -> Result<emacs_value> {
+fn error(env: &Env, message: &str) -> Result<emacs_value> {
     let message = message.to_lisp(env)?;
     let data = env.list(&[message])?.into();
     let symbol = env.intern("error")?.into();
@@ -140,9 +137,9 @@ fn error(env: &mut Env, message: &str) -> Result<emacs_value> {
 impl TriggerExit for Env {
     /// This is intended to be used at the Rust->Emacs boundary, by the internal macros/functions.
     /// Module code should use [`Error::throw`] and [`Error::signal`] instead.
-    fn maybe_exit(&mut self, result: Result<Value>) -> emacs_value {
+    unsafe fn maybe_exit<T: Borrow<Value>>(&self, result: Result<T>) -> emacs_value {
         match result {
-            Ok(v) => v.raw,
+            Ok(v) => v.borrow().raw,
             Err(normal_error) => {
                 match normal_error.kind {
                     ErrorKind::Signal { symbol, data } => signal(self, symbol, data),

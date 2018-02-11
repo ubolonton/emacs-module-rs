@@ -19,6 +19,7 @@ pub use emacs_module::EmacsSubr;
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
+// TODO: Consider making this Clone+Copy, and use Env everywhere instead of &Env.
 #[repr(C)]
 #[derive(Debug)]
 pub struct Env {
@@ -73,7 +74,6 @@ pub trait IntoLisp {
 
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
-// TODO: Consider using '&mut self' instead of '&self' for some functions
 impl Env {
     pub fn raw(&self) -> *mut emacs_env {
         self.raw
@@ -217,6 +217,7 @@ impl Value {
         })
     }
 
+    // TODO: Add runtime guard against multiple aliases through different Value handles.
     pub fn to_mut<T: Transfer>(&mut self, env: &Env) -> Result<&mut T> {
         env.get_raw_pointer(self.raw).map(|r| unsafe {
             &mut *r

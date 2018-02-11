@@ -22,7 +22,7 @@ This provides a high level binding to emacs-module, and some tools that make wri
    emacs_plugin_is_GPL_compatible!();
    emacs_module_init!(init);
 
-   pub fn init(env: &mut Env) -> Result<Value> {
+   pub fn init(env: &Env) -> Result<Value> {
        // Initialization code
 
        env.provide("my-module")

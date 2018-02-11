@@ -44,14 +44,14 @@ macro_rules! emacs_plugin_is_GPL_compatible {
 }
 
 /// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
-/// signature must be `fn(&mut Env) -> Result<Value>`.
+/// signature must be `fn(&Env) -> Result<Value>`.
 #[macro_export]
 macro_rules! emacs_module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
         #[no_mangle]
         pub extern "C" fn emacs_module_init(raw: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
-            match $init(&mut $crate::Env::from(raw)) {
+            match $init(&$crate::Env::from(raw)) {
                 Ok(_) => 0,
                 // TODO: Try to signal error to Emacs as well
                 Err(_) => 1,
@@ -62,7 +62,7 @@ macro_rules! emacs_module_init {
         /// Entry point for live-reloading (by `rs-module`) during development.
         #[no_mangle]
         pub extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
-            match $init(&mut $crate::Env::from(raw)) {
+            match $init(&$crate::Env::from(raw)) {
                 Ok(_) => 0,
                 // TODO: Try to signal error to Emacs as well
                 Err(_) => 1,
@@ -80,12 +80,12 @@ macro_rules! emacs_subrs {
                                               nargs: libc::ptrdiff_t,
                                               args: *mut $crate::raw::emacs_value,
                                               data: *mut libc::c_void) -> $crate::raw::emacs_value {
-                let mut env = $crate::Env::from(env);
+                let env = $crate::Env::from(env);
                 let args: &[$crate::raw::emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
                 //XXX: Hmmm
                 let args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
-                let result = $name(&mut env, &args, data);
-                $crate::error::TriggerExit::maybe_exit(&mut env, result)
+                let result = $name(&env, &args, data);
+                $crate::error::TriggerExit::maybe_exit(&env, result)
             }
         )*
     };
