@@ -19,6 +19,7 @@ pub use emacs_module::EmacsSubr;
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
+// TODO: Consider making this Clone+Copy, and use Env everywhere instead of &Env.
 #[repr(C)]
 #[derive(Debug)]
 pub struct Env {
@@ -73,7 +74,6 @@ pub trait IntoLisp {
 
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
-// TODO: Consider using '&mut self' instead of '&self' for some functions
 impl Env {
     pub fn raw(&self) -> *mut emacs_env {
         self.raw
@@ -118,7 +118,7 @@ impl Env {
     }
 
     // TODO: Return an enum?
-    pub fn type_of(&self, value: Value) -> Result<Value> {
+    pub fn type_of(&self, value: &Value) -> Result<Value> {
         raw_call!(self, type_of, value.raw)
     }
 
@@ -146,8 +146,8 @@ impl Env {
         lisp_value.to_ref(self)
     }
 
-    pub fn get_mut<T>(&self, lisp_value: Value) -> Result<&mut T> where T: Transfer {
-        lisp_value.into_mut(self)
+    pub unsafe fn get_mut<'v, T>(&self, lisp_value: &'v mut Value) -> Result<&'v mut T> where T: Transfer {
+        lisp_value.to_mut(self)
     }
 
     fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
@@ -167,11 +167,11 @@ impl Env {
         }
     }
 
-    pub fn is_not_nil(&self, value: Value) -> Result<bool> {
+    pub fn is_not_nil(&self, value: &Value) -> Result<bool> {
         raw_call!(self, is_not_nil, value.raw)
     }
 
-    pub fn eq(&self, a: Value, b: Value) -> Result<bool> {
+    pub fn eq(&self, a: &Value, b: &Value) -> Result<bool> {
         raw_call!(self, eq, a.raw, b.raw)
     }
 
@@ -181,12 +181,12 @@ impl Env {
 
     pub fn provide(&self, name: &str) -> Result<Value> {
         let name = self.intern(name)?;
-        self.call("provide", &[name])
+        call_lisp!(self, "provide", name)
     }
 
     pub fn message(&self, text: &str) -> Result<Value> {
         let text = text.to_lisp(self)?;
-        self.call("message", &[text])
+        call_lisp!(self, "message", text)
     }
 }
 
@@ -211,14 +211,20 @@ impl Value {
         FromLisp::from_lisp(env, self)
     }
 
+    /// Returns a reference to the underlying Rust data wrapped by this value.
     pub fn to_ref<T: Transfer>(&self, env: &Env) -> Result<&T> {
         env.get_raw_pointer(self.raw).map(|r| unsafe {
             &*r
         })
     }
 
-    pub fn into_mut<T: Transfer>(self, env: &Env) -> Result<&mut T> {
-        env.get_raw_pointer(self.raw).map(|r| unsafe {
+    /// Returns a mutable reference to the underlying Rust data wrapped by this value.
+    ///
+    /// # Unsafe
+    /// This function is unsafe because Lisp code can pass the same object through 2
+    /// different values in an argument list. TODO: Make it safe by adding runtime guards.
+    pub unsafe fn to_mut<T: Transfer>(&mut self, env: &Env) -> Result<&mut T> {
+        env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
         })
     }

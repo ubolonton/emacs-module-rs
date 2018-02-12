@@ -11,4 +11,6 @@ crate-type = ["cdylib"]
 libc = "0.2.34"
 lazy_static = "1.0.0"
 emacs = { path = ".." }
-emacs-rs-module = { path = "../rs-module", version = "0.2.2" } # only for dev flow
+
+[dev-dependencies]
+emacs-rs-module = { path = "../rs-module" }

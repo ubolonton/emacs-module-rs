@@ -83,18 +83,18 @@ macro_rules! defuns {
                                              nargs: libc::ptrdiff_t,
                                              args: *mut emacs_value,
                                              _data: *mut libc::c_void) -> emacs_value {
-                let mut env = Env::from(env);
+                let env = Env::from(env);
                 let args: &[emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
                 // XXX: .clone()
                 $(let $arg: Value = (*_iter.next().unwrap()).into();)*
-                let result = intern_name(&mut env $(, $arg)*);
+                let result = intern_name(&env $(, $arg)*);
                 env.maybe_exit(result)
             }
 
-            fn intern_name($env: &mut Env $(, $arg: Value)*) -> Result<Value> {
+            fn intern_name($env: &Env $(, $arg: Value)*) -> Result<Value> {
                 $body
             }
 

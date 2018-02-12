@@ -19,7 +19,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
+fn test(env: &Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
     env.clone_to_lisp(5)?;
     match "1\0a".to_lisp(env) {
         Ok(_) => {
@@ -54,7 +54,9 @@ fn test(env: &mut Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Valu
     call!(env, "message", "Should not ever get here")
 }
 
-fn init_vector_functions(env: &mut Env) -> Result<()> {
+fn init_vector_functions(env: &Env) -> Result<()> {
+    make_prefix!(prefix, *MODULE_PREFIX);
+
     struct Vector {
         pub x: i64,
         pub y: i64,
@@ -63,6 +65,26 @@ fn init_vector_functions(env: &mut Env) -> Result<()> {
     custom_types! {
         Vector as "Vector";
     }
+
+    fn swap_components<'v>(env: &Env, args: &'v mut [Value], _data: *mut libc::c_void) -> Result<&'v Value> {
+        let v: &mut Value = &mut args[0];
+        {
+            let vec: &mut Vector = unsafe { v.to_mut(env)? };
+            vec.x = vec.x ^ vec.y;
+            vec.y = vec.x ^ vec.y;
+            vec.x = vec.x ^ vec.y;
+        }
+        Ok(v)
+    }
+
+    emacs_subrs! {
+        swap_components -> f_swap_components;
+    }
+
+    env.register(
+        prefix!("vector:swap-components"), f_swap_components, 1..1,
+        "", ptr::null_mut()
+    )?;
 
     defuns! {
         env, format!("{}vector:", *MODULE_PREFIX);
@@ -92,7 +114,8 @@ fn init_vector_functions(env: &mut Env) -> Result<()> {
         "scale-mutably", "", (env, times, v) {
             let times: i64 = times.to_owned(env)?;
             {
-                let v = v.into_mut::<Vector>(env)?;
+                let mut v = v;
+                let v = unsafe { v.to_mut::<Vector>(env)? };
                 v.x *= times;
                 v.y *= times;
             }
@@ -102,7 +125,7 @@ fn init_vector_functions(env: &mut Env) -> Result<()> {
     Ok(())
 }
 
-fn init(env: &mut Env) -> Result<Value> {
+fn init(env: &Env) -> Result<Value> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
     env.message("Hello, Emacs!")?;

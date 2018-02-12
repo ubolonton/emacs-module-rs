@@ -1,3 +1,12 @@
+macro_rules! replace_expr {
+    ($_t:tt $sub:expr) => {$sub};
+}
+
+// https://danielkeep.github.io/tlborm/book/blk-counting.html
+macro_rules! count_tts {
+    ($($tts:tt)*) => {<[()]>::len(&[$(replace_expr!($tts ())),*])};
+}
+
 // TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
     ($env:ident, $name:ident) => {
@@ -32,6 +41,20 @@ macro_rules! critical {
     };
 }
 
+// TODO: Export this.
+macro_rules! call_lisp {
+    ($env:ident, $name:expr $(, $arg:expr)*) => {
+        {
+            let symbol: $crate::Value = $env.intern($name)?;
+            let nargs = count_tts!($($arg)*);
+            // FIX: Find a way to make this an array instead of a vector.
+            let mut args = ::std::vec::Vec::<$crate::raw::emacs_value>::with_capacity(nargs);
+            $(args.push($arg.raw);)*
+            raw_call!($env, funcall, symbol.raw, nargs as ::libc::ptrdiff_t, args.as_mut_ptr())
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! emacs_plugin_is_GPL_compatible {
     () => {
@@ -44,14 +67,14 @@ macro_rules! emacs_plugin_is_GPL_compatible {
 }
 
 /// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
-/// signature must be `fn(&mut Env) -> Result<Value>`.
+/// signature must be `fn(&Env) -> Result<Value>`.
 #[macro_export]
 macro_rules! emacs_module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
         #[no_mangle]
         pub extern "C" fn emacs_module_init(raw: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
-            match $init(&mut $crate::Env::from(raw)) {
+            match $init(&$crate::Env::from(raw)) {
                 Ok(_) => 0,
                 // TODO: Try to signal error to Emacs as well
                 Err(_) => 1,
@@ -62,7 +85,7 @@ macro_rules! emacs_module_init {
         /// Entry point for live-reloading (by `rs-module`) during development.
         #[no_mangle]
         pub extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
-            match $init(&mut $crate::Env::from(raw)) {
+            match $init(&$crate::Env::from(raw)) {
                 Ok(_) => 0,
                 // TODO: Try to signal error to Emacs as well
                 Err(_) => 1,
@@ -77,15 +100,18 @@ macro_rules! emacs_subrs {
         $(
             #[allow(non_snake_case, unused_variables)]
             unsafe extern "C" fn $extern_name(env: *mut $crate::raw::emacs_env,
-                                              nargs: libc::ptrdiff_t,
+                                              nargs: ::libc::ptrdiff_t,
                                               args: *mut $crate::raw::emacs_value,
-                                              data: *mut libc::c_void) -> $crate::raw::emacs_value {
-                let mut env = $crate::Env::from(env);
-                let args: &[$crate::raw::emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
-                //XXX: Hmmm
-                let args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
-                let result = $name(&mut env, &args, data);
-                $crate::error::TriggerExit::maybe_exit(&mut env, result)
+                                              data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
+                let env = $crate::Env::from(env);
+                // TODO: Mark Value as repr(transparent) once it's available, and use this.
+                // let args: *mut $crate::Value = ::std::mem::transmute(args);
+                // let args: &mut [$crate::Value] = ::std::slice::from_raw_parts_mut(args, nargs as usize);
+                // let result = $name(&env, args, data);
+                let args: &[$crate::raw::emacs_value] = ::std::slice::from_raw_parts(args, nargs as usize);
+                let mut args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
+                let result = $name(&env, &mut args, data);
+                $crate::error::TriggerExit::maybe_exit(&env, result)
             }
         )*
     };
