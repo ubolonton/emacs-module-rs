@@ -69,7 +69,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
     fn swap_components<'v>(env: &Env, args: &'v mut [Value], _data: *mut libc::c_void) -> Result<&'v Value> {
         let v: &mut Value = &mut args[0];
         {
-            let vec: &mut Vector = v.to_mut(env)?;
+            let vec: &mut Vector = unsafe { v.to_mut(env)? };
             vec.x = vec.x ^ vec.y;
             vec.y = vec.x ^ vec.y;
             vec.x = vec.x ^ vec.y;
@@ -115,7 +115,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
             let times: i64 = times.to_owned(env)?;
             {
                 let mut v = v;
-                let v = v.to_mut::<Vector>(env)?;
+                let v = unsafe { v.to_mut::<Vector>(env)? };
                 v.x *= times;
                 v.y *= times;
             }

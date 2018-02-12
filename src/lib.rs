@@ -146,7 +146,7 @@ impl Env {
         lisp_value.to_ref(self)
     }
 
-    pub fn get_mut<'v, T>(&self, lisp_value: &'v mut Value) -> Result<&'v mut T> where T: Transfer {
+    pub unsafe fn get_mut<'v, T>(&self, lisp_value: &'v mut Value) -> Result<&'v mut T> where T: Transfer {
         lisp_value.to_mut(self)
     }
 
@@ -211,15 +211,20 @@ impl Value {
         FromLisp::from_lisp(env, self)
     }
 
+    /// Returns a reference to the underlying Rust data wrapped by this value.
     pub fn to_ref<T: Transfer>(&self, env: &Env) -> Result<&T> {
         env.get_raw_pointer(self.raw).map(|r| unsafe {
             &*r
         })
     }
 
-    // TODO: Add runtime guard against multiple aliases through different Value handles.
-    pub fn to_mut<T: Transfer>(&mut self, env: &Env) -> Result<&mut T> {
-        env.get_raw_pointer(self.raw).map(|r| unsafe {
+    /// Returns a mutable reference to the underlying Rust data wrapped by this value.
+    ///
+    /// # Unsafe
+    /// This function is unsafe because Lisp code can pass the same object through 2
+    /// different values in an argument list. TODO: Make it safe by adding runtime guards.
+    pub unsafe fn to_mut<T: Transfer>(&mut self, env: &Env) -> Result<&mut T> {
+        env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
         })
     }
