@@ -77,12 +77,15 @@ macro_rules! emacs_subrs {
         $(
             #[allow(non_snake_case, unused_variables)]
             unsafe extern "C" fn $extern_name(env: *mut $crate::raw::emacs_env,
-                                              nargs: libc::ptrdiff_t,
+                                              nargs: ::libc::ptrdiff_t,
                                               args: *mut $crate::raw::emacs_value,
-                                              data: *mut libc::c_void) -> $crate::raw::emacs_value {
+                                              data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
                 let env = $crate::Env::from(env);
-                let args: &[$crate::raw::emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
-                //XXX: Hmmm
+                // TODO: Mark Value as repr(transparent) once it's available, and use this.
+                // let args: *mut $crate::Value = ::std::mem::transmute(args);
+                // let args: &mut [$crate::Value] = ::std::slice::from_raw_parts_mut(args, nargs as usize);
+                // let result = $name(&env, args, data);
+                let args: &[$crate::raw::emacs_value] = ::std::slice::from_raw_parts(args, nargs as usize);
                 let mut args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
                 let result = $name(&env, &mut args, data);
                 $crate::error::TriggerExit::maybe_exit(&env, result)
