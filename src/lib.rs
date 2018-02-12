@@ -74,43 +74,10 @@ pub trait IntoLisp {
 
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
+/// Public APIs.
 impl Env {
     pub fn raw(&self) -> *mut emacs_env {
         self.raw
-    }
-
-    fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
-        let mut len = bytes.len();
-        while len > 0 && bytes[len - 1] == 0 {
-            bytes.pop(); // strip trailing 0-byte(s)
-            len -= 1;
-        }
-    }
-
-    fn string_bytes(&self, value: &Value) -> Result<Vec<u8>> {
-        let mut len: isize = 0;
-        let mut bytes = unsafe {
-            let copy_string_contents = raw_fn!(self, copy_string_contents)?;
-            let ok: bool = self.handle_exit(copy_string_contents(
-                self.raw, value.raw, ptr::null_mut(), &mut len))?;
-            // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
-            if !ok {
-                panic!("Emacs failed to give string's length but did not raise a signal");
-            }
-
-            let mut bytes = vec![0u8; len as usize];
-            let ok: bool = self.handle_exit(copy_string_contents(
-                self.raw, value.raw, bytes.as_mut_ptr() as *mut i8, &mut len))?;
-            // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
-            if !ok {
-                panic!("Emacs failed to copy string but did not raise a signal");
-            }
-            bytes
-        };
-        Self::strip_trailing_zero_bytes(&mut bytes);
-        Ok(bytes)
     }
 
     pub fn intern(&self, name: &str) -> Result<Value> {
@@ -150,23 +117,6 @@ impl Env {
         lisp_value.to_mut(self)
     }
 
-    fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
-        match raw_call!(self, get_user_finalizer, value)? {
-            Some::<Finalizer>(fin) if fin == T::finalizer => {
-                let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
-                Ok(ptr as *mut T)
-            },
-            Some(_) => {
-                let expected = T::type_name();
-                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
-            },
-            None => {
-                let expected = T::type_name();
-                Err(ErrorKind::UnknownUserPtr { expected }.into())
-            }
-        }
-    }
-
     pub fn is_not_nil(&self, value: &Value) -> Result<bool> {
         raw_call!(self, is_not_nil, value.raw)
     }
@@ -187,6 +137,60 @@ impl Env {
     pub fn message(&self, text: &str) -> Result<Value> {
         let text = text.to_lisp(self)?;
         call_lisp!(self, "message", text)
+    }
+}
+
+/// Implementation details.
+impl Env {
+    fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
+        let mut len = bytes.len();
+        while len > 0 && bytes[len - 1] == 0 {
+            bytes.pop(); // strip trailing 0-byte(s)
+            len -= 1;
+        }
+    }
+
+    fn string_bytes(&self, value: &Value) -> Result<Vec<u8>> {
+        let mut len: isize = 0;
+        let mut bytes = unsafe {
+            let copy_string_contents = raw_fn!(self, copy_string_contents)?;
+            let ok: bool = self.handle_exit(copy_string_contents(
+                self.raw, value.raw, ptr::null_mut(), &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to give string's length but did not raise a signal");
+            }
+
+            let mut bytes = vec![0u8; len as usize];
+            let ok: bool = self.handle_exit(copy_string_contents(
+                self.raw, value.raw, bytes.as_mut_ptr() as *mut i8, &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to copy string but did not raise a signal");
+            }
+            bytes
+        };
+        Self::strip_trailing_zero_bytes(&mut bytes);
+        Ok(bytes)
+    }
+
+    fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
+        match raw_call!(self, get_user_finalizer, value)? {
+            Some::<Finalizer>(fin) if fin == T::finalizer => {
+                let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
+                Ok(ptr as *mut T)
+            },
+            Some(_) => {
+                let expected = T::type_name();
+                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
+            },
+            None => {
+                let expected = T::type_name();
+                Err(ErrorKind::UnknownUserPtr { expected }.into())
+            }
+        }
     }
 }
 
