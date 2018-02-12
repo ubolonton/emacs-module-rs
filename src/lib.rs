@@ -118,7 +118,7 @@ impl Env {
     }
 
     // TODO: Return an enum?
-    pub fn type_of(&self, value: Value) -> Result<Value> {
+    pub fn type_of(&self, value: &Value) -> Result<Value> {
         raw_call!(self, type_of, value.raw)
     }
 
@@ -167,11 +167,11 @@ impl Env {
         }
     }
 
-    pub fn is_not_nil(&self, value: Value) -> Result<bool> {
+    pub fn is_not_nil(&self, value: &Value) -> Result<bool> {
         raw_call!(self, is_not_nil, value.raw)
     }
 
-    pub fn eq(&self, a: Value, b: Value) -> Result<bool> {
+    pub fn eq(&self, a: &Value, b: &Value) -> Result<bool> {
         raw_call!(self, eq, a.raw, b.raw)
     }
 
@@ -181,12 +181,12 @@ impl Env {
 
     pub fn provide(&self, name: &str) -> Result<Value> {
         let name = self.intern(name)?;
-        self.call("provide", &[name])
+        call_lisp!(self, "provide", name)
     }
 
     pub fn message(&self, text: &str) -> Result<Value> {
         let text = text.to_lisp(self)?;
-        self.call("message", &[text])
+        call_lisp!(self, "message", text)
     }
 }
 
