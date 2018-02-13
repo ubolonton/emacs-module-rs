@@ -19,7 +19,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn test(env: &Env, _args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
+fn test<'e>(env: &'e Env, _args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
     env.clone_to_lisp(5)?;
     match "1\0a".to_lisp(env) {
         Ok(_) => {
@@ -66,8 +66,8 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Vector as "Vector";
     }
 
-    fn swap_components<'v>(env: &Env, args: &'v mut [Value], _data: *mut libc::c_void) -> Result<&'v Value> {
-        let v: &mut Value = &mut args[0];
+    fn swap_components<'e>(env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
+        let mut v = args[0];
         {
             let vec: &mut Vector = unsafe { v.to_mut(env)? };
             vec.x = vec.x ^ vec.y;
@@ -171,7 +171,7 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "make-dec", "", (env) {
-            fn dec(env: &Env, args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
+            fn dec<'e>(env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
                 let i: i64 = args[0].to_owned(env)?;
                 (i - 1).to_lisp(env)
             }

@@ -30,8 +30,8 @@ macro_rules! message {
 /// Helper function that enables live-reloading of Emacs's dynamic module. To be reloadable, the
 /// module be loaded by this function (`rs-module/load` in ELisp) instead of Emacs'
 /// `module-load`. (Re)loading is achieved by calling `(rs-module/load "/path/to/module")`.
-fn load_module(env: &Env, args: &[Value], _data: *mut libc::c_void) -> Result<Value> {
-    let path: String = env.get_owned(&args[0])?;
+fn load_module<'e>(env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
+    let path: String = env.get_owned(args[0])?;
     let mut libraries = LIBRARIES.lock()
         .expect("Failed to acquire lock for module map");
     // TODO: How about tracking by feature name?

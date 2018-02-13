@@ -19,6 +19,14 @@ macro_rules! raw_call {
     };
 }
 
+macro_rules! raw_call_value {
+    ($env:ident, $name:ident $(, $args:expr)*) => {
+        {
+            let result: $crate::Result<$crate::raw::emacs_value> = raw_call!($env, $name $(, $args)*);
+            result.map(|raw| $crate::Value::new(raw, $env))
+        }
+    };
+}
 /// Note: Some functions in emacs-module.h are critically important, like those that support error
 /// reporting to Emacs. If they are missing, the only sensible thing to do is crashing. Use this
 /// macro to call them instead of [`raw_call!`].
@@ -38,7 +46,7 @@ macro_rules! call_lisp {
         {
             let symbol: $crate::Value = $env.intern($name)?;
             let args = &mut [$($arg.raw,)*];
-            raw_call!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
+            raw_call_value!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
         }
     };
 }
@@ -97,8 +105,8 @@ macro_rules! emacs_subrs {
                 // let args: &mut [$crate::Value] = ::std::slice::from_raw_parts_mut(args, nargs as usize);
                 // let result = $name(&env, args, data);
                 let args: &[$crate::raw::emacs_value] = ::std::slice::from_raw_parts(args, nargs as usize);
-                let mut args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
-                let result = $name(&env, &mut args, data);
+                let args: Vec<_> = args.iter().map(|v| $crate::Value::new(*v, &env)).collect();
+                let result = $name(&env, &args, data);
                 $crate::error::TriggerExit::maybe_exit(&env, result)
             }
         )*

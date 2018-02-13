@@ -88,13 +88,12 @@ macro_rules! defuns {
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
-                // XXX: .clone()
-                $(let $arg: Value = (*_iter.next().unwrap()).into();)*
+                $(let $arg = $crate::Value::new(*_iter.next().unwrap(), &env);)*
                 let result = intern_name(&env $(, $arg)*);
                 env.maybe_exit(result)
             }
 
-            fn intern_name($env: &Env $(, $arg: Value)*) -> Result<Value> {
+            fn intern_name<'e>($env: &'e Env $(, $arg: Value<'e>)*) -> Result<Value<'e>> {
                 $body
             }
 
