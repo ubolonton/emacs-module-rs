@@ -1,12 +1,3 @@
-macro_rules! replace_expr {
-    ($_t:tt $sub:expr) => {$sub};
-}
-
-// https://danielkeep.github.io/tlborm/book/blk-counting.html
-macro_rules! count_tts {
-    ($($tts:tt)*) => {<[()]>::len(&[$(replace_expr!($tts ())),*])};
-}
-
 // TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
     ($env:ident, $name:ident) => {
@@ -46,11 +37,8 @@ macro_rules! call_lisp {
     ($env:ident, $name:expr $(, $arg:expr)*) => {
         {
             let symbol: $crate::Value = $env.intern($name)?;
-            let nargs = count_tts!($($arg)*);
-            // FIX: Find a way to make this an array instead of a vector.
-            let mut args = ::std::vec::Vec::<$crate::raw::emacs_value>::with_capacity(nargs);
-            $(args.push($arg.raw);)*
-            raw_call!($env, funcall, symbol.raw, nargs as ::libc::ptrdiff_t, args.as_mut_ptr())
+            let args = &mut [$($arg.raw,)*];
+            raw_call!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
         }
     };
 }
