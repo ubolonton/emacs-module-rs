@@ -125,3 +125,32 @@ macro_rules! emacs_subrs {
         )*
     };
 }
+
+#[macro_export]
+macro_rules! emacs_lambda {
+    ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr) => {
+        {
+            // TODO: Generate identifier from $func.
+            #[allow(non_snake_case, unused_variables)]
+            unsafe extern "C" fn extern_lambda(env: *mut $crate::raw::emacs_env,
+                                               nargs: ::libc::ptrdiff_t,
+                                               args: *mut $crate::raw::emacs_value,
+                                               data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
+                let env = $crate::Env::from(env);
+                let env = $crate::CallEnv::new(env, nargs, args, data);
+                let result = $func(&env);
+                $crate::error::TriggerExit::maybe_exit(&*env, result)
+            }
+
+            $env.make_function(extern_lambda, $arities, $doc, $data)
+        }
+    };
+
+    ($env:expr, $func:path, $arities:expr, $doc:expr) => {
+        emacs_lambda!($env, $func, $arities, $doc, ::std::ptr::null_mut())
+    };
+
+    ($env:expr, $func:path, $arities:expr) => {
+        emacs_lambda!($env, $func, $arities, "")
+    };
+}

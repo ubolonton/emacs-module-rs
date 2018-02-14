@@ -231,6 +231,24 @@ fn init(env: &Env) -> Result<Value> {
             env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
         }
 
+        "make-inc-and-plus", "", (env) {
+            fn inc(env: &CallEnv) -> Result<Value> {
+                let i: i64 = env.parse_arg(0)?;
+                (i + 1).to_lisp(env)
+            }
+
+            fn plus(env: &CallEnv) -> Result<Value> {
+                let x: i64 = env.parse_arg(0)?;
+                let y: i64 = env.parse_arg(1)?;
+                (x + y).to_lisp(env)
+            }
+
+            env.call("cons", &[
+                emacs_lambda!(env, inc, 1..1, "increment")?,
+                emacs_lambda!(env, plus, 2..2)?,
+            ])
+        }
+
         "wrap-string", "", (env, s) {
             let s: String = s.to_rust()?;
             let b = Box::new(StringWrapper { s });
