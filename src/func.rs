@@ -11,7 +11,7 @@ use super::error::Result;
 // macro_rules! is inadequate.
 pub trait HandleFunc {
     fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
-    fn fset(&self, name: &str, func: &Value) -> Result<Value>;
+    fn fset(&self, name: &str, func: Value) -> Result<Value>;
     fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
 }
 
@@ -24,13 +24,13 @@ impl HandleFunc for Env {
         )
     }
 
-    fn fset(&self, name: &str, func: &Value) -> Result<Value> {
+    fn fset(&self, name: &str, func: Value) -> Result<Value> {
         let symbol = self.intern(name)?;
         call_lisp!(self, "fset", symbol, func)
     }
 
     fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
         let function = self.make_function(function, arities, doc, data)?;
-        self.fset(name, &function)
+        self.fset(name, function)
     }
 }

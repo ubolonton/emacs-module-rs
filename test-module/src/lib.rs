@@ -20,7 +20,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn test<'e>(env: &'e Env, _args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
+fn test(env: &CallEnv) -> Result<Value> {
     env.clone_to_lisp(5)?;
     match "1\0a".to_lisp(env) {
         Ok(_) => {
@@ -67,8 +67,8 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Vector as "Vector";
     }
 
-    fn swap_components<'e>(_env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
-        let mut v = args[0].clone();
+    fn swap_components(env: &CallEnv) -> Result<Value> {
+        let mut v = env.get_arg(0).clone();
         {
             let vec: &mut Vector = unsafe { v.get_mut()? };
             vec.x = vec.x ^ vec.y;
@@ -78,13 +78,9 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Ok(v)
     }
 
-    emacs_subrs! {
-        swap_components -> f_swap_components;
-    }
-
-    env.register(
-        prefix!("vector:swap-components"), f_swap_components, 1..1,
-        "", ptr::null_mut()
+    env.fset(
+        prefix!("vector:swap-components"),
+        emacs_lambda!(env, swap_components, 1..1)?
     )?;
 
     defuns! {
@@ -161,13 +157,9 @@ fn init_test_simplified_fns(env: &Env) -> Result<()> {
         ])
     }
 
-    simplified_subrs! {
-        sum_and_diff -> f_sum_and_diff;
-    }
-
-    env.register(
-        prefix!("sum-and-diff"), f_sum_and_diff, 2..2,
-        "", ptr::null_mut()
+    env.fset(
+        prefix!("sum-and-diff"),
+        emacs_lambda!(env, sum_and_diff, 2..2)?
     )?;
 
     Ok(())
@@ -178,13 +170,9 @@ fn init(env: &Env) -> Result<Value> {
 
     env.message("Hello, Emacs!")?;
 
-    emacs_subrs! {
-        test -> f_test;
-    }
-
-    env.register(
-        prefix!(test), f_test, 0..0,
-        "", ptr::null_mut()
+    env.fset(
+        prefix!(test),
+        emacs_lambda!(env, test, 0..0)?
     )?;
 
     init_vector_functions(env)?;
@@ -221,14 +209,11 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "make-dec", "", (env) {
-            fn dec<'e>(env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
-                let i: i64 = args[0].to_rust()?;
+            fn dec(env: &CallEnv) -> Result<Value> {
+                let i: i64 = env.parse_arg(0)?;
                 (i - 1).to_lisp(env)
             }
-            emacs_subrs! {
-                dec -> f_dec;
-            }
-            env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
+            emacs_lambda!(env, dec, 1..1, "decrement", ptr::null_mut())
         }
 
         "make-inc-and-plus", "", (env) {

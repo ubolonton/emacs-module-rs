@@ -106,27 +106,6 @@ macro_rules! emacs_module_init {
 }
 
 #[macro_export]
-macro_rules! emacs_subrs {
-    ($($name:ident -> $extern_name:ident;)*) => {
-        $(
-            #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn $extern_name(env: *mut $crate::raw::emacs_env,
-                                              nargs: ::libc::ptrdiff_t,
-                                              args: *mut $crate::raw::emacs_value,
-                                              data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
-                let env = $crate::Env::from(env);
-                let env = $crate::CallEnv::new(env, nargs, args, data);
-                // TODO: Let the wrapped function handle arguments itself instead of
-                // heap-allocate Values here.
-                let args = env.args();
-                let result = $name(&env, &args, data);
-                $crate::error::TriggerExit::maybe_exit(&*env, result)
-            }
-        )*
-    };
-}
-
-#[macro_export]
 macro_rules! emacs_lambda {
     ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr) => {
         {
