@@ -13,9 +13,11 @@ pub use emacs_module::EmacsSubr;
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
+use std::ops::Deref;
 use std::borrow::Borrow;
 use std::ffi::CString;
 use std::ptr;
+use std::slice;
 use libc::ptrdiff_t;
 
 use emacs_module::{emacs_env, emacs_value};
@@ -25,6 +27,14 @@ use self::error::HandleExit;
 #[derive(Debug)]
 pub struct Env {
     pub(crate) raw: *mut emacs_env,
+}
+
+#[derive(Debug)]
+pub struct CallEnv {
+    env: Env,
+    nargs: usize,
+    args: *mut emacs_value,
+    data: *mut libc::c_void,
 }
 
 /// This is similar to an `RC`. TODO: Document better.
@@ -222,5 +232,44 @@ impl<'e> Value<'e> {
         self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
         })
+    }
+}
+
+/// This allows `Env`'s methods to be called on a `CallEnv`.
+impl Deref for CallEnv {
+   type Target = Env;
+
+   fn deref(&self) -> &Env {
+       &self.env
+   }
+}
+
+// TODO: Iterator and Index
+impl CallEnv {
+    pub unsafe fn new(env: Env,
+                      nargs: libc::ptrdiff_t,
+                      args: *mut emacs_value,
+                      data: *mut libc::c_void) -> Self {
+        let nargs = nargs as usize;
+        Self { env, nargs, args, data }
+    }
+
+    pub fn raw_args(&self) -> &[emacs_value] {
+        unsafe {
+            slice::from_raw_parts(self.args, self.nargs)
+        }
+    }
+
+    pub fn args(&self) -> Vec<Value> {
+        self.raw_args().iter().map(|v| Value::new(*v, &self.env)).collect()
+    }
+
+    pub fn get_arg(&self, i: usize) -> Value {
+        let args: &[emacs_value] = self.raw_args();
+        Value::new(args[i], &self)
+    }
+
+    pub fn parse_arg<T: FromLisp>(&self, i: usize) -> Result<T> {
+        self.get_arg(i).to_rust()
     }
 }

@@ -70,7 +70,7 @@ macro_rules! defuns {
             extern crate libc;
             extern crate emacs;
             use emacs::Value;
-            use emacs::{Env, Result};
+            use emacs::{Env, CallEnv, Result};
             use emacs::error::TriggerExit;
             use emacs::raw::{emacs_env, emacs_value};
 
@@ -82,9 +82,10 @@ macro_rules! defuns {
             unsafe extern "C" fn extern_name(env: *mut emacs_env,
                                              nargs: libc::ptrdiff_t,
                                              args: *mut emacs_value,
-                                             _data: *mut libc::c_void) -> emacs_value {
+                                             data: *mut libc::c_void) -> emacs_value {
                 let env = Env::from(env);
-                let args: &[emacs_value] = std::slice::from_raw_parts(args, nargs as usize);
+                let env = CallEnv::new(env, nargs, args, data);
+                let args: &[emacs_value] = env.raw_args();
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
@@ -93,7 +94,7 @@ macro_rules! defuns {
                 env.maybe_exit(result)
             }
 
-            fn intern_name<'e>($env: &'e Env $(, $arg: Value<'e>)*) -> Result<Value<'e>> {
+            fn intern_name<'e>($env: &'e CallEnv $(, $arg: Value<'e>)*) -> Result<Value<'e>> {
                 $body
             }
 

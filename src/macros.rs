@@ -115,14 +115,12 @@ macro_rules! emacs_subrs {
                                               args: *mut $crate::raw::emacs_value,
                                               data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
                 let env = $crate::Env::from(env);
-                // TODO: Mark Value as repr(transparent) once it's available, and use this.
-                // let args: *mut $crate::Value = ::std::mem::transmute(args);
-                // let args: &mut [$crate::Value] = ::std::slice::from_raw_parts_mut(args, nargs as usize);
-                // let result = $name(&env, args, data);
-                let args: &[$crate::raw::emacs_value] = ::std::slice::from_raw_parts(args, nargs as usize);
-                let args: Vec<_> = args.iter().map(|v| $crate::Value::new(*v, &env)).collect();
+                let env = $crate::CallEnv::new(env, nargs, args, data);
+                // TODO: Let the wrapped function handle arguments itself instead of
+                // heap-allocate Values here.
+                let args = env.args();
                 let result = $name(&env, &args, data);
-                $crate::error::TriggerExit::maybe_exit(&env, result)
+                $crate::error::TriggerExit::maybe_exit(&*env, result)
             }
         )*
     };
