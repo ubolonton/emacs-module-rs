@@ -9,7 +9,7 @@ mod macros;
 
 use std::ptr;
 use std::cell::RefCell;
-use emacs::{Env, Value, ToLisp, IntoLisp, Result, Error};
+use emacs::{Env, CallEnv, Value, ToLisp, IntoLisp, Result, Error};
 use emacs::HandleFunc;
 
 emacs_plugin_is_GPL_compatible!();
@@ -149,6 +149,30 @@ fn init_test_ref_cell(env: &Env) -> Result<()> {
     Ok(())
 }
 
+fn init_test_simplified_fns(env: &Env) -> Result<()> {
+    make_prefix!(prefix, *MODULE_PREFIX);
+
+    fn sum_and_diff(env: &CallEnv) -> Result<Value> {
+        let x: i64 = env.parse_arg(0)?;
+        let y: i64 = env.parse_arg(1)?;
+        env.list(&[
+            (x + y).to_lisp(env)?,
+            (x - y).to_lisp(env)?
+        ])
+    }
+
+    simplified_subrs! {
+        sum_and_diff -> f_sum_and_diff;
+    }
+
+    env.register(
+        prefix!("sum-and-diff"), f_sum_and_diff, 2..2,
+        "", ptr::null_mut()
+    )?;
+
+    Ok(())
+}
+
 fn init(env: &Env) -> Result<Value> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
@@ -165,6 +189,7 @@ fn init(env: &Env) -> Result<Value> {
 
     init_vector_functions(env)?;
     init_test_ref_cell(env)?;
+    init_test_simplified_fns(env)?;
 
     struct StringWrapper {
         pub s: String

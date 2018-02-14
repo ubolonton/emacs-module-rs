@@ -118,3 +118,20 @@ macro_rules! call {
         $env.call($name, args)
     }}
 }
+
+macro_rules! simplified_subrs {
+    ($($name:ident -> $extern_name:ident;)*) => {
+        $(
+            #[allow(non_snake_case, unused_variables)]
+            unsafe extern "C" fn $extern_name(env: *mut ::emacs::raw::emacs_env,
+                                              nargs: ::libc::ptrdiff_t,
+                                              args: *mut ::emacs::raw::emacs_value,
+                                              data: *mut ::libc::c_void) -> ::emacs::raw::emacs_value {
+                let env = ::emacs::Env::from(env);
+                let env = ::emacs::CallEnv::new(env, nargs, args, data);
+                let result = $name(&env);
+                ::emacs::error::TriggerExit::maybe_exit(&*env, result)
+            }
+        )*
+    };
+}

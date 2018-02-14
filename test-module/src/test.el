@@ -66,3 +66,9 @@
     ;; TODO: :type
     (should-error (t/refcell:mutate-twice v))
     (should-error (t/refcell:mutate-twice x))))
+
+(ert-deftest simplified-fns ()
+  (let ((x 5)
+        (y 3))
+    (should (equal (t/sum-and-diff x y)
+                   (list (+ x y) (- x y))))))
