@@ -66,10 +66,10 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Vector as "Vector";
     }
 
-    fn swap_components<'e>(env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
+    fn swap_components<'e>(_env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
         let mut v = args[0];
         {
-            let vec: &mut Vector = unsafe { v.to_mut(env)? };
+            let vec: &mut Vector = unsafe { v.to_mut()? };
             vec.x = vec.x ^ vec.y;
             vec.y = vec.x ^ vec.y;
             vec.x = vec.x ^ vec.y;
@@ -90,32 +90,32 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         env, format!("{}vector:", *MODULE_PREFIX);
 
         "make", "", (env, x, y) {
-            let x: i64 = x.to_owned(env)?;
-            let y: i64 = env.get_owned(y)?;
+            let x: i64 = x.to_rust()?;
+            let y: i64 = y.to_rust()?;
             let b = Box::new(Vector { x, y });
             env.move_to_lisp(b)
         }
 
         "to-list", "", (env, v) {
-            env.get_ref::<Vector>(&v)?;
-            let v: &Vector = env.get_ref(&v)?;
+            v.to_ref::<Vector>()?;
+            let v: &Vector = v.to_ref()?;
             let x = v.x.to_lisp(env)?;
             let y = v.y.to_lisp(env)?;
             env.list(&[x, y])
         }
 
         "add", "", (env, a, b) {
-            let a: &Vector = a.to_ref(env)?;
-            let b: &Vector = b.to_ref(env)?;
+            let a: &Vector = a.to_ref()?;
+            let b: &Vector = b.to_ref()?;
             let (x, y) = (b.x + a.x, b.y + a.y);
             Box::new(Vector { x, y }).into_lisp(env)
         }
 
         "scale-mutably", "", (env, times, v) {
-            let times: i64 = times.to_owned(env)?;
+            let times: i64 = times.to_rust()?;
             {
                 let mut v = v;
-                let v = unsafe { v.to_mut::<Vector>(env)? };
+                let v = unsafe { v.to_mut::<Vector>()? };
                 v.x *= times;
                 v.y *= times;
             }
@@ -153,7 +153,7 @@ fn init(env: &Env) -> Result<Value> {
         env, *MODULE_PREFIX;
 
         inc, "1+", (env, x) {
-            let i: i64 = x.to_owned(env)?;
+            let i: i64 = x.to_rust()?;
             (i + 1).to_lisp(env)
         }
 
@@ -162,7 +162,7 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "to-uppercase", "", (env, s) {
-            let s: String = s.to_owned(env)?;
+            let s: String = s.to_rust()?;
             s.to_uppercase().to_lisp(env)
         }
 
@@ -172,7 +172,7 @@ fn init(env: &Env) -> Result<Value> {
 
         "make-dec", "", (env) {
             fn dec<'e>(env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
-                let i: i64 = args[0].to_owned(env)?;
+                let i: i64 = args[0].to_rust()?;
                 (i - 1).to_lisp(env)
             }
             emacs_subrs! {
@@ -182,7 +182,7 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "wrap-string", "", (env, s) {
-            let s: String = s.to_owned(env)?;
+            let s: String = s.to_rust()?;
             let b = Box::new(StringWrapper { s });
             env.move_to_lisp(b)
         }

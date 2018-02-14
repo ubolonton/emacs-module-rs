@@ -19,18 +19,22 @@ pub use emacs_module::EmacsSubr;
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
-// TODO: Consider making this Clone+Copy, and use Env everywhere instead of &Env.
 #[repr(C)]
 #[derive(Debug)]
 pub struct Env {
     pub(crate) raw: *mut emacs_env,
 }
 
+/// This is similar to an `RC`. TODO: Document better.
+///
+/// We don't need a custom `Clone` implementation that does ref counting. TODO: Explain
+/// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
+/// unsafe...)
+///
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
-    // TODO: Use this.
     pub(crate) env: &'e Env,
 }
 
@@ -41,7 +45,7 @@ pub trait ToLisp {
 
 // CloneFromLisp
 pub trait FromLisp: Sized {
-    fn from_lisp(env: &Env, value: Value) -> Result<Self>;
+    fn from_lisp(value: &Value) -> Result<Self>;
 }
 
 /// Used to allow a type to be exposed to Emacs Lisp, where its values appear as opaque objects, or
@@ -106,18 +110,6 @@ impl Env {
         value.into_lisp(self)
     }
 
-    pub fn get_owned<T>(&self, lisp_value: Value) -> Result<T> where T: FromLisp {
-        lisp_value.to_owned(self)
-    }
-
-    pub fn get_ref<'v, T>(&self, lisp_value: &'v Value) -> Result<&'v T> where T: Transfer {
-        lisp_value.to_ref(self)
-    }
-
-    pub unsafe fn get_mut<'v, T>(&self, lisp_value: &'v mut Value) -> Result<&'v mut T> where T: Transfer {
-        lisp_value.to_mut(self)
-    }
-
     pub fn is_not_nil(&self, value: Value) -> Result<bool> {
         raw_call!(self, is_not_nil, value.raw)
     }
@@ -151,7 +143,7 @@ impl Env {
         }
     }
 
-    fn string_bytes(&self, value: Value) -> Result<Vec<u8>> {
+    fn string_bytes(&self, value: &Value) -> Result<Vec<u8>> {
         let mut len: isize = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents)?;
@@ -216,13 +208,13 @@ impl<'e> Value<'e> {
         Self { raw, env }
     }
 
-    pub fn to_owned<T: FromLisp>(self, env: &Env) -> Result<T> {
-        FromLisp::from_lisp(env, self)
+    pub fn to_rust<T: FromLisp>(&self) -> Result<T> {
+        FromLisp::from_lisp(self)
     }
 
     /// Returns a reference to the underlying Rust data wrapped by this value.
-    pub fn to_ref<T: Transfer>(&self, env: &Env) -> Result<&T> {
-        env.get_raw_pointer(self.raw).map(|r| unsafe {
+    pub fn to_ref<T: Transfer>(&self) -> Result<&T> {
+        self.env.get_raw_pointer(self.raw).map(|r| unsafe {
             &*r
         })
     }
@@ -232,8 +224,8 @@ impl<'e> Value<'e> {
     /// # Unsafe
     /// This function is unsafe because Lisp code can pass the same object through 2
     /// different values in an argument list. TODO: Make it safe by adding runtime guards.
-    pub unsafe fn to_mut<T: Transfer>(&mut self, env: &Env) -> Result<&mut T> {
-        env.get_raw_pointer(self.raw).map(|r| {
+    pub unsafe fn to_mut<T: Transfer>(&mut self) -> Result<&mut T> {
+        self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
         })
     }
@@ -256,15 +248,15 @@ impl ToLisp for str {
 }
 
 impl FromLisp for i64 {
-    fn from_lisp(env: &Env, value: Value) -> Result<Self> {
-        raw_call!(env, extract_integer, value.raw)
+    fn from_lisp(value: &Value) -> Result<Self> {
+        raw_call!(value.env, extract_integer, value.raw)
     }
 }
 
 impl FromLisp for String {
     // TODO: Optimize this.
-    fn from_lisp(env: &Env, value: Value) -> Result<Self> {
-        let bytes = env.string_bytes(value)?;
+    fn from_lisp(value: &Value) -> Result<Self> {
+        let bytes = value.env.string_bytes(value)?;
         // FIX
         Ok(String::from_utf8(bytes).unwrap())
     }
