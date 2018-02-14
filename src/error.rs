@@ -2,6 +2,7 @@ use std::result;
 use std::error;
 use std::io;
 use std::ffi::NulError;
+
 use emacs_module::*;
 use super::{Env, Value, ToLisp};
 

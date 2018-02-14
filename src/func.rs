@@ -1,6 +1,7 @@
-use std::ffi::CString;
 use std::ops::Range;
+use std::ffi::CString;
 use libc;
+
 use emacs_module::{EmacsSubr};
 use super::{Env, Value};
 use super::error::Result;
