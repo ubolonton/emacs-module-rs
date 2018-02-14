@@ -59,3 +59,10 @@
     (should (string-prefix-p "#<user-ptr" (format "%s" s)))
     ;; TODO: :type
     (should-error (t/vector:to-list s))))
+
+(ert-deftest ref-cell ()
+  (let ((x (t/refcell:make 5))
+        (v (t/vector:make 1 2)))
+    ;; TODO: :type
+    (should-error (t/refcell:mutate-twice v))
+    (should-error (t/refcell:mutate-twice x))))

@@ -1,6 +1,7 @@
-use std::ffi::CString;
 use std::ops::Range;
+use std::ffi::CString;
 use libc;
+
 use emacs_module::{EmacsSubr};
 use super::{Env, Value};
 use super::error::Result;
@@ -16,7 +17,7 @@ pub trait HandleFunc {
 
 impl HandleFunc for Env {
     fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
-        raw_call!(
+        raw_call_value!(
             self, make_function,
             arities.start as isize, arities.end as isize,
             Some(function), CString::new(doc)?.as_ptr(), data

@@ -1,48 +1,55 @@
 extern crate libc;
 extern crate emacs_module;
 
-use std::borrow::Borrow;
-use std::ffi::CString;
-use std::ptr;
-use libc::ptrdiff_t;
-use emacs_module::{emacs_runtime, emacs_env, emacs_value};
-use self::error::HandleExit;
-
 #[macro_use]
 mod macros;
 
 pub mod func;
 pub mod error;
 pub mod raw;
+mod convert;
 
 pub use emacs_module::EmacsSubr;
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
-// TODO: Consider making this Clone+Copy, and use Env everywhere instead of &Env.
+use std::borrow::Borrow;
+use std::ffi::CString;
+use std::ptr;
+use libc::ptrdiff_t;
+
+use emacs_module::{emacs_env, emacs_value};
+use self::error::HandleExit;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct Env {
     pub(crate) raw: *mut emacs_env,
 }
 
+/// This is similar to an `RC`. TODO: Document better.
+///
+/// We don't need a custom `Clone` implementation that does ref counting. TODO: Explain
+/// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
+/// unsafe...)
+///
 #[repr(C)]
-#[derive(Debug)]
-pub struct Value {
+#[derive(Debug, Clone, Copy)]
+pub struct Value<'e> {
     pub(crate) raw: emacs_value,
+    pub(crate) env: &'e Env,
 }
 
 // CloneToLisp
 pub trait ToLisp {
-    fn to_lisp(&self, env: &Env) -> Result<Value>;
+    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>>;
 }
 
 // CloneFromLisp
 pub trait FromLisp: Sized {
-    fn from_lisp<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self>;
+    fn from_lisp(value: &Value) -> Result<Self>;
 }
 
-// TODO: Is it ok to do a blanket implementation so almost anything can be transferred to Emacs?
 /// Used to allow a type to be exposed to Emacs Lisp, where its values appear as opaque objects, or
 /// "embedded user pointers" (`#<user-ptr ...>`).
 ///
@@ -60,6 +67,7 @@ pub trait Transfer: Sized {
         Box::from_raw(ptr as *mut Self);
     }
 
+    // TODO: This should be derived automatically. Use `typename` crate or something.
     /// Returns the name of this type. This is used to report runtime type error, when a function
     /// expects this type, but some Lisp code passes a different type of "user pointer".
     fn type_name() -> &'static str;
@@ -81,12 +89,12 @@ impl Env {
     }
 
     pub fn intern(&self, name: &str) -> Result<Value> {
-        raw_call!(self, intern, CString::new(name)?.as_ptr())
+        raw_call_value!(self, intern, CString::new(name)?.as_ptr())
     }
 
     // TODO: Return an enum?
-    pub fn type_of(&self, value: &Value) -> Result<Value> {
-        raw_call!(self, type_of, value.raw)
+    pub fn type_of(&self, value: Value) -> Result<Value> {
+        raw_call_value!(self, type_of, value.raw)
     }
 
     // TODO: Add a convenient macro?
@@ -94,7 +102,7 @@ impl Env {
         let symbol = self.intern(name)?;
         // XXX Hmm
         let mut args: Vec<emacs_value> = args.iter().map(|v| v.raw).collect();
-        raw_call!(self, funcall, symbol.raw, args.len() as ptrdiff_t, args.as_mut_ptr())
+        raw_call_value!(self, funcall, symbol.raw, args.len() as ptrdiff_t, args.as_mut_ptr())
     }
 
     pub fn clone_to_lisp<T, U>(&self, value: U) -> Result<Value> where T: ToLisp, U: Borrow<T> {
@@ -105,23 +113,11 @@ impl Env {
         value.into_lisp(self)
     }
 
-    pub fn get_owned<T, U>(&self, lisp_value: U) -> Result<T> where T: FromLisp, U: Borrow<Value> {
-        lisp_value.borrow().to_owned(self)
-    }
-
-    pub fn get_ref<'v, T>(&self, lisp_value: &'v Value) -> Result<&'v T> where T: Transfer {
-        lisp_value.to_ref(self)
-    }
-
-    pub unsafe fn get_mut<'v, T>(&self, lisp_value: &'v mut Value) -> Result<&'v mut T> where T: Transfer {
-        lisp_value.to_mut(self)
-    }
-
-    pub fn is_not_nil(&self, value: &Value) -> Result<bool> {
+    pub fn is_not_nil(&self, value: Value) -> Result<bool> {
         raw_call!(self, is_not_nil, value.raw)
     }
 
-    pub fn eq(&self, a: &Value, b: &Value) -> Result<bool> {
+    pub fn eq(&self, a: Value, b: Value) -> Result<bool> {
         raw_call!(self, eq, a.raw, b.raw)
     }
 
@@ -194,87 +190,37 @@ impl Env {
     }
 }
 
-impl From<*mut emacs_env> for Env {
-    fn from(raw: *mut emacs_env) -> Env {
-        Env { raw }
+impl<'e> Value<'e> {
+    pub fn new(raw: emacs_value, env: &'e Env) -> Self {
+        Self { raw, env }
     }
-}
 
-impl From<*mut emacs_runtime> for Env {
-    fn from(runtime: *mut emacs_runtime) -> Env {
-        let raw = unsafe {
-            let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
-            get_env(runtime)
-        };
-        Env { raw }
-    }
-}
-
-impl Value {
-    pub fn to_owned<T: FromLisp>(&self, env: &Env) -> Result<T> {
-        FromLisp::from_lisp(env, self)
+    pub fn to_rust<T: FromLisp>(&self) -> Result<T> {
+        FromLisp::from_lisp(self)
     }
 
     /// Returns a reference to the underlying Rust data wrapped by this value.
-    pub fn to_ref<T: Transfer>(&self, env: &Env) -> Result<&T> {
-        env.get_raw_pointer(self.raw).map(|r| unsafe {
+    pub fn get_ref<T: Transfer>(&self) -> Result<&T> {
+        self.env.get_raw_pointer(self.raw).map(|r| unsafe {
             &*r
         })
     }
 
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.
     ///
-    /// # Unsafe
-    /// This function is unsafe because Lisp code can pass the same object through 2
-    /// different values in an argument list. TODO: Make it safe by adding runtime guards.
-    pub unsafe fn to_mut<T: Transfer>(&mut self, env: &Env) -> Result<&mut T> {
-        env.get_raw_pointer(self.raw).map(|r| {
+    /// # Safety
+    ///
+    /// There are several ways this can go wrong:
+    /// - Lisp code can pass the same object through 2 different values in an argument list.
+    /// - Rust code earlier in the call chain may have copied this value.
+    /// - Rust code later in the call chain may receive a copy of this value.
+    ///
+    /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
+    /// guards, before moving them to Lisp, and then only access them through these guards
+    /// (which can be obtained back through `Value::get_ref()`.
+    pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
+        self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
         })
-    }
-}
-
-impl From<emacs_value> for Value {
-    fn from(raw: emacs_value) -> Self {
-        Self { raw }
-    }
-}
-
-impl ToLisp for i64 {
-    fn to_lisp(&self, env: &Env) -> Result<Value> {
-        raw_call!(env, make_integer, *self)
-    }
-}
-
-// TODO: Make this more elegant. Can't implement it for trait bound Into<Vec<u8>>, since that would
-// complain about conflicting implementations for i64.
-impl ToLisp for str {
-    fn to_lisp(&self, env: &Env) -> Result<Value> {
-        let cstring = CString::new(self)?;
-        let ptr = cstring.as_ptr();
-        raw_call!(env, make_string, ptr, libc::strlen(ptr) as ptrdiff_t)
-    }
-}
-
-impl FromLisp for i64 {
-    fn from_lisp<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self> {
-        raw_call!(env, extract_integer, value.borrow().raw)
-    }
-}
-
-impl FromLisp for String {
-    // TODO: Optimize this.
-    fn from_lisp<T: Borrow<Value>>(env: &Env, value: T) -> Result<Self> {
-        let bytes = env.string_bytes(value.borrow())?;
-        // FIX
-        Ok(String::from_utf8(bytes).unwrap())
-    }
-}
-
-impl<T: Transfer> IntoLisp for Box<T> {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
-        let raw = Box::into_raw(self);
-        let ptr = raw as *mut libc::c_void;
-        raw_call!(env, make_user_ptr, Some(T::finalizer), ptr)
     }
 }

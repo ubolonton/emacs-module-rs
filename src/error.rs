@@ -1,8 +1,8 @@
 use std::result;
 use std::error;
 use std::io;
-use std::borrow::Borrow;
 use std::ffi::NulError;
+
 use emacs_module::*;
 use super::{Env, Value, ToLisp};
 
@@ -23,8 +23,9 @@ pub struct Error {
 // TODO: Use error-chain? (need to solve the issue that emacs_value does not satisfy Send).
 #[derive(Debug)]
 pub enum ErrorKind {
-    Signal { symbol: Value, data: Value },
-    Throw { tag: Value, value: Value },
+    // TODO: Define RootedValue or OwnedValue or something.
+    Signal { symbol: emacs_value, data: emacs_value },
+    Throw { tag: emacs_value, value: emacs_value },
     UserPtrHasWrongType { expected: &'static str },
     UnknownUserPtr { expected: &'static str },
     IO { error: io::Error },
@@ -44,11 +45,11 @@ impl Error {
     }
 
     // TODO: Public version of signal/throw that take ToEmacs values.
-    fn signal(symbol: Value, data: Value) -> Self {
+    fn signal(symbol: emacs_value, data: emacs_value) -> Self {
         Self { kind: ErrorKind::Signal { symbol, data } }
     }
 
-    fn throw(tag: Value, value: Value) -> Self {
+    fn throw(tag: emacs_value, value: emacs_value) -> Self {
         Self { kind: ErrorKind::Throw { tag, value } }
     }
 }
@@ -76,13 +77,13 @@ pub(crate) trait HandleExit {
     fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T>;
 }
 
-fn non_local_exit_get(env: &Env) -> (FuncallExit, Value, Value) {
+fn non_local_exit_get(env: &Env) -> (FuncallExit, emacs_value, emacs_value) {
     let mut buffer = Vec::<emacs_value>::with_capacity(2);
     let symbol = buffer.as_mut_ptr();
     let data = unsafe { symbol.offset(1) };
     let result = critical!(env, non_local_exit_get, symbol, data);
     unsafe {
-        (result, (*symbol).into(), (*data).into())
+        (result, *symbol, *data)
     }
 }
 
@@ -111,17 +112,15 @@ impl HandleExit for Env {
 // TODO: Use these only in the wrapper funcs that give the error back to Emacs. One problem is,
 // wrappers are written (by macros) by user code, which shouldn't have access to these.
 pub trait TriggerExit {
-    unsafe fn maybe_exit<T: Borrow<Value>>(&self, result: Result<T>) -> emacs_value;
+    unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value;
 }
 
-fn throw(env: &Env, tag: Value, value: Value) -> emacs_value {
-    let (tag, value) = (tag.raw, value.raw);
+fn throw(env: &Env, tag: emacs_value, value: emacs_value) -> emacs_value {
     critical!(env, non_local_exit_throw, tag, value);
     tag
 }
 
-fn signal(env: &Env, symbol: Value, data: Value) -> emacs_value {
-    let (symbol, data) = (symbol.raw, data.raw);
+fn signal(env: &Env, symbol: emacs_value, data: emacs_value) -> emacs_value {
     critical!(env, non_local_exit_signal, symbol, data);
     symbol
 }
@@ -129,17 +128,17 @@ fn signal(env: &Env, symbol: Value, data: Value) -> emacs_value {
 // XXX
 fn error(env: &Env, message: &str) -> Result<emacs_value> {
     let message = message.to_lisp(env)?;
-    let data = env.list(&[message])?.into();
-    let symbol = env.intern("error")?.into();
-    Ok(signal(env, symbol, data))
+    let data = env.list(&[message])?;
+    let symbol = env.intern("error")?;
+    Ok(signal(env, symbol.raw, data.raw))
 }
 
 impl TriggerExit for Env {
     /// This is intended to be used at the Rust->Emacs boundary, by the internal macros/functions.
     /// Module code should use [`Error::throw`] and [`Error::signal`] instead.
-    unsafe fn maybe_exit<T: Borrow<Value>>(&self, result: Result<T>) -> emacs_value {
+    unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value {
         match result {
-            Ok(v) => v.borrow().raw,
+            Ok(v) => v.raw,
             Err(normal_error) => {
                 match normal_error.kind {
                     ErrorKind::Signal { symbol, data } => signal(self, symbol, data),

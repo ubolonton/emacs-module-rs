@@ -1,12 +1,3 @@
-macro_rules! replace_expr {
-    ($_t:tt $sub:expr) => {$sub};
-}
-
-// https://danielkeep.github.io/tlborm/book/blk-counting.html
-macro_rules! count_tts {
-    ($($tts:tt)*) => {<[()]>::len(&[$(replace_expr!($tts ())),*])};
-}
-
 // TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
     ($env:ident, $name:ident) => {
@@ -17,17 +8,26 @@ macro_rules! raw_fn {
 }
 
 macro_rules! raw_call {
-    ($env:ident, $name:ident $(, $args:expr)*) => {
+    ($env:expr, $name:ident $(, $args:expr)*) => {
         {
+            let env = $env;
             let result = unsafe {
-                let $name = raw_fn!($env, $name)?;
-                $name($env.raw $(, $args)*)
+                let $name = raw_fn!(env, $name)?;
+                $name(env.raw $(, $args)*)
             };
-            $crate::error::HandleExit::handle_exit($env, result)
+            $crate::error::HandleExit::handle_exit(env, result)
         }
     };
 }
 
+macro_rules! raw_call_value {
+    ($env:ident, $name:ident $(, $args:expr)*) => {
+        {
+            let result: $crate::Result<$crate::raw::emacs_value> = raw_call!($env, $name $(, $args)*);
+            result.map(|raw| $crate::Value::new(raw, $env))
+        }
+    };
+}
 /// Note: Some functions in emacs-module.h are critically important, like those that support error
 /// reporting to Emacs. If they are missing, the only sensible thing to do is crashing. Use this
 /// macro to call them instead of [`raw_call!`].
@@ -46,13 +46,24 @@ macro_rules! call_lisp {
     ($env:ident, $name:expr $(, $arg:expr)*) => {
         {
             let symbol: $crate::Value = $env.intern($name)?;
-            let nargs = count_tts!($($arg)*);
-            // FIX: Find a way to make this an array instead of a vector.
-            let mut args = ::std::vec::Vec::<$crate::raw::emacs_value>::with_capacity(nargs);
-            $(args.push($arg.raw);)*
-            raw_call!($env, funcall, symbol.raw, nargs as ::libc::ptrdiff_t, args.as_mut_ptr())
+            let args = &mut [$($arg.raw,)*];
+            raw_call_value!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
         }
     };
+}
+
+macro_rules! enable_transfers {
+    ($($name:ident;)*) => {$(
+        impl<T> $crate::Transfer for $name<T> {
+            fn type_name() -> &'static str { stringify!($name) }
+        }
+
+        impl<T> $crate::IntoLisp for $name<T> {
+            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value> {
+                ::std::boxed::Box::new(self).into_lisp(env)
+            }
+        }
+    )*};
 }
 
 #[macro_export]
@@ -109,8 +120,8 @@ macro_rules! emacs_subrs {
                 // let args: &mut [$crate::Value] = ::std::slice::from_raw_parts_mut(args, nargs as usize);
                 // let result = $name(&env, args, data);
                 let args: &[$crate::raw::emacs_value] = ::std::slice::from_raw_parts(args, nargs as usize);
-                let mut args: Vec<$crate::Value> = args.iter().map(|v| (*v).into()).collect();
-                let result = $name(&env, &mut args, data);
+                let args: Vec<_> = args.iter().map(|v| $crate::Value::new(*v, &env)).collect();
+                let result = $name(&env, &args, data);
                 $crate::error::TriggerExit::maybe_exit(&env, result)
             }
         )*
