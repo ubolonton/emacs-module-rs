@@ -2,6 +2,8 @@ extern crate libc;
 extern crate emacs_module;
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::sync::{Mutex, RwLock};
 use std::ffi::CString;
 use std::ptr;
 use libc::ptrdiff_t;
@@ -65,6 +67,7 @@ pub trait Transfer: Sized {
         Box::from_raw(ptr as *mut Self);
     }
 
+    // TODO: This should be derived automatically. Use `typename` crate or something.
     /// Returns the name of this type. This is used to report runtime type error, when a function
     /// expects this type, but some Lisp code passes a different type of "user pointer".
     fn type_name() -> &'static str;
@@ -275,4 +278,10 @@ impl<T: Transfer> IntoLisp for Box<T> {
         let ptr = raw as *mut libc::c_void;
         raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)
     }
+}
+
+enable_transfers! {
+    RefCell;
+    Mutex;
+    RwLock;
 }

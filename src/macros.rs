@@ -52,6 +52,20 @@ macro_rules! call_lisp {
     };
 }
 
+macro_rules! enable_transfers {
+    ($($name:ident;)*) => {$(
+        impl<T> $crate::Transfer for $name<T> {
+            fn type_name() -> &'static str { stringify!($name) }
+        }
+
+        impl<T> $crate::IntoLisp for $name<T> {
+            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value> {
+                ::std::boxed::Box::new(self).into_lisp(env)
+            }
+        }
+    )*};
+}
+
 #[macro_export]
 macro_rules! emacs_plugin_is_GPL_compatible {
     () => {

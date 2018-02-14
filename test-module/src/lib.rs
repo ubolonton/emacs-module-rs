@@ -7,9 +7,10 @@ extern crate emacs;
 #[macro_use]
 mod macros;
 
-use emacs::{Env, Value, ToLisp, IntoLisp, Result};
-use emacs::HandleFunc;
 use std::ptr;
+use std::cell::RefCell;
+use emacs::{Env, Value, ToLisp, IntoLisp, Result, Error};
+use emacs::HandleFunc;
 
 emacs_plugin_is_GPL_compatible!();
 emacs_module_init!(init);
@@ -125,6 +126,29 @@ fn init_vector_functions(env: &Env) -> Result<()> {
     Ok(())
 }
 
+// TODO: Add tests for Mutex and RwLock, and more tests for RefCell.
+fn init_test_ref_cell(env: &Env) -> Result<()> {
+    defuns! {
+        env, format!("{}refcell:", *MODULE_PREFIX);
+
+        "make", "Wrap the given integer in a RefCell.", (env, x) {
+            let x: i64 = x.to_rust()?;
+            RefCell::new(x).into_lisp(env)
+        }
+
+        "mutate-twice", "This should fail at run time due to double mut borrows.", (env, c) {
+            let r: &RefCell<i64> = c.get_ref()?;
+            let mut x = r.try_borrow_mut().map_err(Error::new)?;
+            let mut y = r.try_borrow_mut().map_err(Error::new)?;
+            *x = 1;
+            *y = 2;
+            env.intern("nil")
+        }
+    }
+
+    Ok(())
+}
+
 fn init(env: &Env) -> Result<Value> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
@@ -140,6 +164,7 @@ fn init(env: &Env) -> Result<Value> {
     )?;
 
     init_vector_functions(env)?;
+    init_test_ref_cell(env)?;
 
     struct StringWrapper {
         pub s: String
