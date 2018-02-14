@@ -213,7 +213,7 @@ impl<'e> Value<'e> {
     }
 
     /// Returns a reference to the underlying Rust data wrapped by this value.
-    pub fn to_ref<T: Transfer>(&self) -> Result<&T> {
+    pub fn get_ref<T: Transfer>(&self) -> Result<&T> {
         self.env.get_raw_pointer(self.raw).map(|r| unsafe {
             &*r
         })
@@ -230,8 +230,8 @@ impl<'e> Value<'e> {
     ///
     /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
     /// guards, before moving them to Lisp, and then only access them through these guards
-    /// (which can be obtained back through `Value::to_ref()`.
-    pub unsafe fn to_mut<T: Transfer>(&mut self) -> Result<&mut T> {
+    /// (which can be obtained back through `Value::get_ref()`.
+    pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
         self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
         })

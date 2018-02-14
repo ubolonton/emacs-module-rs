@@ -69,7 +69,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
     fn swap_components<'e>(_env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
         let mut v = args[0];
         {
-            let vec: &mut Vector = unsafe { v.to_mut()? };
+            let vec: &mut Vector = unsafe { v.get_mut()? };
             vec.x = vec.x ^ vec.y;
             vec.y = vec.x ^ vec.y;
             vec.x = vec.x ^ vec.y;
@@ -97,16 +97,16 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         }
 
         "to-list", "", (env, v) {
-            v.to_ref::<Vector>()?;
-            let v: &Vector = v.to_ref()?;
+            v.get_ref::<Vector>()?;
+            let v: &Vector = v.get_ref()?;
             let x = v.x.to_lisp(env)?;
             let y = v.y.to_lisp(env)?;
             env.list(&[x, y])
         }
 
         "add", "", (env, a, b) {
-            let a: &Vector = a.to_ref()?;
-            let b: &Vector = b.to_ref()?;
+            let a: &Vector = a.get_ref()?;
+            let b: &Vector = b.get_ref()?;
             let (x, y) = (b.x + a.x, b.y + a.y);
             Box::new(Vector { x, y }).into_lisp(env)
         }
@@ -115,7 +115,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
             let times: i64 = times.to_rust()?;
             {
                 let mut v = v;
-                let v = unsafe { v.to_mut::<Vector>()? };
+                let v = unsafe { v.get_mut::<Vector>()? };
                 v.x *= times;
                 v.y *= times;
             }
