@@ -43,8 +43,10 @@ pub struct CallEnv {
 /// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
 /// unsafe...)
 ///
+/// This does not implement `Copy`, to statically catch some potential mistakes when
+/// using e.g. `.get_mut()`. Use `.clone()` when necessary.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
     pub(crate) env: &'e Env,
@@ -222,8 +224,8 @@ impl<'e> Value<'e> {
     ///
     /// There are several ways this can go wrong:
     /// - Lisp code can pass the same object through 2 different values in an argument list.
-    /// - Rust code earlier in the call chain may have copied this value.
-    /// - Rust code later in the call chain may receive a copy of this value.
+    /// - Rust code earlier in the call chain may have cloned this value.
+    /// - Rust code later in the call chain may receive a clone of this value.
     ///
     /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
     /// guards, before moving them to Lisp, and then only access them through these guards

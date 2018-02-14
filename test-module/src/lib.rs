@@ -68,7 +68,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
     }
 
     fn swap_components<'e>(_env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
-        let mut v = args[0];
+        let mut v = args[0].clone();
         {
             let vec: &mut Vector = unsafe { v.get_mut()? };
             vec.x = vec.x ^ vec.y;
