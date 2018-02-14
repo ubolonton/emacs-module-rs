@@ -221,9 +221,16 @@ impl<'e> Value<'e> {
 
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.
     ///
-    /// # Unsafe
-    /// This function is unsafe because Lisp code can pass the same object through 2
-    /// different values in an argument list. TODO: Make it safe by adding runtime guards.
+    /// # Safety
+    ///
+    /// There are several ways this can go wrong:
+    /// - Lisp code can pass the same object through 2 different values in an argument list.
+    /// - Rust code earlier in the call chain may have copied this value.
+    /// - Rust code later in the call chain may receive a copy of this value.
+    ///
+    /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
+    /// guards, before moving them to Lisp, and then only access them through these guards
+    /// (which can be obtained back through `Value::to_ref()`.
     pub unsafe fn to_mut<T: Transfer>(&mut self) -> Result<&mut T> {
         self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
