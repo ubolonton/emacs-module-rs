@@ -84,23 +84,15 @@ macro_rules! emacs_module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
         #[no_mangle]
-        pub extern "C" fn emacs_module_init(raw: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
-            match $init(&$crate::Env::from(raw)) {
-                Ok(_) => 0,
-                // TODO: Try to signal error to Emacs as well
-                Err(_) => 1,
-            }
+        pub unsafe extern "C" fn emacs_module_init(raw: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
+            $crate::error::HandleInit::handle_init(&$crate::Env::from(raw), $init)
         }
 
         // TODO: Exclude this in release build.
         /// Entry point for live-reloading (by `rs-module`) during development.
         #[no_mangle]
-        pub extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
-            match $init(&$crate::Env::from(raw)) {
-                Ok(_) => 0,
-                // TODO: Try to signal error to Emacs as well
-                Err(_) => 1,
-            }
+        pub unsafe extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
+            $crate::error::HandleInit::handle_init(&$crate::Env::from(raw), $init)
         }
     };
 }
@@ -122,6 +114,7 @@ macro_rules! emacs_lambda {
     // Declare a wrapper function.
     ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {
         {
+            use $crate::error::HandleCall;
             // TODO: Generate identifier from $func.
             unsafe extern "C" fn extern_lambda(env: *mut $crate::raw::emacs_env,
                                                nargs: ::libc::ptrdiff_t,
@@ -129,8 +122,7 @@ macro_rules! emacs_lambda {
                                                data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
                 let env = $crate::Env::from(env);
                 let env = $crate::CallEnv::new(env, nargs, args, data);
-                let result = $func(&env);
-                $crate::error::TriggerExit::maybe_exit(&*env, result)
+                env.handle_call($func)
             }
 
             $env.make_function(extern_lambda, $arities, $doc, $data)
