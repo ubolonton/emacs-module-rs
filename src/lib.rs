@@ -9,7 +9,6 @@ pub mod error;
 pub mod raw;
 mod convert;
 
-pub use emacs_module::EmacsSubr;
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
