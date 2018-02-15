@@ -64,42 +64,37 @@ macro_rules! make_prefix {
 /// - Support optional args.
 macro_rules! defuns {
     ($env_var:expr, $prefix:expr; $($name:tt, $doc:expr, ($env:ident $(, $arg:ident)*) $body:expr)*) => {
-        make_prefix!(emacs_prefix, $prefix);
+        make_prefix!(prefix, "");
 
         $({
             extern crate libc;
             extern crate emacs;
             use emacs::Value;
-            use emacs::{Env, CallEnv, Result};
-            use emacs::error::TriggerExit;
-            use emacs::raw::{emacs_env, emacs_value};
+            use emacs::{CallEnv, Result};
 
             // TODO: Construct an identifier from $name, to get better debug symbols. Seems hard.
             // See https://github.com/rust-lang/rust/issues/29599 (`concat_idents` is useless),
             // https://github.com/rust-lang/rfcs/pull/1628,
             // and https://crates.io/crates/interpolate_idents (procedural macros, nightly).
-            #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn extern_name(env: *mut emacs_env,
-                                             nargs: libc::ptrdiff_t,
-                                             args: *mut emacs_value,
-                                             data: *mut libc::c_void) -> emacs_value {
-                let env = Env::from(env);
-                let env = CallEnv::new(env, nargs, args, data);
-                let args: &[emacs_value] = env.raw_args();
+            fn wrapper(env: &CallEnv) -> Result<Value> {
+                let args = env.raw_args();
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
                 $(let $arg = $crate::Value::new(*_iter.next().unwrap(), &env);)*
-                let result = intern_name(&env $(, $arg)*);
-                env.maybe_exit(result)
+                wrapped(&env $(, $arg)*)
             }
 
-            fn intern_name<'e>($env: &'e CallEnv $(, $arg: Value<'e>)*) -> Result<Value<'e>> {
+            fn wrapped<'e>($env: &'e CallEnv $(, $arg: Value<'e>)*) -> Result<Value<'e>> {
                 $body
             }
 
-            let nargs = count_tts!($($arg)*);
-            $env_var.publish(emacs_prefix!($name), extern_name, nargs..nargs, $doc, std::ptr::null_mut())?;
+            let nargs = count_tts!($( $arg )*);
+            emacs_publish_functions! {
+                $env_var, $prefix, {
+                    prefix!($name) => (wrapper, nargs..nargs, $doc)
+                }
+            }
         })*
     };
 }

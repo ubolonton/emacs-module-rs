@@ -12,7 +12,6 @@ use super::error::Result;
 pub trait HandleFunc {
     fn make_function<T>(&self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void) -> Result<Value> where T: Into<Vec<u8>>;
     fn fset(&self, name: &str, func: Value) -> Result<Value>;
-    fn publish(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
 }
 
 impl HandleFunc for Env {
@@ -27,10 +26,5 @@ impl HandleFunc for Env {
     fn fset(&self, name: &str, func: Value) -> Result<Value> {
         let symbol = self.intern(name)?;
         call_lisp!(self, "fset", symbol, func)
-    }
-
-    fn publish(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
-        let function = self.make_function(function, arities, doc, data)?;
-        self.fset(name, function)
     }
 }
