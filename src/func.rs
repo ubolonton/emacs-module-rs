@@ -3,8 +3,12 @@ use std::ffi::CString;
 use libc;
 
 use emacs_module::{EmacsSubr};
-use super::{Env, Value};
+use super::{Env, CallEnv, Value};
 use super::error::Result;
+
+pub type Func = fn(env: &CallEnv) -> Result<Value>;
+
+pub type InitFunc = fn(env: &Env) -> Result<Value>;
 
 // TODO: This should be named sth like HandleSubr, HandleRawFn
 // TODO: Enable creating a Lisp function from a Rust fn. That probably requires procedural macros,

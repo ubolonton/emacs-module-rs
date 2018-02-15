@@ -1,10 +1,14 @@
+use std::panic;
+use std::any::Any;
 use std::result;
 use std::error;
 use std::io;
 use std::ffi::NulError;
+use libc;
 
 use emacs_module::*;
-use super::{Env, Value, ToLisp};
+use super::{Env, CallEnv, Value, ToLisp};
+use super::func::{Func, InitFunc};
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
@@ -30,10 +34,27 @@ pub enum ErrorKind {
     UnknownUserPtr { expected: &'static str },
     IO { error: io::Error },
     Other { error: Box<error::Error> },
+    Panic { error: Box<Any + Send + 'static> },
     CoreFnMissing(String),
 }
 
 pub type Result<T> = result::Result<T, Error>;
+
+pub(crate) trait HandleExit {
+    fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T>;
+}
+
+trait TriggerExit {
+    unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value;
+}
+
+pub trait HandleInit {
+    unsafe fn handle_init(&self, f: InitFunc) -> libc::c_int;
+}
+
+pub trait HandleCall {
+    unsafe fn handle_call(&self, f: Func) -> emacs_value;
+}
 
 impl Error {
     pub fn kind(&self) -> &ErrorKind {
@@ -73,10 +94,6 @@ impl From<NulError> for Error {
     }
 }
 
-pub(crate) trait HandleExit {
-    fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T>;
-}
-
 fn non_local_exit_get(env: &Env) -> (FuncallExit, emacs_value, emacs_value) {
     let mut buffer = Vec::<emacs_value>::with_capacity(2);
     let symbol = buffer.as_mut_ptr();
@@ -109,12 +126,6 @@ impl HandleExit for Env {
     }
 }
 
-// TODO: Use these only in the wrapper funcs that give the error back to Emacs. One problem is,
-// wrappers are written (by macros) by user code, which shouldn't have access to these.
-pub trait TriggerExit {
-    unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value;
-}
-
 fn throw(env: &Env, tag: emacs_value, value: emacs_value) -> emacs_value {
     critical!(env, non_local_exit_throw, tag, value);
     tag
@@ -125,11 +136,11 @@ fn signal(env: &Env, symbol: emacs_value, data: emacs_value) -> emacs_value {
     symbol
 }
 
-// XXX
-fn error(env: &Env, message: &str) -> Result<emacs_value> {
+// TODO: Prepare static values for the symbols.
+fn _signal(env: &Env, symbol: &str, message: &str) -> Result<emacs_value> {
     let message = message.to_lisp(env)?;
     let data = env.list(&[message])?;
-    let symbol = env.intern("error")?;
+    let symbol = env.intern(symbol)?;
     Ok(signal(env, symbol.raw, data.raw))
 }
 
@@ -144,16 +155,54 @@ impl TriggerExit for Env {
                     ErrorKind::Signal { symbol, data } => signal(self, symbol, data),
                     ErrorKind::Throw { tag, value } => throw(self, tag, value),
                     // TODO: Better formatting.
-                    other_error => match error(self, &format!("Error: {:#?}", other_error)) {
-                        Ok(v) => v,
-                        // XXX: Custom error instead of panicking.
-                        Err(_fail_to_error) => {
-                            error(self, "Undisplayable error")
-                                .expect("Fail to signal error to Emacs")
-                        }
-                    },
+                    other_error => _signal(self, "error", &format!("Error: {:#?}", other_error))
+                        .expect("Fail to signal error to Emacs"),
                 }
             }
+        }
+    }
+}
+
+impl HandleInit for Env {
+    unsafe fn handle_init(&self, f: InitFunc) -> libc::c_int {
+        let result = panic::catch_unwind(|| {
+            match f(&self) {
+                Ok(_) => 0,
+                Err(e) => {
+                    self.message(&format!("Error during initialization: {:#?}", e))
+                        .expect("Fail to message Emacs about error");
+                    1
+                },
+            }
+        });
+        match result {
+            Ok(v) => v,
+            Err(e) => {
+                // TODO: Try some common types
+                // TODO: Get stack trace?
+                // TODO: Just exit?
+                self.message(&format!("Panic during initialization: {:#?}", e))
+                    .expect("Fail to message Emacs about panic");
+                2
+            },
+        }
+    }
+}
+
+impl HandleCall for CallEnv {
+    unsafe fn handle_call(&self, f: Func) -> emacs_value {
+        let result = panic::catch_unwind(|| {
+            self.maybe_exit(f(&self))
+        });
+        match result {
+            Ok(v) => v,
+            Err(e) => {
+                // TODO: Try some common types
+                // TODO: Get stack trace?
+                // TODO: Just exit?
+                _signal(self, "panic", &format!("{:#?}", e))
+                    .expect("Fail to signal panic to Emacs")
+            },
         }
     }
 }
