@@ -10,13 +10,13 @@ use super::error::Result;
 // TODO: Enable creating a Lisp function from a Rust fn. That probably requires procedural macros,
 // macro_rules! is inadequate.
 pub trait HandleFunc {
-    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
+    fn make_function<T>(&self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void) -> Result<Value> where T: Into<Vec<u8>>;
     fn fset(&self, name: &str, func: Value) -> Result<Value>;
-    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
+    fn publish(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value>;
 }
 
 impl HandleFunc for Env {
-    fn make_function(&self, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
+    fn make_function<T>(&self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void) -> Result<Value> where T: Into<Vec<u8>> {
         raw_call_value!(
             self, make_function,
             arities.start as isize, arities.end as isize,
@@ -29,7 +29,7 @@ impl HandleFunc for Env {
         call_lisp!(self, "fset", symbol, func)
     }
 
-    fn register(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
+    fn publish(&self, name: &str, function: EmacsSubr, arities: Range<usize>, doc: &str, data: *mut libc::c_void) -> Result<Value> {
         let function = self.make_function(function, arities, doc, data)?;
         self.fset(name, function)
     }

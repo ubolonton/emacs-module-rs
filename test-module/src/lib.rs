@@ -56,8 +56,6 @@ fn test(env: &CallEnv) -> Result<Value> {
 }
 
 fn init_vector_functions(env: &Env) -> Result<()> {
-    make_prefix!(prefix, *MODULE_PREFIX);
-
     struct Vector {
         pub x: i64,
         pub y: i64,
@@ -78,10 +76,11 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Ok(v)
     }
 
-    env.fset(
-        prefix!("vector:swap-components"),
-        emacs_lambda!(env, swap_components, 1..1)?
-    )?;
+    emacs_publish_functions! {
+        env, format!("{}vector:", *MODULE_PREFIX), {
+            "swap-components" => (swap_components, 1..1)
+        }
+    }
 
     defuns! {
         env, format!("{}vector:", *MODULE_PREFIX);
@@ -166,14 +165,13 @@ fn init_test_simplified_fns(env: &Env) -> Result<()> {
 }
 
 fn init(env: &Env) -> Result<Value> {
-    make_prefix!(prefix, *MODULE_PREFIX);
-
     env.message("Hello, Emacs!")?;
 
-    env.fset(
-        prefix!(test),
-        emacs_lambda!(env, test, 0..0)?
-    )?;
+    emacs_publish_functions! {
+        env, *MODULE_PREFIX, {
+            "test" => (test, 0..0, "doc string")
+        }
+    }
 
     init_vector_functions(env)?;
     init_test_ref_cell(env)?;

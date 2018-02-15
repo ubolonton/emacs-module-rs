@@ -99,7 +99,7 @@ macro_rules! defuns {
             }
 
             let nargs = count_tts!($($arg)*);
-            $env_var.register(emacs_prefix!($name), extern_name, nargs..nargs, $doc, std::ptr::null_mut())?;
+            $env_var.publish(emacs_prefix!($name), extern_name, nargs..nargs, $doc, std::ptr::null_mut())?;
         })*
     };
 }
