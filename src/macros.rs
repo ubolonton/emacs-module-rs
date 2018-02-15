@@ -15,7 +15,7 @@ macro_rules! raw_call {
                 let $name = raw_fn!(env, $name)?;
                 $name(env.raw $(, $args)*)
             };
-            $crate::error::HandleExit::handle_exit(env, result)
+            env.handle_exit(result)
         }
     };
 }
@@ -84,15 +84,15 @@ macro_rules! emacs_module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
         #[no_mangle]
-        pub unsafe extern "C" fn emacs_module_init(raw: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
-            $crate::error::HandleInit::handle_init(&$crate::Env::from(raw), $init)
+        pub unsafe extern "C" fn emacs_module_init(runtime: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
+            $crate::func::HandleInit::handle_init($crate::Env::from_runtime(runtime), $init)
         }
 
         // TODO: Exclude this in release build.
         /// Entry point for live-reloading (by `rs-module`) during development.
         #[no_mangle]
         pub unsafe extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
-            $crate::error::HandleInit::handle_init(&$crate::Env::from(raw), $init)
+            $crate::func::HandleInit::handle_init($crate::Env::new(raw), $init)
         }
     };
 }
@@ -114,13 +114,14 @@ macro_rules! emacs_lambda {
     // Declare a wrapper function.
     ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {
         {
-            use $crate::error::HandleCall;
+            use $crate::func::HandleCall;
+            use $crate::func::Manage;
             // TODO: Generate identifier from $func.
             unsafe extern "C" fn extern_lambda(env: *mut $crate::raw::emacs_env,
                                                nargs: ::libc::ptrdiff_t,
                                                args: *mut $crate::raw::emacs_value,
                                                data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
-                let env = $crate::Env::from(env);
+                let env = $crate::Env::new(env);
                 let env = $crate::CallEnv::new(env, nargs, args, data);
                 env.handle_call($func)
             }
@@ -148,7 +149,10 @@ macro_rules! emacs_export_functions {
     ($env:expr, $prefix:expr, {
         $( $name:expr => $declaration:tt ),*
     }) => {
-        $( emacs_export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+        {
+            use $crate::func::Manage;
+            $( emacs_export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+        }
     };
 
     // Cut trailing comma in declaration.

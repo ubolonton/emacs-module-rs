@@ -1,29 +1,11 @@
+use std::ptr;
 use std::cell::RefCell;
 use std::sync::{Mutex, RwLock};
 use std::ffi::CString;
 use libc;
-use libc::ptrdiff_t;
 
-use emacs_module::{emacs_runtime, emacs_env};
-use super::{Env, Value};
-use super::{Result};
+use super::{Env, Value, Result};
 use super::{ToLisp, FromLisp, IntoLisp, Transfer};
-
-impl From<*mut emacs_env> for Env {
-    fn from(raw: *mut emacs_env) -> Env {
-        Env { raw }
-    }
-}
-
-impl From<*mut emacs_runtime> for Env {
-    fn from(runtime: *mut emacs_runtime) -> Env {
-        let raw = unsafe {
-            let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
-            get_env(runtime)
-        };
-        Env { raw }
-    }
-}
 
 impl ToLisp for i64 {
     fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
@@ -37,7 +19,7 @@ impl ToLisp for str {
     fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
         let cstring = CString::new(self)?;
         let ptr = cstring.as_ptr();
-        raw_call_value!(env, make_string, ptr, libc::strlen(ptr) as ptrdiff_t)
+        raw_call_value!(env, make_string, ptr, libc::strlen(ptr) as libc::ptrdiff_t)
     }
 }
 
@@ -68,4 +50,41 @@ enable_transfers! {
     RefCell;
     Mutex;
     RwLock;
+}
+
+fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
+    let mut len = bytes.len();
+    while len > 0 && bytes[len - 1] == 0 {
+        bytes.pop(); // strip trailing 0-byte(s)
+        len -= 1;
+    }
+}
+
+/// Implementation details.
+impl Env {
+    fn string_bytes(&self, value: &Value) -> Result<Vec<u8>> {
+        let mut len: isize = 0;
+        let mut bytes = unsafe {
+            let copy_string_contents = raw_fn!(self, copy_string_contents)?;
+            let ok: bool = self.handle_exit(copy_string_contents(
+                self.raw, value.raw, ptr::null_mut(), &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to give string's length but did not raise a signal");
+            }
+
+            let mut bytes = vec![0u8; len as usize];
+            let ok: bool = self.handle_exit(copy_string_contents(
+                self.raw, value.raw, bytes.as_mut_ptr() as *mut i8, &mut len))?;
+            // Technically this shouldn't happen, and the return type of copy_string_contents
+            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            if !ok {
+                panic!("Emacs failed to copy string but did not raise a signal");
+            }
+            bytes
+        };
+        strip_trailing_zero_bytes(&mut bytes);
+        Ok(bytes)
+    }
 }

@@ -5,7 +5,7 @@ extern crate libloading as lib;
 #[macro_use]
 extern crate lazy_static;
 
-use emacs::{Env, CallEnv, Value, Result, HandleFunc};
+use emacs::{Env, CallEnv, Value, Result};
 use emacs::raw::emacs_env;
 use std::collections::HashMap;
 use std::sync::Mutex;

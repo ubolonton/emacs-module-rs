@@ -10,7 +10,7 @@ mod macros;
 use std::ptr;
 use std::cell::RefCell;
 use emacs::{Env, CallEnv, Value, ToLisp, IntoLisp, Result, Error};
-use emacs::HandleFunc;
+use emacs::func::Manage;
 
 emacs_plugin_is_GPL_compatible!();
 emacs_module_init!(init);
