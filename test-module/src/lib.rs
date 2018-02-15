@@ -9,7 +9,7 @@ mod macros;
 
 use std::ptr;
 use std::cell::RefCell;
-use emacs::{Env, Value, ToLisp, IntoLisp, Result, Error};
+use emacs::{Env, CallEnv, Value, ToLisp, IntoLisp, Result, Error};
 use emacs::HandleFunc;
 
 emacs_plugin_is_GPL_compatible!();
@@ -20,7 +20,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn test<'e>(env: &'e Env, _args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
+fn test(env: &CallEnv) -> Result<Value> {
     env.clone_to_lisp(5)?;
     match "1\0a".to_lisp(env) {
         Ok(_) => {
@@ -56,8 +56,6 @@ fn test<'e>(env: &'e Env, _args: &[Value<'e>], _data: *mut libc::c_void) -> Resu
 }
 
 fn init_vector_functions(env: &Env) -> Result<()> {
-    make_prefix!(prefix, *MODULE_PREFIX);
-
     struct Vector {
         pub x: i64,
         pub y: i64,
@@ -67,8 +65,8 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Vector as "Vector";
     }
 
-    fn swap_components<'e>(_env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
-        let mut v = args[0];
+    fn swap_components(env: &CallEnv) -> Result<Value> {
+        let mut v = env.get_arg(0).clone();
         {
             let vec: &mut Vector = unsafe { v.get_mut()? };
             vec.x = vec.x ^ vec.y;
@@ -78,14 +76,11 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Ok(v)
     }
 
-    emacs_subrs! {
-        swap_components -> f_swap_components;
+    emacs_publish_functions! {
+        env, format!("{}vector:", *MODULE_PREFIX), {
+            "swap-components" => (swap_components, 1..1)
+        }
     }
-
-    env.register(
-        prefix!("vector:swap-components"), f_swap_components, 1..1,
-        "", ptr::null_mut()
-    )?;
 
     defuns! {
         env, format!("{}vector:", *MODULE_PREFIX);
@@ -149,22 +144,38 @@ fn init_test_ref_cell(env: &Env) -> Result<()> {
     Ok(())
 }
 
-fn init(env: &Env) -> Result<Value> {
+fn init_test_simplified_fns(env: &Env) -> Result<()> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
-    env.message("Hello, Emacs!")?;
-
-    emacs_subrs! {
-        test -> f_test;
+    fn sum_and_diff(env: &CallEnv) -> Result<Value> {
+        let x: i64 = env.parse_arg(0)?;
+        let y: i64 = env.parse_arg(1)?;
+        env.list(&[
+            (x + y).to_lisp(env)?,
+            (x - y).to_lisp(env)?
+        ])
     }
 
-    env.register(
-        prefix!(test), f_test, 0..0,
-        "", ptr::null_mut()
+    env.fset(
+        prefix!("sum-and-diff"),
+        emacs_lambda!(env, sum_and_diff, 2..2)?
     )?;
+
+    Ok(())
+}
+
+fn init(env: &Env) -> Result<Value> {
+    env.message("Hello, Emacs!")?;
+
+    emacs_publish_functions! {
+        env, *MODULE_PREFIX, {
+            "test" => (test, 0..0, "doc string")
+        }
+    }
 
     init_vector_functions(env)?;
     init_test_ref_cell(env)?;
+    init_test_simplified_fns(env)?;
 
     struct StringWrapper {
         pub s: String
@@ -196,14 +207,29 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "make-dec", "", (env) {
-            fn dec<'e>(env: &'e Env, args: &[Value<'e>], _data: *mut libc::c_void) -> Result<Value<'e>> {
-                let i: i64 = args[0].to_rust()?;
+            fn dec(env: &CallEnv) -> Result<Value> {
+                let i: i64 = env.parse_arg(0)?;
                 (i - 1).to_lisp(env)
             }
-            emacs_subrs! {
-                dec -> f_dec;
+            emacs_lambda!(env, dec, 1..1, "decrement", ptr::null_mut())
+        }
+
+        "make-inc-and-plus", "", (env) {
+            fn inc(env: &CallEnv) -> Result<Value> {
+                let i: i64 = env.parse_arg(0)?;
+                (i + 1).to_lisp(env)
             }
-            env.make_function(f_dec, 1..1, "decrement", ptr::null_mut())
+
+            fn plus(env: &CallEnv) -> Result<Value> {
+                let x: i64 = env.parse_arg(0)?;
+                let y: i64 = env.parse_arg(1)?;
+                (x + y).to_lisp(env)
+            }
+
+            env.call("cons", &[
+                emacs_lambda!(env, inc, 1..1, "increment")?,
+                emacs_lambda!(env, plus, 2..2)?,
+            ])
         }
 
         "wrap-string", "", (env, s) {

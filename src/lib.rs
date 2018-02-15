@@ -13,9 +13,11 @@ pub use emacs_module::EmacsSubr;
 pub use self::error::{Result, Error, ErrorKind};
 pub use self::func::HandleFunc;
 
+use std::ops::Deref;
 use std::borrow::Borrow;
 use std::ffi::CString;
 use std::ptr;
+use std::slice;
 use libc::ptrdiff_t;
 
 use emacs_module::{emacs_env, emacs_value};
@@ -27,14 +29,24 @@ pub struct Env {
     pub(crate) raw: *mut emacs_env,
 }
 
+#[derive(Debug)]
+pub struct CallEnv {
+    env: Env,
+    nargs: usize,
+    args: *mut emacs_value,
+    data: *mut libc::c_void,
+}
+
 /// This is similar to an `RC`. TODO: Document better.
 ///
 /// We don't need a custom `Clone` implementation that does ref counting. TODO: Explain
 /// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
 /// unsafe...)
 ///
+/// This does not implement `Copy`, to statically catch some potential mistakes when
+/// using e.g. `.get_mut()`. Use `.clone()` when necessary.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
     pub(crate) env: &'e Env,
@@ -212,8 +224,8 @@ impl<'e> Value<'e> {
     ///
     /// There are several ways this can go wrong:
     /// - Lisp code can pass the same object through 2 different values in an argument list.
-    /// - Rust code earlier in the call chain may have copied this value.
-    /// - Rust code later in the call chain may receive a copy of this value.
+    /// - Rust code earlier in the call chain may have cloned this value.
+    /// - Rust code later in the call chain may receive a clone of this value.
     ///
     /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
     /// guards, before moving them to Lisp, and then only access them through these guards
@@ -222,5 +234,44 @@ impl<'e> Value<'e> {
         self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
         })
+    }
+}
+
+/// This allows `Env`'s methods to be called on a `CallEnv`.
+impl Deref for CallEnv {
+   type Target = Env;
+
+   fn deref(&self) -> &Env {
+       &self.env
+   }
+}
+
+// TODO: Iterator and Index
+impl CallEnv {
+    pub unsafe fn new(env: Env,
+                      nargs: libc::ptrdiff_t,
+                      args: *mut emacs_value,
+                      data: *mut libc::c_void) -> Self {
+        let nargs = nargs as usize;
+        Self { env, nargs, args, data }
+    }
+
+    pub fn raw_args(&self) -> &[emacs_value] {
+        unsafe {
+            slice::from_raw_parts(self.args, self.nargs)
+        }
+    }
+
+    pub fn args(&self) -> Vec<Value> {
+        self.raw_args().iter().map(|v| Value::new(*v, &self.env)).collect()
+    }
+
+    pub fn get_arg(&self, i: usize) -> Value {
+        let args: &[emacs_value] = self.raw_args();
+        Value::new(args[i], &self)
+    }
+
+    pub fn parse_arg<T: FromLisp>(&self, i: usize) -> Result<T> {
+        self.get_arg(i).to_rust()
     }
 }

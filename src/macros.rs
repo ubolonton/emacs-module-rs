@@ -105,25 +105,69 @@ macro_rules! emacs_module_init {
     };
 }
 
+// TODO: Consider making this a function, using `data` to do the actual routing, like in
+// https://github.com/Wilfred/remacs/pull/516.
 #[macro_export]
-macro_rules! emacs_subrs {
-    ($($name:ident -> $extern_name:ident;)*) => {
-        $(
-            #[allow(non_snake_case, unused_variables)]
-            unsafe extern "C" fn $extern_name(env: *mut $crate::raw::emacs_env,
-                                              nargs: ::libc::ptrdiff_t,
-                                              args: *mut $crate::raw::emacs_value,
-                                              data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
+macro_rules! emacs_lambda {
+    // Default function-specific data is (unused) null pointer.
+    ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
+        emacs_lambda!($env, $func, $arities, $doc, ::std::ptr::null_mut())
+    };
+
+    // Default doc string is empty.
+    ($env:expr, $func:path, $arities:expr $(,)*) => {
+        emacs_lambda!($env, $func, $arities, "")
+    };
+
+    // Declare a wrapper function.
+    ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {
+        {
+            // TODO: Generate identifier from $func.
+            unsafe extern "C" fn extern_lambda(env: *mut $crate::raw::emacs_env,
+                                               nargs: ::libc::ptrdiff_t,
+                                               args: *mut $crate::raw::emacs_value,
+                                               data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
                 let env = $crate::Env::from(env);
-                // TODO: Mark Value as repr(transparent) once it's available, and use this.
-                // let args: *mut $crate::Value = ::std::mem::transmute(args);
-                // let args: &mut [$crate::Value] = ::std::slice::from_raw_parts_mut(args, nargs as usize);
-                // let result = $name(&env, args, data);
-                let args: &[$crate::raw::emacs_value] = ::std::slice::from_raw_parts(args, nargs as usize);
-                let args: Vec<_> = args.iter().map(|v| $crate::Value::new(*v, &env)).collect();
-                let result = $name(&env, &args, data);
-                $crate::error::TriggerExit::maybe_exit(&env, result)
+                let env = $crate::CallEnv::new(env, nargs, args, data);
+                let result = $func(&env);
+                $crate::error::TriggerExit::maybe_exit(&*env, result)
             }
-        )*
+
+            $env.make_function(extern_lambda, $arities, $doc, $data)
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! emacs_publish_functions {
+    // Cut trailing comma in top-level.
+    ($env:expr, $prefix:expr, $mappings:tt,) => {
+        emacs_publish_functions!($env, $prefix, $mappings)
+    };
+    // Cut trailing comma in mappings.
+    ($env:expr, $prefix:expr, {
+        $( $name:expr => $declaration:tt ),+,
+    }) => {
+        emacs_publish_functions!($env, $prefix, {
+            $( $name => $declaration ),*
+        })
+    };
+    // Expand each mapping.
+    ($env:expr, $prefix:expr, {
+        $( $name:expr => $declaration:tt ),*
+    }) => {
+        $( emacs_publish_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+    };
+
+    // Cut trailing comma in declaration.
+    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
+        emacs_publish_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
+    };
+    // Create a function and set a symbol to it.
+    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
+        $env.fset(
+            &format!("{}{}", $prefix, $name),
+            emacs_lambda!($env, $func, $($opt),*)?
+        )
     };
 }

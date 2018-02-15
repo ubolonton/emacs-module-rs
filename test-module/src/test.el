@@ -21,7 +21,17 @@
   (let ((dec (t/make-dec)))
     (should (= (funcall dec 9) 8))
     (should (equal (documentation dec) "decrement"))
-    (should-error (funcall dec) :type 'wrong-number-of-arguments)))
+    (should-error (funcall dec) :type 'wrong-number-of-arguments))
+  (let* ((fns (t/make-inc-and-plus))
+         (inc (car fns))
+         (plus (cdr fns)))
+    (should (= (funcall inc -2) -1))
+    (should (equal (documentation inc) "increment"))
+    (should-error (funcall inc) :type 'wrong-number-of-arguments)
+
+    (should (= (funcall plus 3 5) 8))
+    (should (equal (documentation plus) ""))
+    (should-error (funcall plus "s" 5) :type 'wrong-type-argument)))
 
 (ert-deftest from-emacs-string ()
   (should (equal (t/to-uppercase "abc") "ABC")))
@@ -66,3 +76,9 @@
     ;; TODO: :type
     (should-error (t/refcell:mutate-twice v))
     (should-error (t/refcell:mutate-twice x))))
+
+(ert-deftest simplified-fns ()
+  (let ((x 5)
+        (y 3))
+    (should (equal (t/sum-and-diff x y)
+                   (list (+ x y) (- x y))))))
