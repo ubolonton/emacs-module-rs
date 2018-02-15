@@ -139,16 +139,16 @@ macro_rules! emacs_lambda {
 }
 
 #[macro_export]
-macro_rules! emacs_publish_functions {
+macro_rules! emacs_export_functions {
     // Cut trailing comma in top-level.
     ($env:expr, $prefix:expr, $mappings:tt,) => {
-        emacs_publish_functions!($env, $prefix, $mappings)
+        emacs_export_functions!($env, $prefix, $mappings)
     };
     // Cut trailing comma in mappings.
     ($env:expr, $prefix:expr, {
         $( $name:expr => $declaration:tt ),+,
     }) => {
-        emacs_publish_functions!($env, $prefix, {
+        emacs_export_functions!($env, $prefix, {
             $( $name => $declaration ),*
         })
     };
@@ -156,12 +156,12 @@ macro_rules! emacs_publish_functions {
     ($env:expr, $prefix:expr, {
         $( $name:expr => $declaration:tt ),*
     }) => {
-        $( emacs_publish_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+        $( emacs_export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
     };
 
     // Cut trailing comma in declaration.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
-        emacs_publish_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
+        emacs_export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
     };
     // Create a function and set a symbol to it.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {

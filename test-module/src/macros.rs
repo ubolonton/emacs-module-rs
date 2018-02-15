@@ -90,7 +90,7 @@ macro_rules! defuns {
             }
 
             let nargs = count_tts!($( $arg )*);
-            emacs_publish_functions! {
+            emacs_export_functions! {
                 $env_var, $prefix, {
                     prefix!($name) => (wrapper, nargs..nargs, $doc)
                 }

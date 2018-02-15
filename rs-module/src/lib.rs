@@ -54,7 +54,7 @@ fn load_module(env: &CallEnv) -> Result<Value> {
 /// cannot be reloaded.
 fn init(env: &Env) -> Result<Value> {
     message!(env, "[{}]: defining functions...", RS_MODULE)?;
-    emacs_publish_functions! {
+    emacs_export_functions! {
         env, format!("{}/", RS_MODULE), {
             "load" => (load_module, 1..1, format!("Load a dynamic module that defines {}.", INIT_FROM_ENV)),
         },

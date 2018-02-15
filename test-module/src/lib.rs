@@ -76,7 +76,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         Ok(v)
     }
 
-    emacs_publish_functions! {
+    emacs_export_functions! {
         env, format!("{}vector:", *MODULE_PREFIX), {
             "swap-components" => (swap_components, 1..1)
         }
@@ -167,7 +167,7 @@ fn init_test_simplified_fns(env: &Env) -> Result<()> {
 fn init(env: &Env) -> Result<Value> {
     env.message("Hello, Emacs!")?;
 
-    emacs_publish_functions! {
+    emacs_export_functions! {
         env, *MODULE_PREFIX, {
             "test" => (test, 0..0, "doc string")
         }
