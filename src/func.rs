@@ -84,12 +84,16 @@ impl CallEnv {
     }
 
     pub fn args(&self) -> Vec<Value> {
-        self.raw_args().iter().map(|v| Value::new(*v, &self.env)).collect()
+        self.raw_args().iter().map(|v| unsafe {
+            Value::new(*v, &self.env)
+        }).collect()
     }
 
     pub fn get_arg(&self, i: usize) -> Value {
         let args: &[emacs_value] = self.raw_args();
-        Value::new(args[i], &self)
+        unsafe {
+            Value::new(args[i], &self)
+        }
     }
 
     pub fn parse_arg<T: FromLisp>(&self, i: usize) -> Result<T> {

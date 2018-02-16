@@ -80,8 +80,12 @@ pub trait Transfer: Sized {
     // reporting of type error (and to enable something like `rs-module/type-of`).
 }
 
-pub trait IntoLisp {
-    fn into_lisp(self, env: &Env) -> Result<Value>;
+/// # Implementations
+///
+/// The lifetime parameter is put on the trait itself, instead of the method. This allows the impl
+/// for `Value` to simply return the input, instead of having to create a new `Value`.
+pub trait IntoLisp<'e> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value<'e>>;
 }
 
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
@@ -123,7 +127,7 @@ impl Env {
         value.borrow().to_lisp(self)
     }
 
-    pub fn move_to_lisp<T>(&self, value: T) -> Result<Value> where T: IntoLisp {
+    pub fn move_to_lisp<'e, T: IntoLisp<'e>>(&'e self, value: T) -> Result<Value> {
         value.into_lisp(self)
     }
 
@@ -168,7 +172,7 @@ impl Env {
 }
 
 impl<'e> Value<'e> {
-    pub fn new(raw: emacs_value, env: &'e Env) -> Self {
+    pub unsafe fn new(raw: emacs_value, env: &'e Env) -> Self {
         Self { raw, env }
     }
 

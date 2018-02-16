@@ -24,7 +24,9 @@ macro_rules! raw_call_value {
     ($env:ident, $name:ident $(, $args:expr)*) => {
         {
             let result: $crate::Result<$crate::raw::emacs_value> = raw_call!($env, $name $(, $args)*);
-            result.map(|raw| $crate::Value::new(raw, $env))
+            result.map(|raw| unsafe {
+                $crate::Value::new(raw, $env)
+            })
         }
     };
 }
@@ -58,7 +60,7 @@ macro_rules! enable_transfers {
             fn type_name() -> &'static str { stringify!($name) }
         }
 
-        impl<T> $crate::IntoLisp for $name<T> {
+        impl<'e, T> $crate::IntoLisp<'e> for $name<T> {
             fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value> {
                 ::std::boxed::Box::new(self).into_lisp(env)
             }

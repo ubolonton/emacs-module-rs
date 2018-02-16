@@ -38,8 +38,8 @@ impl FromLisp for String {
     }
 }
 
-impl<T: Transfer> IntoLisp for Box<T> {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
+impl<'e, T: Transfer> IntoLisp<'e> for Box<T> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut libc::c_void;
         raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)

@@ -81,7 +81,9 @@ macro_rules! defuns {
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
-                $(let $arg = $crate::Value::new(*_iter.next().unwrap(), &env);)*
+                $(let $arg = unsafe {
+                    $crate::Value::new(*_iter.next().unwrap(), &env)
+                };)*
                 wrapped(&env $(, $arg)*)
             }
 
