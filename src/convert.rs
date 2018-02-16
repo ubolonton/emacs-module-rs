@@ -8,20 +8,20 @@ use super::{Env, Value, Result};
 use super::{FromLisp, IntoLisp, Transfer};
 
 impl FromLisp for i64 {
-    fn from_lisp(value: &Value) -> Result<Self> {
+    fn from_lisp(value: Value) -> Result<Self> {
         raw_call!(value.env, extract_integer, value.raw)
     }
 }
 
 impl FromLisp for f64 {
-    fn from_lisp(value: &Value) -> Result<Self> {
+    fn from_lisp(value: Value) -> Result<Self> {
         raw_call!(value.env, extract_float, value.raw)
     }
 }
 
 impl FromLisp for String {
     // TODO: Optimize this.
-    fn from_lisp(value: &Value) -> Result<Self> {
+    fn from_lisp(value: Value) -> Result<Self> {
         let bytes = value.env.string_bytes(value)?;
         // FIX
         Ok(String::from_utf8(bytes).unwrap())
@@ -110,7 +110,7 @@ fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
 
 /// Implementation details.
 impl Env {
-    fn string_bytes(&self, value: &Value) -> Result<Vec<u8>> {
+    fn string_bytes(&self, value: Value) -> Result<Vec<u8>> {
         let mut len: isize = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents)?;

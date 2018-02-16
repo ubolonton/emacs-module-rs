@@ -103,7 +103,7 @@ impl CallEnv {
     }
 
     pub fn parse_arg<T: FromLisp>(&self, i: usize) -> Result<T> {
-        self.get_arg(i).to_rust()
+        self.get_arg(i).into_rust()
     }
 }
 

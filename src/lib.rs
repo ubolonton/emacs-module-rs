@@ -45,7 +45,7 @@ pub struct Value<'e> {
 
 // CloneFromLisp
 pub trait FromLisp: Sized {
-    fn from_lisp(value: &Value) -> Result<Self>;
+    fn from_lisp(value: Value) -> Result<Self>;
 }
 
 /// # Implementations
@@ -162,7 +162,7 @@ impl<'e> Value<'e> {
         Self { raw, env }
     }
 
-    pub fn to_rust<T: FromLisp>(&self) -> Result<T> {
+    pub fn into_rust<T: FromLisp>(self) -> Result<T> {
         FromLisp::from_lisp(self)
     }
 

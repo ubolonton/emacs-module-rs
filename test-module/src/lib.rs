@@ -86,8 +86,8 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         env, format!("{}vector:", *MODULE_PREFIX);
 
         "make", "", (env, x, y) {
-            let x: i64 = x.to_rust()?;
-            let y: i64 = y.to_rust()?;
+            let x: i64 = x.into_rust()?;
+            let y: i64 = y.into_rust()?;
             let b = Box::new(Vector { x, y });
             b.into_lisp(env)
         }
@@ -108,7 +108,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         }
 
         "scale-mutably", "", (env, times, v) {
-            let times: i64 = times.to_rust()?;
+            let times: i64 = times.into_rust()?;
             {
                 let mut v = v;
                 let v = unsafe { v.get_mut::<Vector>()? };
@@ -200,7 +200,7 @@ fn init(env: &Env) -> Result<Value> {
         env, *MODULE_PREFIX;
 
         inc, "1+", (env, x) {
-            let i: i64 = x.to_rust()?;
+            let i: i64 = x.into_rust()?;
             (i + 1).into_lisp(env)
         }
 
@@ -209,7 +209,7 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "to-uppercase", "", (env, s) {
-            let s: String = s.to_rust()?;
+            let s: String = s.into_rust()?;
             s.to_uppercase().into_lisp(env)
         }
 
@@ -244,7 +244,7 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "wrap-string", "", (env, s) {
-            let s: String = s.to_rust()?;
+            let s: String = s.into_rust()?;
             let b = Box::new(StringWrapper { s });
             b.into_lisp(env)
         }
