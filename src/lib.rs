@@ -1,7 +1,6 @@
 extern crate libc;
 extern crate emacs_module;
 
-use std::borrow::Borrow;
 use std::ffi::CString;
 
 use emacs_module::{emacs_runtime, emacs_env, emacs_value};
@@ -44,14 +43,8 @@ pub struct Value<'e> {
     pub(crate) env: &'e Env,
 }
 
-// CloneToLisp
-pub trait ToLisp {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>>;
-}
-
-// CloneFromLisp
 pub trait FromLisp: Sized {
-    fn from_lisp(value: &Value) -> Result<Self>;
+    fn from_lisp(value: Value) -> Result<Self>;
 }
 
 /// # Implementations
@@ -123,14 +116,6 @@ impl Env {
         raw_call_value!(self, funcall, symbol.raw, args.len() as libc::ptrdiff_t, args.as_mut_ptr())
     }
 
-    pub fn clone_to_lisp<T, U>(&self, value: U) -> Result<Value> where T: ToLisp, U: Borrow<T> {
-        value.borrow().to_lisp(self)
-    }
-
-    pub fn move_to_lisp<'e, T: IntoLisp<'e>>(&'e self, value: T) -> Result<Value> {
-        value.into_lisp(self)
-    }
-
     pub fn is_not_nil(&self, value: Value) -> Result<bool> {
         raw_call!(self, is_not_nil, value.raw)
     }
@@ -149,25 +134,8 @@ impl Env {
     }
 
     pub fn message(&self, text: &str) -> Result<Value> {
-        let text = text.to_lisp(self)?;
+        let text = text.into_lisp(self)?;
         call_lisp!(self, "message", text)
-    }
-
-    fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
-        match raw_call!(self, get_user_finalizer, value)? {
-            Some::<Finalizer>(fin) if fin == T::finalizer => {
-                let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
-                Ok(ptr as *mut T)
-            },
-            Some(_) => {
-                let expected = T::type_name();
-                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
-            },
-            None => {
-                let expected = T::type_name();
-                Err(ErrorKind::UnknownUserPtr { expected }.into())
-            }
-        }
     }
 }
 
@@ -176,15 +144,8 @@ impl<'e> Value<'e> {
         Self { raw, env }
     }
 
-    pub fn to_rust<T: FromLisp>(&self) -> Result<T> {
+    pub fn into_rust<T: FromLisp>(self) -> Result<T> {
         FromLisp::from_lisp(self)
-    }
-
-    /// Returns a reference to the underlying Rust data wrapped by this value.
-    pub fn get_ref<T: Transfer>(&self) -> Result<&T> {
-        self.env.get_raw_pointer(self.raw).map(|r| unsafe {
-            &*r
-        })
     }
 
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.

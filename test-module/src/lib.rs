@@ -9,7 +9,7 @@ mod macros;
 
 use std::ptr;
 use std::cell::RefCell;
-use emacs::{Env, CallEnv, Value, ToLisp, IntoLisp, Result, Error};
+use emacs::{Env, CallEnv, Value, IntoLisp, Result, Error};
 use emacs::func::Manage;
 
 emacs_plugin_is_GPL_compatible!();
@@ -21,8 +21,8 @@ lazy_static! {
 }
 
 fn test(env: &CallEnv) -> Result<Value> {
-    env.clone_to_lisp(5)?;
-    match "1\0a".to_lisp(env) {
+    5.into_lisp(env)?;
+    match "1\0a".into_lisp(env) {
         Ok(_) => {
             println!("ok");
             call!(env, "message", "Should not get to this because we used a string with a zero byte")?;
@@ -44,7 +44,7 @@ fn test(env: &CallEnv) -> Result<Value> {
     }
     println!("Stop");
 
-    let args = &[call!(env, "+", 1)?, "(+ 1) -> %s".to_lisp(env)?];
+    let args = &[call!(env, "+", 1)?, "(+ 1) -> %s".into_lisp(env)?];
     env.call("message", args)?;
 
     // Wrong type argument: symbolp, (throw-)
@@ -86,29 +86,29 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         env, format!("{}vector:", *MODULE_PREFIX);
 
         "make", "", (env, x, y) {
-            let x: i64 = x.to_rust()?;
-            let y: i64 = y.to_rust()?;
+            let x: i64 = x.into_rust()?;
+            let y: i64 = y.into_rust()?;
             let b = Box::new(Vector { x, y });
-            env.move_to_lisp(b)
+            b.into_lisp(env)
         }
 
         "to-list", "", (env, v) {
-            v.get_ref::<Vector>()?;
-            let v: &Vector = v.get_ref()?;
-            let x = v.x.to_lisp(env)?;
-            let y = v.y.to_lisp(env)?;
+            v.clone().into_rust::<&Vector>()?;
+            let v: &Vector = v.into_rust()?;
+            let x = v.x.into_lisp(env)?;
+            let y = v.y.into_lisp(env)?;
             env.list(&[x, y])
         }
 
         "add", "", (env, a, b) {
-            let a: &Vector = a.get_ref()?;
-            let b: &Vector = b.get_ref()?;
+            let a: &Vector = a.into_rust()?;
+            let b: &Vector = b.into_rust()?;
             let (x, y) = (b.x + a.x, b.y + a.y);
             Box::new(Vector { x, y }).into_lisp(env)
         }
 
         "scale-mutably", "", (env, times, v) {
-            let times: i64 = times.to_rust()?;
+            let times: i64 = times.into_rust()?;
             {
                 let mut v = v;
                 let v = unsafe { v.get_mut::<Vector>()? };
@@ -130,7 +130,7 @@ fn init_test_ref_cell(env: &Env) -> Result<()> {
 
     fn mutate_twice(env: &CallEnv) -> Result<()> {
         let r = env.get_arg(0);
-        let r: &RefCell<i64> = r.get_ref()?;
+        let r: &RefCell<i64> = r.into_rust()?;
         let mut x = r.try_borrow_mut().map_err(Error::new)?;
         let mut y = r.try_borrow_mut().map_err(Error::new)?;
         *x = 1;
@@ -155,8 +155,8 @@ fn init_test_simplified_fns(env: &Env) -> Result<()> {
         let x: i64 = env.parse_arg(0)?;
         let y: i64 = env.parse_arg(1)?;
         env.list(&[
-            (x + y).to_lisp(env)?,
-            (x - y).to_lisp(env)?
+            (x + y).into_lisp(env)?,
+            (x - y).into_lisp(env)?
         ])
     }
 
@@ -200,8 +200,8 @@ fn init(env: &Env) -> Result<Value> {
         env, *MODULE_PREFIX;
 
         inc, "1+", (env, x) {
-            let i: i64 = x.to_rust()?;
-            (i + 1).to_lisp(env)
+            let i: i64 = x.into_rust()?;
+            (i + 1).into_lisp(env)
         }
 
         identity, "not even doing any conversion", (_env, x) {
@@ -209,8 +209,8 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "to-uppercase", "", (env, s) {
-            let s: String = s.to_rust()?;
-            s.to_uppercase().to_lisp(env)
+            let s: String = s.into_rust()?;
+            s.to_uppercase().into_lisp(env)
         }
 
         "calling-error", "", (env) {
@@ -220,7 +220,7 @@ fn init(env: &Env) -> Result<Value> {
         "make-dec", "", (env) {
             fn dec(env: &CallEnv) -> Result<Value> {
                 let i: i64 = env.parse_arg(0)?;
-                (i - 1).to_lisp(env)
+                (i - 1).into_lisp(env)
             }
             emacs_lambda!(env, dec, 1..1, "decrement", ptr::null_mut())
         }
@@ -228,13 +228,13 @@ fn init(env: &Env) -> Result<Value> {
         "make-inc-and-plus", "", (env) {
             fn inc(env: &CallEnv) -> Result<Value> {
                 let i: i64 = env.parse_arg(0)?;
-                (i + 1).to_lisp(env)
+                (i + 1).into_lisp(env)
             }
 
             fn plus(env: &CallEnv) -> Result<Value> {
                 let x: i64 = env.parse_arg(0)?;
                 let y: i64 = env.parse_arg(1)?;
-                (x + y).to_lisp(env)
+                (x + y).into_lisp(env)
             }
 
             env.call("cons", &[
@@ -244,9 +244,9 @@ fn init(env: &Env) -> Result<Value> {
         }
 
         "wrap-string", "", (env, s) {
-            let s: String = s.to_rust()?;
+            let s: String = s.into_rust()?;
             let b = Box::new(StringWrapper { s });
-            env.move_to_lisp(b)
+            b.into_lisp(env)
         }
     }
 

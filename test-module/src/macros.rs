@@ -111,7 +111,7 @@ macro_rules! custom_types {
 
 macro_rules! call {
     ($env:ident, $name:expr $(, $arg:expr)*) => {{
-        let args = &[$($arg.to_lisp($env)?,)*];
+        let args = &[$($arg.into_lisp($env)?,)*];
         $env.call($name, args)
     }}
 }
