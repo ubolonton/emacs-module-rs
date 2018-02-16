@@ -5,7 +5,7 @@ use std::ffi::CString;
 use libc;
 
 use super::{Env, Value, Result};
-use super::{ToLisp, FromLisp, IntoLisp, Transfer};
+use super::{FromLisp, IntoLisp, Transfer};
 
 impl FromLisp for i64 {
     fn from_lisp(value: &Value) -> Result<Self> {
@@ -28,15 +28,21 @@ impl FromLisp for String {
     }
 }
 
-impl ToLisp for () {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
+impl<'e> IntoLisp<'e> for Value<'e> {
+    fn into_lisp(self, _env: &'e Env) -> Result<Value> {
+        Ok(self)
+    }
+}
+
+impl<'e> IntoLisp<'e> for () {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
         env.intern("nil")
     }
 }
 
-impl ToLisp for bool {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
-        if *self {
+impl<'e> IntoLisp<'e> for bool {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        if self {
             env.intern("t")
         } else {
             env.intern("nil")
@@ -44,76 +50,30 @@ impl ToLisp for bool {
     }
 }
 
-impl ToLisp for i64 {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
-        raw_call_value!(env, make_integer, *self)
+impl<'e> IntoLisp<'e> for i64 {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        raw_call_value!(env, make_integer, self)
     }
 }
 
-impl ToLisp for f64 {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
-        raw_call_value!(env, make_float, *self)
+impl<'e> IntoLisp<'e> for f64 {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        raw_call_value!(env, make_float, self)
     }
 }
 
-// TODO: Make this more elegant. Can't implement it for trait bound Into<Vec<u8>>, since that would
-// complain about conflicting implementations for i64.
-impl ToLisp for str {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
+impl<'e, 'a> IntoLisp<'e> for &'a str {
+    fn into_lisp(self, env: &'e Env) -> Result<Value> {
         let cstring = CString::new(self)?;
         let ptr = cstring.as_ptr();
         raw_call_value!(env, make_string, ptr, libc::strlen(ptr) as libc::ptrdiff_t)
     }
 }
 
-impl<T: ToLisp> ToLisp for Option<T> {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
-        match self {
-            &Some(ref t) => t.to_lisp(env),
-            &None => env.intern("nil"),
-        }
-    }
-}
-
-impl<'e> IntoLisp<'e> for Value<'e> {
-    fn into_lisp(self, _env: &'e Env) -> Result<Value> {
-        Ok(self)
-    }
-}
-
-impl<'e, 't, T: ToLisp> IntoLisp<'e> for &'t T {
-    fn into_lisp(self, env: &'e Env) -> Result<Value> {
-        self.to_lisp(env)
-    }
-}
-
-impl<'e> IntoLisp<'e> for () {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
-        self.to_lisp(env)
-    }
-}
-
-impl<'e> IntoLisp<'e> for bool {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
-        self.to_lisp(env)
-    }
-}
-
-impl<'e> IntoLisp<'e> for i64 {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
-        self.to_lisp(env)
-    }
-}
-
-impl<'e> IntoLisp<'e> for f64 {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
-        self.to_lisp(env)
-    }
-}
-
 impl<'e> IntoLisp<'e> for String {
     fn into_lisp(self, env: &Env) -> Result<Value> {
-        self.to_lisp(env)
+        let s: &str = &self;
+        s.into_lisp(env)
     }
 }
 

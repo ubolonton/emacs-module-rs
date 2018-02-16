@@ -5,7 +5,7 @@ use std::ffi::NulError;
 
 use emacs_module::*;
 use super::{Env, Value};
-use super::ToLisp;
+use super::IntoLisp;
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
@@ -110,7 +110,7 @@ impl Env {
 
     // TODO: Prepare static values for the symbols.
     pub(crate) fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
-        let message = message.to_lisp(&self)?;
+        let message = message.into_lisp(&self)?;
         let data = self.list(&[message])?;
         let symbol = self.intern(symbol)?;
         Ok(self.signal(symbol.raw, data.raw))

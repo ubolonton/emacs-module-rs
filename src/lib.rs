@@ -1,7 +1,6 @@
 extern crate libc;
 extern crate emacs_module;
 
-use std::borrow::Borrow;
 use std::ffi::CString;
 
 use emacs_module::{emacs_runtime, emacs_env, emacs_value};
@@ -42,11 +41,6 @@ pub struct CallEnv {
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
     pub(crate) env: &'e Env,
-}
-
-// CloneToLisp
-pub trait ToLisp {
-    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>>;
 }
 
 // CloneFromLisp
@@ -123,10 +117,6 @@ impl Env {
         raw_call_value!(self, funcall, symbol.raw, args.len() as libc::ptrdiff_t, args.as_mut_ptr())
     }
 
-    pub fn clone_to_lisp<T, U>(&self, value: U) -> Result<Value> where T: ToLisp, U: Borrow<T> {
-        value.borrow().to_lisp(self)
-    }
-
     pub fn move_to_lisp<'e, T: IntoLisp<'e>>(&'e self, value: T) -> Result<Value> {
         value.into_lisp(self)
     }
@@ -149,7 +139,7 @@ impl Env {
     }
 
     pub fn message(&self, text: &str) -> Result<Value> {
-        let text = text.to_lisp(self)?;
+        let text = text.into_lisp(self)?;
         call_lisp!(self, "message", text)
     }
 
