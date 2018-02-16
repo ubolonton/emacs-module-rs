@@ -54,6 +54,14 @@ pub trait FromLisp: Sized {
     fn from_lisp(value: &Value) -> Result<Self>;
 }
 
+/// # Implementations
+///
+/// The lifetime parameter is put on the trait itself, instead of the method. This allows the impl
+/// for `Value` to simply return the input, instead of having to create a new `Value`.
+pub trait IntoLisp<'e> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value<'e>>;
+}
+
 /// Used to allow a type to be exposed to Emacs Lisp, where its values appear as opaque objects, or
 /// "embedded user pointers" (`#<user-ptr ...>`).
 ///
@@ -78,14 +86,6 @@ pub trait Transfer: Sized {
 
     // TODO: Consider using a wrapper struct to carry the type info, to enable better runtime
     // reporting of type error (and to enable something like `rs-module/type-of`).
-}
-
-/// # Implementations
-///
-/// The lifetime parameter is put on the trait itself, instead of the method. This allows the impl
-/// for `Value` to simply return the input, instead of having to create a new `Value`.
-pub trait IntoLisp<'e> {
-    fn into_lisp(self, env: &'e Env) -> Result<Value<'e>>;
 }
 
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);

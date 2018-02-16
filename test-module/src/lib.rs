@@ -123,21 +123,25 @@ fn init_vector_functions(env: &Env) -> Result<()> {
 
 // TODO: Add tests for Mutex and RwLock, and more tests for RefCell.
 fn init_test_ref_cell(env: &Env) -> Result<()> {
-    defuns! {
-        env, format!("{}refcell:", *MODULE_PREFIX);
+    fn make(env: &CallEnv) -> Result<RefCell<i64>> {
+        let x: i64 = env.parse_arg(0)?;
+        Ok(RefCell::new(x))
+    }
 
-        "make", "Wrap the given integer in a RefCell.", (env, x) {
-            let x: i64 = x.to_rust()?;
-            RefCell::new(x).into_lisp(env)
-        }
+    fn mutate_twice(env: &CallEnv) -> Result<()> {
+        let r = env.get_arg(0);
+        let r: &RefCell<i64> = r.get_ref()?;
+        let mut x = r.try_borrow_mut().map_err(Error::new)?;
+        let mut y = r.try_borrow_mut().map_err(Error::new)?;
+        *x = 1;
+        *y = 2;
+        Ok(())
+    }
 
-        "mutate-twice", "This should fail at run time due to double mut borrows.", (env, c) {
-            let r: &RefCell<i64> = c.get_ref()?;
-            let mut x = r.try_borrow_mut().map_err(Error::new)?;
-            let mut y = r.try_borrow_mut().map_err(Error::new)?;
-            *x = 1;
-            *y = 2;
-            env.intern("nil")
+    emacs_export_functions! {
+        env, format!("{}refcell:", *MODULE_PREFIX), {
+            "make"         => (make, 1..1, "Wrap the given integer in a RefCell."),
+            "mutate-twice" => (mutate_twice, 1..1, "This should fail at run time due to double mut borrows."),
         }
     }
 
@@ -167,9 +171,16 @@ fn init_test_simplified_fns(env: &Env) -> Result<()> {
 fn init(env: &Env) -> Result<Value> {
     env.message("Hello, Emacs!")?;
 
+    fn sum(env: &CallEnv) -> Result<i64> {
+        let x: i64 = env.parse_arg(0)?;
+        let y: i64 = env.parse_arg(1)?;
+        Ok(x + y)
+    }
+
     emacs_export_functions! {
         env, *MODULE_PREFIX, {
-            "test" => (test, 0..0, "doc string")
+            "test" => (test, 0..0, "doc string"),
+            "sum" => (sum, 2..2),
         }
     }
 
