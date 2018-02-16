@@ -117,10 +117,6 @@ impl Env {
         raw_call_value!(self, funcall, symbol.raw, args.len() as libc::ptrdiff_t, args.as_mut_ptr())
     }
 
-    pub fn move_to_lisp<'e, T: IntoLisp<'e>>(&'e self, value: T) -> Result<Value> {
-        value.into_lisp(self)
-    }
-
     pub fn is_not_nil(&self, value: Value) -> Result<bool> {
         raw_call!(self, is_not_nil, value.raw)
     }

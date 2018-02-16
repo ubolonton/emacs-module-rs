@@ -89,7 +89,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
             let x: i64 = x.to_rust()?;
             let y: i64 = y.to_rust()?;
             let b = Box::new(Vector { x, y });
-            env.move_to_lisp(b)
+            b.into_lisp(env)
         }
 
         "to-list", "", (env, v) {
@@ -246,7 +246,7 @@ fn init(env: &Env) -> Result<Value> {
         "wrap-string", "", (env, s) {
             let s: String = s.to_rust()?;
             let b = Box::new(StringWrapper { s });
-            env.move_to_lisp(b)
+            b.into_lisp(env)
         }
     }
 
