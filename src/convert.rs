@@ -7,6 +7,21 @@ use libc;
 use super::{Env, Value, Result};
 use super::{ToLisp, FromLisp, IntoLisp, Transfer};
 
+impl FromLisp for i64 {
+    fn from_lisp(value: &Value) -> Result<Self> {
+        raw_call!(value.env, extract_integer, value.raw)
+    }
+}
+
+impl FromLisp for String {
+    // TODO: Optimize this.
+    fn from_lisp(value: &Value) -> Result<Self> {
+        let bytes = value.env.string_bytes(value)?;
+        // FIX
+        Ok(String::from_utf8(bytes).unwrap())
+    }
+}
+
 impl ToLisp for i64 {
     fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
         raw_call_value!(env, make_integer, *self)
@@ -23,23 +38,32 @@ impl ToLisp for str {
     }
 }
 
-impl FromLisp for i64 {
-    fn from_lisp(value: &Value) -> Result<Self> {
-        raw_call!(value.env, extract_integer, value.raw)
+impl<'e> IntoLisp<'e> for Value<'e> {
+    fn into_lisp(self, _env: &'e Env) -> Result<Value> {
+        Ok(self)
     }
 }
 
-impl FromLisp for String {
-    // TODO: Optimize this.
-    fn from_lisp(value: &Value) -> Result<Self> {
-        let bytes = value.env.string_bytes(value)?;
-        // FIX
-        Ok(String::from_utf8(bytes).unwrap())
-    }
-}
-
-impl<T: Transfer> IntoLisp for Box<T> {
+impl<'e> IntoLisp<'e> for i64 {
     fn into_lisp(self, env: &Env) -> Result<Value> {
+        self.to_lisp(env)
+    }
+}
+
+impl<'e> IntoLisp<'e> for String {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        self.to_lisp(env)
+    }
+}
+
+impl<'e> IntoLisp<'e> for () {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        env.intern("nil")
+    }
+}
+
+impl<'e, T: Transfer> IntoLisp<'e> for Box<T> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut libc::c_void;
         raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)

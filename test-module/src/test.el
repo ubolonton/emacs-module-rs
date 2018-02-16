@@ -82,3 +82,9 @@
         (y 3))
     (should (equal (t/sum-and-diff x y)
                    (list (+ x y) (- x y))))))
+
+(ert-deftest flexible-return-type ()
+  (let ((x 3)
+        (y 4))
+    (should (equal (t/sum x y)
+                   (+ x y)))))

@@ -6,28 +6,32 @@ use libc;
 
 use emacs_module::{EmacsSubr, emacs_value};
 use super::{Env, CallEnv, Value, Result};
-use super::FromLisp;
-
-pub type Func = fn(env: &CallEnv) -> Result<Value>;
-
-pub type InitFunc = fn(env: &Env) -> Result<Value>;
+use super::{FromLisp, IntoLisp};
 
 pub trait Manage {
-    fn make_function<T>(&self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void) -> Result<Value> where T: Into<Vec<u8>>;
+    fn make_function<T: Into<Vec<u8>>>(
+        &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void
+    ) -> Result<Value>;
 
     fn fset(&self, name: &str, func: Value) -> Result<Value>;
 }
 
 pub trait HandleInit {
-    fn handle_init(self, f: InitFunc) -> libc::c_int;
+    fn handle_init<F>(self, f: F) -> libc::c_int
+    where F: Fn(&Env) -> Result<Value> + panic::RefUnwindSafe;
 }
 
 pub trait HandleCall {
-    fn handle_call(self, f: Func) -> emacs_value;
+    fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
+    where
+        F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
+        T: IntoLisp<'e>;
 }
 
 impl Manage for Env {
-    fn make_function<T>(&self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void) -> Result<Value> where T: Into<Vec<u8>> {
+    fn make_function<T: Into<Vec<u8>>>(
+        &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void
+    ) -> Result<Value> {
         raw_call_value!(
             self, make_function,
             arities.start as isize, arities.end as isize,
@@ -42,7 +46,9 @@ impl Manage for Env {
 }
 
 impl HandleInit for Env {
-    fn handle_init(self, f: InitFunc) -> libc::c_int {
+    fn handle_init<F>(self, f: F) -> libc::c_int
+    where F: Fn(&Env) -> Result<Value> + panic::RefUnwindSafe
+    {
         let result = panic::catch_unwind(|| {
             match f(&self) {
                 Ok(_) => 0,
@@ -84,12 +90,16 @@ impl CallEnv {
     }
 
     pub fn args(&self) -> Vec<Value> {
-        self.raw_args().iter().map(|v| Value::new(*v, &self.env)).collect()
+        self.raw_args().iter().map(|v| unsafe {
+            Value::new(*v, &self.env)
+        }).collect()
     }
 
     pub fn get_arg(&self, i: usize) -> Value {
         let args: &[emacs_value] = self.raw_args();
-        Value::new(args[i], &self)
+        unsafe {
+            Value::new(args[i], &self)
+        }
     }
 
     pub fn parse_arg<T: FromLisp>(&self, i: usize) -> Result<T> {
@@ -98,10 +108,16 @@ impl CallEnv {
 }
 
 impl HandleCall for CallEnv {
-    fn handle_call(self, f: Func) -> emacs_value {
+    fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
+    where
+        F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
+        T: IntoLisp<'e>,
+    {
         let result = panic::catch_unwind(|| {
             unsafe {
-                self.maybe_exit(f(&self))
+                let x = f(&self);
+                let y = x.and_then(|t| t.into_lisp(&self));
+                self.maybe_exit(y)
             }
         });
         match result {
@@ -119,9 +135,9 @@ impl HandleCall for CallEnv {
 
 /// This allows `Env`'s methods to be called on a `CallEnv`.
 impl Deref for CallEnv {
-   type Target = Env;
+    type Target = Env;
 
-   fn deref(&self) -> &Env {
-       &self.env
-   }
+    fn deref(&self) -> &Env {
+        &self.env
+    }
 }
