@@ -13,6 +13,12 @@ impl FromLisp for i64 {
     }
 }
 
+impl FromLisp for f64 {
+    fn from_lisp(value: &Value) -> Result<Self> {
+        raw_call!(value.env, extract_float, value.raw)
+    }
+}
+
 impl FromLisp for String {
     // TODO: Optimize this.
     fn from_lisp(value: &Value) -> Result<Self> {
@@ -22,9 +28,31 @@ impl FromLisp for String {
     }
 }
 
+impl ToLisp for () {
+    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
+        env.intern("nil")
+    }
+}
+
+impl ToLisp for bool {
+    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
+        if *self {
+            env.intern("t")
+        } else {
+            env.intern("nil")
+        }
+    }
+}
+
 impl ToLisp for i64 {
     fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
         raw_call_value!(env, make_integer, *self)
+    }
+}
+
+impl ToLisp for f64 {
+    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
+        raw_call_value!(env, make_float, *self)
     }
 }
 
@@ -38,13 +66,46 @@ impl ToLisp for str {
     }
 }
 
+impl<T: ToLisp> ToLisp for Option<T> {
+    fn to_lisp<'e>(&self, env: &'e Env) -> Result<Value<'e>> {
+        match self {
+            &Some(ref t) => t.to_lisp(env),
+            &None => env.intern("nil"),
+        }
+    }
+}
+
 impl<'e> IntoLisp<'e> for Value<'e> {
     fn into_lisp(self, _env: &'e Env) -> Result<Value> {
         Ok(self)
     }
 }
 
+impl<'e, 't, T: ToLisp> IntoLisp<'e> for &'t T {
+    fn into_lisp(self, env: &'e Env) -> Result<Value> {
+        self.to_lisp(env)
+    }
+}
+
+impl<'e> IntoLisp<'e> for () {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        self.to_lisp(env)
+    }
+}
+
+impl<'e> IntoLisp<'e> for bool {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        self.to_lisp(env)
+    }
+}
+
 impl<'e> IntoLisp<'e> for i64 {
+    fn into_lisp(self, env: &Env) -> Result<Value> {
+        self.to_lisp(env)
+    }
+}
+
+impl<'e> IntoLisp<'e> for f64 {
     fn into_lisp(self, env: &Env) -> Result<Value> {
         self.to_lisp(env)
     }
@@ -56,9 +117,12 @@ impl<'e> IntoLisp<'e> for String {
     }
 }
 
-impl<'e> IntoLisp<'e> for () {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
-        env.intern("nil")
+impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value> {
+        match self {
+            Some(t) => t.into_lisp(env),
+            None => env.intern("nil"),
+        }
     }
 }
 
