@@ -4,8 +4,10 @@ use std::sync::{Mutex, RwLock};
 use std::ffi::CString;
 use libc;
 
+use emacs_module::emacs_value;
 use super::{Env, Value, Result};
 use super::{FromLisp, IntoLisp, Transfer};
+use super::{Finalizer, ErrorKind};
 
 impl FromLisp for i64 {
     fn from_lisp(value: Value) -> Result<Self> {
@@ -25,6 +27,14 @@ impl FromLisp for String {
         let bytes = value.env.string_bytes(value)?;
         // FIX
         Ok(String::from_utf8(bytes).unwrap())
+    }
+}
+
+impl<'a, T: Transfer> FromLisp for &'a T {
+    fn from_lisp(value: Value) -> Result<Self> {
+        value.env.get_raw_pointer(value.raw).map(|r| unsafe {
+            &*r
+        })
     }
 }
 
@@ -134,5 +144,22 @@ impl Env {
         };
         strip_trailing_zero_bytes(&mut bytes);
         Ok(bytes)
+    }
+
+    pub(crate) fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
+        match raw_call!(self, get_user_finalizer, value)? {
+            Some::<Finalizer>(fin) if fin == T::finalizer => {
+                let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
+                Ok(ptr as *mut T)
+            },
+            Some(_) => {
+                let expected = T::type_name();
+                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
+            },
+            None => {
+                let expected = T::type_name();
+                Err(ErrorKind::UnknownUserPtr { expected }.into())
+            }
+        }
     }
 }

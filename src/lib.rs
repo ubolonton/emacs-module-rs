@@ -43,7 +43,6 @@ pub struct Value<'e> {
     pub(crate) env: &'e Env,
 }
 
-// CloneFromLisp
 pub trait FromLisp: Sized {
     fn from_lisp(value: Value) -> Result<Self>;
 }
@@ -138,23 +137,6 @@ impl Env {
         let text = text.into_lisp(self)?;
         call_lisp!(self, "message", text)
     }
-
-    fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
-        match raw_call!(self, get_user_finalizer, value)? {
-            Some::<Finalizer>(fin) if fin == T::finalizer => {
-                let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
-                Ok(ptr as *mut T)
-            },
-            Some(_) => {
-                let expected = T::type_name();
-                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
-            },
-            None => {
-                let expected = T::type_name();
-                Err(ErrorKind::UnknownUserPtr { expected }.into())
-            }
-        }
-    }
 }
 
 impl<'e> Value<'e> {
@@ -164,13 +146,6 @@ impl<'e> Value<'e> {
 
     pub fn into_rust<T: FromLisp>(self) -> Result<T> {
         FromLisp::from_lisp(self)
-    }
-
-    /// Returns a reference to the underlying Rust data wrapped by this value.
-    pub fn get_ref<T: Transfer>(&self) -> Result<&T> {
-        self.env.get_raw_pointer(self.raw).map(|r| unsafe {
-            &*r
-        })
     }
 
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.

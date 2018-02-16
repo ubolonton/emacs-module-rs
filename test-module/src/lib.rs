@@ -93,16 +93,16 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         }
 
         "to-list", "", (env, v) {
-            v.get_ref::<Vector>()?;
-            let v: &Vector = v.get_ref()?;
+            v.clone().into_rust::<&Vector>()?;
+            let v: &Vector = v.into_rust()?;
             let x = v.x.into_lisp(env)?;
             let y = v.y.into_lisp(env)?;
             env.list(&[x, y])
         }
 
         "add", "", (env, a, b) {
-            let a: &Vector = a.get_ref()?;
-            let b: &Vector = b.get_ref()?;
+            let a: &Vector = a.into_rust()?;
+            let b: &Vector = b.into_rust()?;
             let (x, y) = (b.x + a.x, b.y + a.y);
             Box::new(Vector { x, y }).into_lisp(env)
         }
@@ -130,7 +130,7 @@ fn init_test_ref_cell(env: &Env) -> Result<()> {
 
     fn mutate_twice(env: &CallEnv) -> Result<()> {
         let r = env.get_arg(0);
-        let r: &RefCell<i64> = r.get_ref()?;
+        let r: &RefCell<i64> = r.into_rust()?;
         let mut x = r.try_borrow_mut().map_err(Error::new)?;
         let mut y = r.try_borrow_mut().map_err(Error::new)?;
         *x = 1;
