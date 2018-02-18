@@ -88,3 +88,13 @@
         (y 4))
     (should (equal (t/sum x y)
                    (+ x y)))))
+
+(ert-deftest hash-map ()
+  (let ((m (t/hash-map:make)))
+    (should (equal (t/hash-map:get m "a") nil))
+
+    (should (equal (t/hash-map:set m "a" "1") nil))
+    (should (equal (t/hash-map:get m "a") "1"))
+
+    (should (equal (t/hash-map:set m "a" "2") "1"))
+    (should (equal (t/hash-map:get m "a") "2"))))

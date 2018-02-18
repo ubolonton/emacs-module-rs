@@ -148,6 +148,40 @@ fn init_test_ref_cell(env: &Env) -> Result<()> {
     Ok(())
 }
 
+fn init_test_hash_map(env: &Env) -> Result<()> {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    type Map = RefCell<HashMap<String, String>>;
+
+    fn make(_: &CallEnv) -> Result<Map> {
+        Ok(RefCell::new(HashMap::new()))
+    }
+
+    fn get(env: &CallEnv) -> Result<Value> {
+        let map: &Map = env.parse_arg(0)?;
+        let key: String = env.parse_arg(1)?;
+        map.borrow().get(&key).into_lisp(env)
+    }
+
+    fn set(env: &CallEnv) -> Result<Option<String>> {
+        let map: &Map = env.parse_arg(0)?;
+        let key: String = env.parse_arg(1)?;
+        let value: String = env.parse_arg(2)?;
+        Ok(map.borrow_mut().insert(key, value))
+    }
+
+    emacs_export_functions! {
+        env, format!("{}hash-map:", *MODULE_PREFIX), {
+            "make"    => (make, 0..0),
+            "get"     => (get, 2..2),
+            "set"     => (set, 3..3),
+        }
+    }
+
+    Ok(())
+}
+
 fn init_test_simplified_fns(env: &Env) -> Result<()> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
@@ -186,6 +220,7 @@ fn init(env: &Env) -> Result<Value> {
 
     init_vector_functions(env)?;
     init_test_ref_cell(env)?;
+    init_test_hash_map(env)?;
     init_test_simplified_fns(env)?;
 
     struct StringWrapper {

@@ -72,9 +72,9 @@ impl<'e> IntoLisp<'e> for f64 {
     }
 }
 
-impl<'e, 'a> IntoLisp<'e> for &'a str {
+impl<'e, 'a, T: AsRef<str>> IntoLisp<'e> for &'a T {
     fn into_lisp(self, env: &'e Env) -> Result<Value> {
-        let cstring = CString::new(self)?;
+        let cstring = CString::new(self.as_ref())?;
         let ptr = cstring.as_ptr();
         raw_call_value!(env, make_string, ptr, libc::strlen(ptr) as libc::ptrdiff_t)
     }
@@ -82,8 +82,7 @@ impl<'e, 'a> IntoLisp<'e> for &'a str {
 
 impl<'e> IntoLisp<'e> for String {
     fn into_lisp(self, env: &Env) -> Result<Value> {
-        let s: &str = &self;
-        s.into_lisp(env)
+        self.as_str().into_lisp(env)
     }
 }
 
