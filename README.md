@@ -10,7 +10,7 @@
     crate-type = ["cdylib"]
 
     [dependencies]
-    emacs = "0.3.0"
+    emacs = "0.4.0"
     ```
 - Write some code in your `src/lib.rs` following this skeleton.
     ```rust
