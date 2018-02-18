@@ -1,54 +1,21 @@
 # Emacs Module in Rust #
 
-`emacs-module-rs` provides high-level Rust binding for Emacs's dynamic module support, and tools that make writing modules easier. It currently supports stable Rust, Emacs 25, OS X and Ubuntu.
+This provides a high-level binding to `emacs-module`. Cargo package: [emacs](https://crates.io/crates/emacs/).
 
-## Writing a Module ##
+## Documentation
 
-- Modify your `Cargo.toml`:
-    ```toml
-    [lib]
-    crate-type = ["cdylib"]
+- [User Guide](https://ubolonton.github.io/emacs-module-rs/)
+- [API Docs](https://docs.rs/emacs/)
 
-    [dependencies]
-    emacs = "0.4.0"
-    ```
-- Write some code in your `src/lib.rs` following this skeleton.
-    ```rust
-   #[macro_use]
-   extern crate emacs;
-
-   use emacs::{Env, Result, Value};
-
-   emacs_plugin_is_GPL_compatible!();
-   emacs_module_init!(init);
-
-   pub fn init(env: &Env) -> Result<Value> {
-       // Initialization code
-
-       env.provide("my-module")
-   }
-    ```
-- Build the code with `cargo build`
-- Create a symlink with `.so` extension
-    ```shell
-    cd target/debug
-    ln -s libmy_module.dylib my-module.so
-    ```
-- Add `target/debug` to your Emacs's `load-path`.
-- Load it in Emacs
-    ```emacs-lisp
-    (require 'my-module)
-    ```
-
-## Live Reloading ##
+## Live Reloading
 
 Emacs does not support unloading modules. Live reloading thus requires a custom module loader. [rs-module](rs-module) is one such loader (which itself is a module that must be loaded by Emacs's normal loading mechanism). See [load.sh](bin/load.sh).
 
-## Sample Modules ##
+## Sample Modules
 
 [test-module](test-module) uses most of the provided features.
 
-## Development ##
+## Development
 
 - Building:
     ```shell
