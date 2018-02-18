@@ -1,6 +1,6 @@
 # Emacs Module in Rust #
 
-This provides a high level binding to emacs-module, and some tools that make writing Emacs (dynamic) modules easier.
+`emacs-module-rs` provides high-level Rust binding for Emacs's dynamic module support, and tools that make writing modules easier. It currently supports stable Rust, Emacs 25, OS X and Ubuntu.
 
 ## Writing a Module ##
 

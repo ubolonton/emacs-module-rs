@@ -1,0 +1,5 @@
+[book]
+title = "User Guide for emacs-module-rs"
+authors = ["ubolonton"]
+multilingual = false
+src = "src"
