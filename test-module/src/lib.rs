@@ -66,7 +66,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
     }
 
     fn swap_components(env: &CallEnv) -> Result<Value> {
-        let mut v = env.get_arg(0).clone();
+        let mut v = env.get_arg(0);
         {
             let vec: &mut Vector = unsafe { v.get_mut()? };
             vec.x = vec.x ^ vec.y;
@@ -93,7 +93,7 @@ fn init_vector_functions(env: &Env) -> Result<()> {
         }
 
         "to-list", "", (env, v) {
-            v.clone().into_rust::<&Vector>()?;
+            v.into_rust::<&Vector>()?;
             let v: &Vector = v.into_rust()?;
             let x = v.x.into_lisp(env)?;
             let y = v.y.into_lisp(env)?;

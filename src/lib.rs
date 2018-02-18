@@ -33,11 +33,8 @@ pub struct CallEnv {
 /// We don't need a custom `Clone` implementation that does ref counting. TODO: Explain
 /// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
 /// unsafe...)
-///
-/// This does not implement `Copy`, to statically catch some potential mistakes when
-/// using e.g. `.get_mut()`. Use `.clone()` when necessary.
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
     pub(crate) env: &'e Env,
