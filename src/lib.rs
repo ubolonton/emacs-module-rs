@@ -14,12 +14,17 @@ pub mod error;
 pub mod raw;
 mod convert;
 
+/// Main point of interaction with the Lisp runtime.
 #[repr(C)]
 #[derive(Debug)]
 pub struct Env {
     pub(crate) raw: *mut emacs_env,
 }
 
+/// Like [`Env`], but is available only in exported functions. This has additional methods to handle
+/// arguments passed from Lisp code.
+///
+/// [`Env`]: struct.Env.html
 #[derive(Debug)]
 pub struct CallEnv {
     env: Env,
@@ -28,11 +33,19 @@ pub struct CallEnv {
     data: *mut libc::c_void,
 }
 
-/// This is similar to an `RC`. TODO: Document better.
+/// A type that represents Lisp values.
+/// Values of this type can be copied around, but are lifetime-bound to the [`Env`] they come from.
+///
+/// They are also "proxy values" that are only useful when converted to Rust values, or used as
+/// arguments when calling back into the Lisp runtime.
+///
+/// # Implementations
 ///
 /// We don't need a custom `Clone` implementation that does ref counting. TODO: Explain
 /// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
 /// unsafe...)
+///
+/// [`Env`]: struct.Env.html
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'e> {
@@ -40,23 +53,30 @@ pub struct Value<'e> {
     pub(crate) env: &'e Env,
 }
 
+/// Converting Lisp [`Value`] into a Rust type.
+///
+/// [`Value`]: struct.Value.html
 pub trait FromLisp: Sized {
     fn from_lisp(value: Value) -> Result<Self>;
 }
 
+/// Converting a Rust type into Lisp [`Value`].
+///
 /// # Implementations
 ///
 /// The lifetime parameter is put on the trait itself, instead of the method. This allows the impl
-/// for `Value` to simply return the input, instead of having to create a new `Value`.
+/// for [`Value`] to simply return the input, instead of having to create a new [`Value`].
+///
+/// [`Value`]: struct.Value.html
 pub trait IntoLisp<'e> {
     fn into_lisp(self, env: &'e Env) -> Result<Value<'e>>;
 }
 
-/// Used to allow a type to be exposed to Emacs Lisp, where its values appear as opaque objects, or
-/// "embedded user pointers" (`#<user-ptr ...>`).
+/// Allowing a type to be exposed to Lisp, where its values appear as opaque objects, or "embedded
+/// user pointers" (printed as `#<user-ptr ...>`).
 ///
-/// When a (boxed) value of this type is transferred to Emacs Lisp, the GC becomes its owner.
-/// Afterwards, module code can only access it through references.
+/// When a (boxed) value of this type is transferred to Lisp, the GC becomes its owner. Afterwards,
+/// module code can only access it through immutable references.
 pub trait Transfer: Sized {
     /// Finalizes a value. This is called by the GC when it discards a value of this type. Module
     /// code that needs custom destructor logic should implement [`Drop`], instead of overriding
@@ -78,6 +98,7 @@ pub trait Transfer: Sized {
     // reporting of type error (and to enable something like `rs-module/type-of`).
 }
 
+#[doc(hidden)]
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
 /// Public APIs.
@@ -137,10 +158,18 @@ impl Env {
 }
 
 impl<'e> Value<'e> {
+    /// Constructs a new `Value`
+    ///
+    /// # Safety
+    ///
+    /// The raw value must come from the given [`Env`].
+    ///
+    /// [`Env`]: struct.Env.html
     pub unsafe fn new(raw: emacs_value, env: &'e Env) -> Self {
         Self { raw, env }
     }
 
+    /// Converts this value into a Rust value of the given type.
     pub fn into_rust<T: FromLisp>(self) -> Result<T> {
         FromLisp::from_lisp(self)
     }
@@ -150,13 +179,16 @@ impl<'e> Value<'e> {
     /// # Safety
     ///
     /// There are several ways this can go wrong:
+    ///
     /// - Lisp code can pass the same object through 2 different values in an argument list.
     /// - Rust code earlier in the call chain may have cloned this value.
     /// - Rust code later in the call chain may receive a clone of this value.
     ///
     /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
     /// guards, before moving them to Lisp, and then only access them through these guards
-    /// (which can be obtained back through `Value::get_ref()`.
+    /// (which can be obtained back through [`into_rust`].
+    ///
+    /// [`into_rust`]: struct.Value.html#method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
         self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r

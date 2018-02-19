@@ -68,6 +68,7 @@ macro_rules! enable_transfers {
     )*};
 }
 
+/// Declares that this module is GPL-compatible. Emacs will not load it otherwise.
 #[macro_export]
 macro_rules! emacs_plugin_is_GPL_compatible {
     () => {
@@ -133,6 +134,7 @@ macro_rules! emacs_lambda {
     };
 }
 
+/// Export Rust functions so that Lisp code can call them by name.
 #[macro_export]
 macro_rules! emacs_export_functions {
     // Cut trailing comma in top-level.
