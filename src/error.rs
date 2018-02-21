@@ -108,24 +108,24 @@ impl Env {
         let symbol = buffer.as_mut_ptr();
         unsafe {
             let data = symbol.offset(1);
-            let result = critical!(self, non_local_exit_get, symbol, data);
+            let result = raw_call_no_exit!(self, non_local_exit_get, symbol, data);
             (result, *symbol, *data)
         }
     }
 
     fn non_local_exit_clear(&self) {
         unsafe {
-            critical!(self, non_local_exit_clear)
+            raw_call_no_exit!(self, non_local_exit_clear)
         }
     }
 
     unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
-        critical!(self, non_local_exit_throw, tag, value);
+        raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
 
     unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
-        critical!(self, non_local_exit_signal, symbol, data);
+        raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }
 }

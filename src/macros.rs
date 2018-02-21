@@ -5,13 +5,10 @@ macro_rules! raw_fn {
 }
 
 macro_rules! raw_call_no_exit {
-    ($env:expr, $name:ident $(, $args:expr)*) => {
+    ($env:ident, $name:ident $(, $args:expr)*) => {
         {
-            let env = $env;
-            unsafe {
-                let $name = raw_fn!(env, $name);
-                $name(env.raw $(, $args)*)
-            }
+            let $name = raw_fn!($env, $name);
+            $name($env.raw $(, $args)*)
         }
     };
 }
@@ -36,15 +33,6 @@ macro_rules! raw_call_value {
             result.map(|raw| unsafe {
                 $crate::Value::new(raw, $env)
             })
-        }
-    };
-}
-
-macro_rules! critical {
-    ($env:ident, $name:ident $(, $args:expr)*) => {
-        {
-            let $name = raw_fn!($env, $name);
-            $name($env.raw $(, $args)*)
         }
     };
 }

@@ -145,11 +145,11 @@ impl Env {
     }
 
     pub fn is_not_nil(&self, value: Value) -> bool {
-        raw_call_no_exit!(self, is_not_nil, value.raw)
+        unsafe { raw_call_no_exit!(self, is_not_nil, value.raw) }
     }
 
     pub fn eq(&self, a: Value, b: Value) -> bool {
-        raw_call_no_exit!(self, eq, a.raw, b.raw)
+        unsafe { raw_call_no_exit!(self, eq, a.raw, b.raw) }
     }
 
     pub fn list(&self, args: &[Value]) -> Result<Value> {
