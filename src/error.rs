@@ -54,15 +54,15 @@ impl Env {
             (SIGNAL, symbol, data) => {
                 self.non_local_exit_clear();
                 Err(NonLocal::Signal {
-                    symbol: RootedValue::new(symbol, self).unwrap(),
-                    data: RootedValue::new(data, self).unwrap(),
+                    symbol: unsafe { RootedValue::new(symbol, self).unwrap() },
+                    data: unsafe { RootedValue::new(data, self).unwrap() },
                 }.into())
             },
             (THROW, tag, value) => {
                 self.non_local_exit_clear();
                 Err(NonLocal::Throw {
-                    tag: RootedValue::new(tag, self).unwrap(),
-                    value: RootedValue::new(value, self).unwrap(),
+                    tag: unsafe { RootedValue::new(tag, self).unwrap() },
+                    value: unsafe { RootedValue::new(value, self).unwrap() },
                 }.into())
             },
             (status, ..) => panic!("Unexpected non local exit status {}", status),
@@ -106,24 +106,30 @@ impl Env {
     fn non_local_exit_get(&self) -> (FuncallExit, emacs_value, emacs_value) {
         let mut buffer = Vec::<emacs_value>::with_capacity(2);
         let symbol = buffer.as_mut_ptr();
+        let data = unsafe { symbol.offset(1) };
+        let result = raw_call_no_exit!(self, non_local_exit_get, symbol, data);
         unsafe {
-            let data = symbol.offset(1);
-            let result = raw_call_no_exit!(self, non_local_exit_get, symbol, data);
             (result, *symbol, *data)
         }
     }
 
     fn non_local_exit_clear(&self) {
-        unsafe {
-            raw_call_no_exit!(self, non_local_exit_clear)
-        }
+        raw_call_no_exit!(self, non_local_exit_clear)
     }
 
+    /// # Safety
+    ///
+    /// The given raw values must still live.
+    #[allow(unused_unsafe)]
     unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
         raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
 
+    /// # Safety
+    ///
+    /// The given raw values must still live.
+    #[allow(unused_unsafe)]
     unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
         raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol

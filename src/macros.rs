@@ -6,7 +6,7 @@ macro_rules! raw_fn {
 
 macro_rules! raw_call_no_exit {
     ($env:ident, $name:ident $(, $args:expr)*) => {
-        {
+        unsafe {
             let $name = raw_fn!($env, $name);
             $name($env.raw $(, $args)*)
         }

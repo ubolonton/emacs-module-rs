@@ -145,11 +145,11 @@ impl Env {
     }
 
     pub fn is_not_nil(&self, value: Value) -> bool {
-        unsafe { raw_call_no_exit!(self, is_not_nil, value.raw) }
+        raw_call_no_exit!(self, is_not_nil, value.raw)
     }
 
     pub fn eq(&self, a: Value, b: Value) -> bool {
-        unsafe { raw_call_no_exit!(self, eq, a.raw, b.raw) }
+        raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
 
     pub fn list(&self, args: &[Value]) -> Result<Value> {
@@ -207,9 +207,11 @@ impl<'e> Value<'e> {
 }
 
 impl RootedValue {
-    // TODO: This should be unsafe. Review to make sure unsafe markers mark the correct
-    // things, even if they are only for internal use.
-    pub(crate) fn new(raw: emacs_value, env: &Env) -> Result<RootedValue> {
+    /// # Safety
+    ///
+    /// The given raw value must still live.
+    #[allow(unused_unsafe)]
+    pub(crate) unsafe fn new(raw: emacs_value, env: &Env) -> Result<RootedValue> {
         let raw = raw_call!(env, make_global_ref, raw)?;
         Ok(RootedValue { raw })
     }
