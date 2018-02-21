@@ -1,8 +1,7 @@
-// TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
-    ($env:ident, $name:ident) => {
-        (*$env.raw).$name.ok_or($crate::error::Internal::CoreFnMissing(stringify!($name)))
-    };
+    ($env:ident, $name:ident) => { {
+        (*$env.raw).$name.expect(stringify!(Required module function does not exist: $name))
+    }};
 }
 
 macro_rules! raw_call {
@@ -10,7 +9,7 @@ macro_rules! raw_call {
         {
             let env = $env;
             let result = unsafe {
-                let $name = raw_fn!(env, $name)?;
+                let $name = raw_fn!(env, $name);
                 $name(env.raw $(, $args)*)
             };
             env.handle_exit(result)
@@ -28,14 +27,11 @@ macro_rules! raw_call_value {
         }
     };
 }
-/// Note: Some functions in emacs-module.h are critically important, like those that support error
-/// reporting to Emacs. If they are missing, the only sensible thing to do is crashing. Use this
-/// macro to call them instead of [`raw_call!`].
+
 macro_rules! critical {
     ($env:ident, $name:ident $(, $args:expr)*) => {
-        unsafe {
-            let $name = raw_fn!($env, $name)
-                .expect(&format!("Required function {} cannot be found", stringify!($name)));
+        {
+            let $name = raw_fn!($env, $name);
             $name($env.raw $(, $args)*)
         }
     };

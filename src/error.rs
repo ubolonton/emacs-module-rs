@@ -27,8 +27,6 @@ pub enum NonLocal {
 pub enum Internal {
     UserPtrHasWrongType { expected: &'static str },
     UnknownUserPtr { expected: &'static str },
-    // TODO: Just panic? We have `catch_unwind`.
-    CoreFnMissing(&'static str),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -100,29 +98,33 @@ impl Env {
         let message = message.into_lisp(&self)?;
         let data = self.list(&[message])?;
         let symbol = self.intern(symbol)?;
-        Ok(self.signal(symbol.raw, data.raw))
+        unsafe {
+            Ok(self.signal(symbol.raw, data.raw))
+        }
     }
 
     fn non_local_exit_get(&self) -> (FuncallExit, emacs_value, emacs_value) {
         let mut buffer = Vec::<emacs_value>::with_capacity(2);
         let symbol = buffer.as_mut_ptr();
-        let data = unsafe { symbol.offset(1) };
-        let result = critical!(self, non_local_exit_get, symbol, data);
         unsafe {
+            let data = symbol.offset(1);
+            let result = critical!(self, non_local_exit_get, symbol, data);
             (result, *symbol, *data)
         }
     }
 
     fn non_local_exit_clear(&self) {
-        critical!(self, non_local_exit_clear)
+        unsafe {
+            critical!(self, non_local_exit_clear)
+        }
     }
 
-    fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
+    unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
         critical!(self, non_local_exit_throw, tag, value);
         tag
     }
 
-    fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
+    unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
         critical!(self, non_local_exit_signal, symbol, data);
         symbol
     }

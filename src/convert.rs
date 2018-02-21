@@ -124,7 +124,7 @@ impl Env {
     fn string_bytes(&self, value: Value) -> Result<Vec<u8>> {
         let mut len: isize = 0;
         let mut bytes = unsafe {
-            let copy_string_contents = raw_fn!(self, copy_string_contents)?;
+            let copy_string_contents = raw_fn!(self, copy_string_contents);
             let ok: bool = self.handle_exit(copy_string_contents(
                 self.raw, value.raw, ptr::null_mut(), &mut len))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
