@@ -7,8 +7,7 @@ extern crate failure_derive;
 use std::ffi::CString;
 
 use emacs_module::{emacs_runtime, emacs_env, emacs_value};
-pub use self::error::{Result, Error};
-// pub use self::error::NonLocal;
+pub use self::error::{Error, ErrorKind, Result, ResultExt};
 
 #[macro_use]
 mod macros;
@@ -102,9 +101,6 @@ pub trait Transfer: Sized {
     // reporting of type error (and to enable something like `rs-module/type-of`).
 }
 
-#[doc(hidden)]
-pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
-
 /// Public APIs.
 impl Env {
     pub unsafe fn new(raw: *mut emacs_env) -> Self {
@@ -122,8 +118,7 @@ impl Env {
     }
 
     pub fn intern(&self, name: &str) -> Result<Value> {
-        // TODO: Context. for NulError.
-        raw_call_value!(self, intern, CString::new(name)?.as_ptr())
+        raw_call_value!(self, intern, CString::new(name).context(ErrorKind::InvalidSymbol)?.as_ptr())
     }
 
     // TODO: Return an enum?

@@ -5,8 +5,9 @@ use std::ffi::CString;
 use libc;
 
 use emacs_module::{EmacsSubr, emacs_value};
-use super::{Env, CallEnv, Value, Result};
+use super::{Env, CallEnv, Value};
 use super::{FromLisp, IntoLisp};
+use super::error::{ErrorKind, Result, ResultExt};
 
 pub trait Manage {
     fn make_function<T: Into<Vec<u8>>>(
@@ -35,8 +36,7 @@ impl Manage for Env {
         raw_call_value!(
             self, make_function,
             arities.start as isize, arities.end as isize,
-            // TODO: Context. for NulError.
-            Some(function), CString::new(doc)?.as_ptr(), data
+            Some(function), CString::new(doc).context(ErrorKind::InvalidFunction)?.as_ptr(), data
         )
     }
 

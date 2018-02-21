@@ -9,7 +9,7 @@ mod macros;
 
 use std::ptr;
 use std::cell::RefCell;
-use emacs::{Env, CallEnv, Value, IntoLisp, Result};
+use emacs::{Env, CallEnv, Value, IntoLisp, Result, ResultExt};
 use emacs::func::Manage;
 
 emacs_plugin_is_GPL_compatible!();
@@ -131,8 +131,8 @@ fn init_test_ref_cell(env: &Env) -> Result<()> {
     fn mutate_twice(env: &CallEnv) -> Result<()> {
         let r = env.get_arg(0);
         let r: &RefCell<i64> = r.into_rust()?;
-        let mut x = r.try_borrow_mut()?;
-        let mut y = r.try_borrow_mut()?;
+        let mut x = r.try_borrow_mut().context("test-module")?;
+        let mut y = r.try_borrow_mut().context("test-module")?;
         *x = 1;
         *y = 2;
         Ok(())

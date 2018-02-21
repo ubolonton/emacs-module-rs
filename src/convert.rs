@@ -5,10 +5,12 @@ use std::ffi::CString;
 use libc;
 
 use emacs_module::emacs_value;
-use super::{Env, Value, Result};
+use super::{Env, Value};
 use super::{FromLisp, IntoLisp, Transfer};
-use super::Finalizer;
-use super::error::Internal;
+use super::error::{Result, ResultExt, ErrorKind};
+
+#[doc(hidden)]
+pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
 impl FromLisp for i64 {
     fn from_lisp(value: Value) -> Result<Self> {
@@ -75,8 +77,7 @@ impl<'e> IntoLisp<'e> for f64 {
 
 impl<'e, 'a, T: AsRef<str>> IntoLisp<'e> for &'a T {
     fn into_lisp(self, env: &'e Env) -> Result<Value> {
-        // TODO: Context. for NulError.
-        let cstring = CString::new(self.as_ref())?;
+        let cstring = CString::new(self.as_ref()).context(ErrorKind::InvalidString)?;
         let ptr = cstring.as_ptr();
         raw_call_value!(env, make_string, ptr, libc::strlen(ptr) as libc::ptrdiff_t)
     }
@@ -155,11 +156,11 @@ impl Env {
             },
             Some(_) => {
                 let expected = T::type_name();
-                Err(Internal::UserPtrHasWrongType { expected }.into())
+                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
             },
             None => {
                 let expected = T::type_name();
-                Err(Internal::UnknownUserPtr { expected }.into())
+                Err(ErrorKind::UnknownUserPtr { expected }.into())
             }
         }
     }

@@ -1,11 +1,11 @@
 use std::fmt::{self, Display};
 use std::result;
+use failure::{Context, Backtrace, Fail};
+pub use failure::ResultExt;
 
 use emacs_module::*;
 use super::{Env, Value};
 use super::IntoLisp;
-
-pub use failure::Error;
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
@@ -16,38 +16,47 @@ const RETURN: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_return;
 const SIGNAL: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_signal;
 const THROW: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_throw;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TempValue {
     raw: emacs_value,
 }
 
-#[derive(Debug, Fail)]
-pub enum NonLocal {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Fail)]
+pub enum ErrorKind {
+    #[fail(display = "Non-local signal: symbol={:?} data={:?}", symbol, data)]
     Signal { symbol: TempValue, data: TempValue },
+
+    #[fail(display = "Non-local throw: tag={:?} value={:?}", tag, value)]
     Throw { tag: TempValue, value: TempValue },
+
+    #[fail(display = "Wrong user-pointer type, expected: {}", expected)]
+    UserPtrHasWrongType { expected: &'static str },
+
+    #[fail(display = "Invalid user-pointer, expected: {}", expected)]
+    UnknownUserPtr { expected: &'static str },
+
+    #[fail(display = "Invalid symbol name")]
+    InvalidSymbol,
+
+    #[fail(display = "Invalid string")]
+    InvalidString,
+
+    #[fail(display = "Invalid function name")]
+    InvalidFunction,
+
+    #[fail(display = "Error from module {}", name)]
+    Module { name: &'static str },
+
+    #[fail(display = "Generic module error")]
+    Generic,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Fail)]
-pub enum Internal {
-    UserPtrHasWrongType { expected: &'static str },
-    UnknownUserPtr { expected: &'static str },
+#[derive(Debug)]
+pub struct Error {
+    inner: Context<ErrorKind>,
 }
 
 pub type Result<T> = result::Result<T, Error>;
-
-// TODO
-impl Display for Internal {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:#?}", &self)
-    }
-}
-
-// TODO
-impl Display for NonLocal {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:#?}", &self)
-    }
-}
 
 impl TempValue {
     unsafe fn new(raw: emacs_value) -> Self {
@@ -62,8 +71,8 @@ impl TempValue {
     }
 }
 
-// Technically these are unsound, but they are necessary to use the `Fail` trait. We ensure safety
-// by marking TempValue methods as unsafe.
+/// Technically these are unsound, but they are necessary to use the `Fail` trait. We ensure safety
+/// by marking TempValue methods as unsafe.
 unsafe impl Send for TempValue {}
 unsafe impl Sync for TempValue {}
 
@@ -75,14 +84,14 @@ impl Env {
             (RETURN, ..) => Ok(result),
             (SIGNAL, symbol, data) => {
                 self.non_local_exit_clear();
-                Err(NonLocal::Signal {
+                Err(ErrorKind::Signal {
                     symbol: unsafe { TempValue::new(symbol) },
                     data: unsafe { TempValue::new(data) },
                 }.into())
             },
             (THROW, tag, value) => {
                 self.non_local_exit_clear();
-                Err(NonLocal::Throw {
+                Err(ErrorKind::Throw {
                     tag: unsafe { TempValue::new(tag) },
                     value: unsafe { TempValue::new(value) },
                 }.into())
@@ -97,20 +106,19 @@ impl Env {
         match result {
             Ok(v) => v.raw,
             Err(error) => {
-                let error = match error.downcast::<NonLocal>() {
-                    Ok(NonLocal::Signal { symbol, data }) => return self.signal(
+                match error.kind() {
+                    ErrorKind::Signal { symbol, data } => return self.signal(
                         symbol.raw,
                         data.raw,
                     ),
-                    Ok(NonLocal::Throw { tag, value }) => return self.throw(
+                    ErrorKind::Throw { tag, value } => return self.throw(
                         tag.raw,
                         value.raw,
                     ),
-                    Err(error) => error,
-                };
-                // TODO: Internal
-                self.signal_str("error", &format!("Error: {}", error))
-                    .expect("Fail to signal error to Emacs")
+                    // TODO: Internal
+                    error => self.signal_str("error", &format!("Error: {}", error))
+                        .expect("Fail to signal error to Emacs")
+                }
             }
         }
     }
@@ -155,5 +163,45 @@ impl Env {
     unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
         raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
+    }
+}
+
+impl Error {
+    pub fn kind(&self) -> ErrorKind {
+        *self.inner.get_context()
+    }
+}
+
+impl Fail for Error {
+    fn cause(&self) -> Option<&Fail> {
+        self.inner.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.inner.backtrace()
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(&self.inner, f)
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Error {
+        Error { inner: Context::new(kind) }
+    }
+}
+
+impl From<Context<ErrorKind>> for Error {
+    fn from(inner: Context<ErrorKind>) -> Error {
+        Error { inner }
+    }
+}
+
+impl From<Context<&'static str>> for Error {
+    fn from(inner: Context<&'static str>) -> Error {
+        ErrorKind::Module { name: inner.get_context() }.into()
     }
 }
