@@ -1,9 +1,7 @@
 // TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
     ($env:ident, $name:ident) => {
-        (*$env.raw).$name.ok_or($crate::error::Error {
-            kind: $crate::error::ErrorKind::CoreFnMissing(format!("{}", stringify!($name)))
-        })
+        (*$env.raw).$name.ok_or($crate::error::Internal::CoreFnMissing(stringify!($name)))
     };
 }
 

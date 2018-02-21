@@ -1,10 +1,14 @@
 extern crate libc;
 extern crate emacs_module;
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 
 use std::ffi::CString;
 
 use emacs_module::{emacs_runtime, emacs_env, emacs_value};
-pub use self::error::{Result, Error, ErrorKind};
+pub use self::error::{Result, Error};
+// pub use self::error::NonLocal;
 
 #[macro_use]
 mod macros;
@@ -123,6 +127,7 @@ impl Env {
     }
 
     pub fn intern(&self, name: &str) -> Result<Value> {
+        // TODO: Context. for NulError.
         raw_call_value!(self, intern, CString::new(name)?.as_ptr())
     }
 

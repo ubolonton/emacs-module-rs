@@ -35,6 +35,7 @@ impl Manage for Env {
         raw_call_value!(
             self, make_function,
             arities.start as isize, arities.end as isize,
+            // TODO: Context. for NulError.
             Some(function), CString::new(doc)?.as_ptr(), data
         )
     }

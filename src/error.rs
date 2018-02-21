@@ -1,11 +1,12 @@
+use std::fmt::{self, Display};
 use std::result;
-use std::error;
-use std::io;
-use std::ffi::NulError;
 
 use emacs_module::*;
 use super::{Env, Value};
 use super::IntoLisp;
+use super::RootedValue;
+
+pub use failure::Error;
 
 /// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
 /// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
@@ -16,94 +17,80 @@ const RETURN: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_return;
 const SIGNAL: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_signal;
 const THROW: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_throw;
 
-#[derive(Debug)]
-pub struct Error {
-    pub(crate) kind: ErrorKind,
+#[derive(Debug, Fail)]
+pub enum NonLocal {
+    Signal { symbol: RootedValue, data: RootedValue },
+    Throw { tag: RootedValue, value: RootedValue },
 }
 
-// TODO: Use error-chain? (need to solve the issue that emacs_value does not satisfy Send).
-#[derive(Debug)]
-pub enum ErrorKind {
-    // TODO: Define RootedValue or OwnedValue or something.
-    Signal { symbol: emacs_value, data: emacs_value },
-    Throw { tag: emacs_value, value: emacs_value },
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Fail)]
+pub enum Internal {
     UserPtrHasWrongType { expected: &'static str },
     UnknownUserPtr { expected: &'static str },
-    IO { error: io::Error },
-    Other { error: Box<error::Error> },
-    CoreFnMissing(String),
+    // TODO: Just panic? We have `catch_unwind`.
+    CoreFnMissing(&'static str),
 }
 
 pub type Result<T> = result::Result<T, Error>;
 
-impl Error {
-    pub fn kind(&self) -> &ErrorKind {
-        &self.kind
-    }
-
-    pub fn new<E: Into<Box<error::Error>>>(error: E) -> Self {
-        Self { kind: ErrorKind::Other { error: error.into() } }
-    }
-
-    // TODO: Public version of signal/throw that take ToEmacs values.
-    fn signal(symbol: emacs_value, data: emacs_value) -> Self {
-        Self { kind: ErrorKind::Signal { symbol, data } }
-    }
-
-    fn throw(tag: emacs_value, value: emacs_value) -> Self {
-        Self { kind: ErrorKind::Throw { tag, value } }
+// TODO
+impl Display for Internal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:#?}", &self)
     }
 }
 
-impl From<ErrorKind> for Error {
-    fn from(kind: ErrorKind) -> Self {
-        Self { kind }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        ErrorKind::IO { error }.into()
-    }
-}
-
-// TODO: Better reporting.
-impl From<NulError> for Error {
-    fn from(error: NulError) -> Self {
-        ErrorKind::Other { error: Box::new(error) }.into()
+// TODO
+impl Display for NonLocal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:#?}", &self)
     }
 }
 
 impl Env {
     /// Handles possible non-local exit after calling Lisp code.
-    pub(crate) fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T> {
+    pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
+        // FIX: Can we not use .unwrap()?
         match self.non_local_exit_get() {
-            (RETURN, ..) => Ok(result.into()),
+            (RETURN, ..) => Ok(result),
             (SIGNAL, symbol, data) => {
                 self.non_local_exit_clear();
-                Err(Error::signal(symbol, data))
+                Err(NonLocal::Signal {
+                    symbol: RootedValue::new(symbol, self).unwrap(),
+                    data: RootedValue::new(data, self).unwrap(),
+                }.into())
             },
             (THROW, tag, value) => {
                 self.non_local_exit_clear();
-                Err(Error::throw(tag, value))
+                Err(NonLocal::Throw {
+                    tag: RootedValue::new(tag, self).unwrap(),
+                    value: RootedValue::new(value, self).unwrap(),
+                }.into())
             },
-            // TODO: Don't panic here, use a custom error.
             (status, ..) => panic!("Unexpected non local exit status {}", status),
         }
     }
 
     /// Converts a Rust's `Result` to either a normal value, or a non-local exit in Lisp.
     pub(crate) unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value {
+        // FIX: Can we not use .unwrap()?
         match result {
             Ok(v) => v.raw,
-            Err(normal_error) => {
-                match normal_error.kind {
-                    ErrorKind::Signal { symbol, data } => self.signal(symbol, data),
-                    ErrorKind::Throw { tag, value } => self.throw(tag, value),
-                    // TODO: Better formatting.
-                    other_error => self.signal_str("error", &format!("Error: {:#?}", other_error))
-                        .expect("Fail to signal error to Emacs"),
-                }
+            Err(error) => {
+                let error = match error.downcast::<NonLocal>() {
+                    Ok(NonLocal::Signal { symbol, data }) => return self.signal(
+                        symbol.uproot(self).unwrap(),
+                        data.uproot(self).unwrap(),
+                    ),
+                    Ok(NonLocal::Throw { tag, value }) => return self.throw(
+                        tag.uproot(self).unwrap(),
+                        value.uproot(self).unwrap(),
+                    ),
+                    Err(error) => error,
+                };
+                // TODO: Internal
+                self.signal_str("error", &format!("Error: {}", error))
+                    .expect("Fail to signal error to Emacs")
             }
         }
     }
