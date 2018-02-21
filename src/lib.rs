@@ -57,11 +57,6 @@ pub struct Value<'e> {
     pub(crate) env: &'e Env,
 }
 
-#[derive(Debug)]
-pub struct RootedValue {
-    raw: emacs_value,
-}
-
 /// Converting Lisp [`Value`] into a Rust type.
 ///
 /// [`Value`]: struct.Value.html
@@ -205,26 +200,3 @@ impl<'e> Value<'e> {
         })
     }
 }
-
-impl RootedValue {
-    /// # Safety
-    ///
-    /// The given raw value must still live.
-    #[allow(unused_unsafe)]
-    pub(crate) unsafe fn new(raw: emacs_value, env: &Env) -> Result<RootedValue> {
-        let raw = raw_call!(env, make_global_ref, raw)?;
-        Ok(RootedValue { raw })
-    }
-
-    // XXX: This should be in Drop implementation, but free_global_ref requires an env...
-    // TODO: Add a Drop implementation that somehow schedule the free
-    // to be called in a Lisp thread.
-    pub(crate) fn uproot(self, env: &Env) -> Result<emacs_value> {
-        let raw = self.raw;
-        let _: () = raw_call!(env, free_global_ref, raw)?;
-        Ok(raw)
-    }
-}
-
-unsafe impl Send for RootedValue {}
-unsafe impl Sync for RootedValue {}

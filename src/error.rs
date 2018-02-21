@@ -4,7 +4,6 @@ use std::result;
 use emacs_module::*;
 use super::{Env, Value};
 use super::IntoLisp;
-use super::RootedValue;
 
 pub use failure::Error;
 
@@ -17,10 +16,15 @@ const RETURN: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_return;
 const SIGNAL: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_signal;
 const THROW: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_throw;
 
+#[derive(Debug)]
+pub struct TempValue {
+    raw: emacs_value,
+}
+
 #[derive(Debug, Fail)]
 pub enum NonLocal {
-    Signal { symbol: RootedValue, data: RootedValue },
-    Throw { tag: RootedValue, value: RootedValue },
+    Signal { symbol: TempValue, data: TempValue },
+    Throw { tag: TempValue, value: TempValue },
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Fail)]
@@ -45,6 +49,24 @@ impl Display for NonLocal {
     }
 }
 
+impl TempValue {
+    unsafe fn new(raw: emacs_value) -> Self {
+        Self { raw }
+    }
+
+    /// # Safety
+    ///
+    /// This must only be temporarily used to inspect a non-local signal/throw from Lisp.
+    pub unsafe fn value<'e>(&self, env: &'e Env) -> Value<'e> {
+        Value::new(self.raw, env)
+    }
+}
+
+// Technically these are unsound, but they are necessary to use the `Fail` trait. We ensure safety
+// by marking TempValue methods as unsafe.
+unsafe impl Send for TempValue {}
+unsafe impl Sync for TempValue {}
+
 impl Env {
     /// Handles possible non-local exit after calling Lisp code.
     pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
@@ -54,15 +76,15 @@ impl Env {
             (SIGNAL, symbol, data) => {
                 self.non_local_exit_clear();
                 Err(NonLocal::Signal {
-                    symbol: unsafe { RootedValue::new(symbol, self).unwrap() },
-                    data: unsafe { RootedValue::new(data, self).unwrap() },
+                    symbol: unsafe { TempValue::new(symbol) },
+                    data: unsafe { TempValue::new(data) },
                 }.into())
             },
             (THROW, tag, value) => {
                 self.non_local_exit_clear();
                 Err(NonLocal::Throw {
-                    tag: unsafe { RootedValue::new(tag, self).unwrap() },
-                    value: unsafe { RootedValue::new(value, self).unwrap() },
+                    tag: unsafe { TempValue::new(tag) },
+                    value: unsafe { TempValue::new(value) },
                 }.into())
             },
             (status, ..) => panic!("Unexpected non local exit status {}", status),
@@ -77,12 +99,12 @@ impl Env {
             Err(error) => {
                 let error = match error.downcast::<NonLocal>() {
                     Ok(NonLocal::Signal { symbol, data }) => return self.signal(
-                        symbol.uproot(self).unwrap(),
-                        data.uproot(self).unwrap(),
+                        symbol.raw,
+                        data.raw,
                     ),
                     Ok(NonLocal::Throw { tag, value }) => return self.throw(
-                        tag.uproot(self).unwrap(),
-                        value.uproot(self).unwrap(),
+                        tag.raw,
+                        value.raw,
                     ),
                     Err(error) => error,
                 };
