@@ -144,12 +144,12 @@ impl Env {
         raw_call_value!(self, funcall, symbol.raw, args.len() as libc::ptrdiff_t, args.as_mut_ptr())
     }
 
-    pub fn is_not_nil(&self, value: Value) -> Result<bool> {
-        raw_call!(self, is_not_nil, value.raw)
+    pub fn is_not_nil(&self, value: Value) -> bool {
+        raw_call_no_exit!(self, is_not_nil, value.raw)
     }
 
-    pub fn eq(&self, a: Value, b: Value) -> Result<bool> {
-        raw_call!(self, eq, a.raw, b.raw)
+    pub fn eq(&self, a: Value, b: Value) -> bool {
+        raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
 
     pub fn list(&self, args: &[Value]) -> Result<Value> {

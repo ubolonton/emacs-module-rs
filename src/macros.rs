@@ -4,6 +4,18 @@ macro_rules! raw_fn {
     }};
 }
 
+macro_rules! raw_call_no_exit {
+    ($env:expr, $name:ident $(, $args:expr)*) => {
+        {
+            let env = $env;
+            unsafe {
+                let $name = raw_fn!(env, $name);
+                $name(env.raw $(, $args)*)
+            }
+        }
+    };
+}
+
 macro_rules! raw_call {
     ($env:expr, $name:ident $(, $args:expr)*) => {
         {
