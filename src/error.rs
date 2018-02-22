@@ -1,5 +1,6 @@
-use std::fmt::{self, Display};
+use std::mem;
 use std::result;
+use std::fmt::{self, Display};
 use failure::{Context, Backtrace, Fail};
 pub use failure::ResultExt;
 
@@ -79,8 +80,10 @@ unsafe impl Sync for TempValue {}
 impl Env {
     /// Handles possible non-local exit after calling Lisp code.
     pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
-        // FIX: Can we not use .unwrap()?
-        match self.non_local_exit_get() {
+        let mut symbol = unsafe { mem::uninitialized() };
+        let mut data = unsafe { mem::uninitialized() };
+        let status = self.non_local_exit_get(&mut symbol, &mut data);
+        match (status, symbol, data) {
             (RETURN, ..) => Ok(result),
             (SIGNAL, symbol, data) => {
                 self.non_local_exit_clear();
@@ -96,13 +99,12 @@ impl Env {
                     value: unsafe { TempValue::new(value) },
                 }.into())
             },
-            (status, ..) => panic!("Unexpected non local exit status {}", status),
+            _ => panic!("Unexpected non local exit status {}", status),
         }
     }
 
     /// Converts a Rust's `Result` to either a normal value, or a non-local exit in Lisp.
     pub(crate) unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value {
-        // FIX: Can we not use .unwrap()?
         match result {
             Ok(v) => v.raw,
             Err(error) => {
@@ -133,14 +135,8 @@ impl Env {
         }
     }
 
-    fn non_local_exit_get(&self) -> (FuncallExit, emacs_value, emacs_value) {
-        let mut buffer = Vec::<emacs_value>::with_capacity(2);
-        let symbol = buffer.as_mut_ptr();
-        let data = unsafe { symbol.offset(1) };
-        let result = raw_call_no_exit!(self, non_local_exit_get, symbol, data);
-        unsafe {
-            (result, *symbol, *data)
-        }
+    fn non_local_exit_get(&self, symbol: &mut emacs_value, data: &mut emacs_value) -> FuncallExit {
+        raw_call_no_exit!(self, non_local_exit_get, symbol as *mut emacs_value, data as *mut emacs_value)
     }
 
     fn non_local_exit_clear(&self) {
