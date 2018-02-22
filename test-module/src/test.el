@@ -1,6 +1,6 @@
 (require 't)
 
-(ert-deftest inc ()
+(ert-deftest convert::inc ()
   (should (= (t/inc 3) 4))
   (should (equal (documentation 't/inc) "1+"))
 
@@ -10,14 +10,17 @@
   (should-error (t/inc) :type 'wrong-number-of-arguments)
   (should-error (t/inc 1 2) :type 'wrong-number-of-arguments))
 
-(ert-deftest propagate-errors ()
-  (should-error (t/calling-error) :type 'arith-error))
-
-(ert-deftest passthrough ()
+(ert-deftest convert::passthrough ()
   (let ((x "x"))
     (should (eq (t/identity x) x))))
 
-(ert-deftest create-function ()
+(ert-deftest convert::string ()
+  (should (equal (t/to-uppercase "abc") "ABC")))
+
+(ert-deftest error::propagation ()
+  (should-error (t/error:lisp-divide 1 0) :type 'arith-error))
+
+(ert-deftest function::create ()
   (let ((dec (t/make-dec)))
     (should (= (funcall dec 9) 8))
     (should (equal (documentation dec) "decrement"))
@@ -33,10 +36,19 @@
     (should (equal (documentation plus) ""))
     (should-error (funcall plus "s" 5) :type 'wrong-type-argument)))
 
-(ert-deftest from-emacs-string ()
-  (should (equal (t/to-uppercase "abc") "ABC")))
+(ert-deftest function::return-type-auto-coercion ()
+  (let ((x 3)
+        (y 4))
+    (should (equal (t/sum x y)
+                   (+ x y)))))
 
-(ert-deftest user-ptr ()
+(ert-deftest function::fset ()
+  (let ((x 5)
+        (y 3))
+    (should (equal (t/sum-and-diff x y)
+                   (list (+ x y) (- x y))))))
+
+(ert-deftest transfer::vector ()
 
   (let* ((v1 (t/vector:make 5 6))
          (v2 (t/vector:make 1 3)))
@@ -70,26 +82,16 @@
     ;; TODO: :type
     (should-error (t/vector:to-list s))))
 
-(ert-deftest ref-cell ()
-  (let ((x (t/refcell:make 5))
-        (v (t/vector:make 1 2)))
-    ;; TODO: :type
-    (should-error (t/refcell:mutate-twice v))
-    (should-error (t/refcell:mutate-twice x))))
+(ert-deftest transfer::ref-cell-double-mutation ()
+  ;; TODO: :type
+  (should-error (t/ref-cell:mutate-twice (t/ref-cell:make 5))))
 
-(ert-deftest simplified-fns ()
-  (let ((x 5)
-        (y 3))
-    (should (equal (t/sum-and-diff x y)
-                   (list (+ x y) (- x y))))))
+(ert-deftest transfer::type-check ()
+  ;; TODO: :type
+  (should-error (t/ref-cell:mutate-twice (t/vector:make 1 2)))
+  (should-error (t/ref-cell:mutate-twice 5)))
 
-(ert-deftest flexible-return-type ()
-  (let ((x 3)
-        (y 4))
-    (should (equal (t/sum x y)
-                   (+ x y)))))
-
-(ert-deftest hash-map ()
+(ert-deftest transfer::hash-map ()
   (let ((m (t/hash-map:make)))
     (should (equal (t/hash-map:get m "a") nil))
 
