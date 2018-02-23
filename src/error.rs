@@ -35,15 +35,6 @@ pub enum ErrorKind {
 
     #[fail(display = "Wrong type user-ptr, expected: {}", expected)]
     WrongTypeUserPtr { expected: &'static str },
-
-    #[fail(display = "Invalid symbol name")]
-    InvalidSymbol,
-
-    #[fail(display = "Invalid string")]
-    InvalidString,
-
-    #[fail(display = "Invalid function name")]
-    InvalidFunction,
 }
 
 pub type Result<T> = result::Result<T, Error>;

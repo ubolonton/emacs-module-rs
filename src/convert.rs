@@ -7,7 +7,7 @@ use libc;
 use emacs_module::emacs_value;
 use super::{Env, Value};
 use super::{FromLisp, IntoLisp, Transfer};
-use super::error::{Result, ResultExt, ErrorKind};
+use super::error::{Result, ErrorKind};
 
 #[doc(hidden)]
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
@@ -77,7 +77,7 @@ impl<'e> IntoLisp<'e> for f64 {
 
 impl<'e, 'a, T: AsRef<str>> IntoLisp<'e> for &'a T {
     fn into_lisp(self, env: &'e Env) -> Result<Value> {
-        let cstring = CString::new(self.as_ref()).context(ErrorKind::InvalidString)?;
+        let cstring = CString::new(self.as_ref())?;
         let ptr = cstring.as_ptr();
         raw_call_value!(env, make_string, ptr, libc::strlen(ptr) as libc::ptrdiff_t)
     }
@@ -129,7 +129,7 @@ impl Env {
             let ok: bool = self.handle_exit(copy_string_contents(
                 self.raw, value.raw, ptr::null_mut(), &mut len))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            // should be void, not bool.
             if !ok {
                 panic!("Emacs failed to give string's length but did not raise a signal");
             }
@@ -138,7 +138,7 @@ impl Env {
             let ok: bool = self.handle_exit(copy_string_contents(
                 self.raw, value.raw, bytes.as_mut_ptr() as *mut i8, &mut len))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            // should be void, not bool.
             if !ok {
                 panic!("Emacs failed to copy string but did not raise a signal");
             }

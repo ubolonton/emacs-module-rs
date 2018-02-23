@@ -118,7 +118,7 @@ impl Env {
     }
 
     pub fn intern(&self, name: &str) -> Result<Value> {
-        raw_call_value!(self, intern, CString::new(name).context(ErrorKind::InvalidSymbol)?.as_ptr())
+        raw_call_value!(self, intern, CString::new(name)?.as_ptr())
     }
 
     // TODO: Return an enum?
