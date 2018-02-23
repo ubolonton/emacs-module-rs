@@ -93,8 +93,8 @@ impl Env {
                         self.signal(symbol.raw, data.raw),
                     Some(&ErrorKind::Throw { ref tag, ref value }) =>
                         self.throw(tag.raw, value.raw),
-                    Some(&ErrorKind::WrongTypeUserPtr { ref expected }) =>
-                        self.signal_str(WRONG_TYPE_USER_PTR, expected)
+                    Some(&ErrorKind::WrongTypeUserPtr { .. }) =>
+                        self.signal_str(WRONG_TYPE_USER_PTR, &format!("{}", error))
                         .expect(&format!("Failed to signal {}", error)),
                     _ => self.signal_str(ERROR, &format!("{}", error))
                         .expect(&format!("Failed to signal {}", error)),
