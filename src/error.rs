@@ -1,7 +1,7 @@
+use std::mem;
 use std::result;
-use std::error;
-use std::io;
-use std::ffi::NulError;
+use std::thread;
+pub use failure::{Error, ResultExt};
 
 use emacs_module::*;
 use super::{Env, Value};
@@ -17,78 +17,69 @@ const SIGNAL: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_signal;
 const THROW: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_throw;
 
 #[derive(Debug)]
-pub struct Error {
-    pub(crate) kind: ErrorKind,
+pub struct TempValue {
+    raw: emacs_value,
 }
 
-// TODO: Use error-chain? (need to solve the issue that emacs_value does not satisfy Send).
-#[derive(Debug)]
+const WRONG_TYPE_USER_PTR: &str = "rust-wrong-type-user-ptr";
+const ERROR: &str = "rust-error";
+const PANIC: &str = "rust-panic";
+
+#[derive(Debug, Fail)]
 pub enum ErrorKind {
-    // TODO: Define RootedValue or OwnedValue or something.
-    Signal { symbol: emacs_value, data: emacs_value },
-    Throw { tag: emacs_value, value: emacs_value },
-    UserPtrHasWrongType { expected: &'static str },
-    UnknownUserPtr { expected: &'static str },
-    IO { error: io::Error },
-    Other { error: Box<error::Error> },
-    CoreFnMissing(String),
+    #[fail(display = "Non-local signal: symbol={:?} data={:?}", symbol, data)]
+    Signal { symbol: TempValue, data: TempValue },
+
+    #[fail(display = "Non-local throw: tag={:?} value={:?}", tag, value)]
+    Throw { tag: TempValue, value: TempValue },
+
+    #[fail(display = "Wrong type user-ptr, expected: {}", expected)]
+    WrongTypeUserPtr { expected: &'static str },
 }
 
 pub type Result<T> = result::Result<T, Error>;
 
-impl Error {
-    pub fn kind(&self) -> &ErrorKind {
-        &self.kind
+impl TempValue {
+    unsafe fn new(raw: emacs_value) -> Self {
+        Self { raw }
     }
 
-    pub fn new<E: Into<Box<error::Error>>>(error: E) -> Self {
-        Self { kind: ErrorKind::Other { error: error.into() } }
-    }
-
-    // TODO: Public version of signal/throw that take ToEmacs values.
-    fn signal(symbol: emacs_value, data: emacs_value) -> Self {
-        Self { kind: ErrorKind::Signal { symbol, data } }
-    }
-
-    fn throw(tag: emacs_value, value: emacs_value) -> Self {
-        Self { kind: ErrorKind::Throw { tag, value } }
+    /// # Safety
+    ///
+    /// This must only be temporarily used to inspect a non-local signal/throw from Lisp.
+    pub unsafe fn value<'e>(&self, env: &'e Env) -> Value<'e> {
+        Value::new(self.raw, env)
     }
 }
 
-impl From<ErrorKind> for Error {
-    fn from(kind: ErrorKind) -> Self {
-        Self { kind }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        ErrorKind::IO { error }.into()
-    }
-}
-
-// TODO: Better reporting.
-impl From<NulError> for Error {
-    fn from(error: NulError) -> Self {
-        ErrorKind::Other { error: Box::new(error) }.into()
-    }
-}
+/// Technically these are unsound, but they are necessary to use the `Fail` trait. We ensure safety
+/// by marking TempValue methods as unsafe.
+unsafe impl Send for TempValue {}
+unsafe impl Sync for TempValue {}
 
 impl Env {
     /// Handles possible non-local exit after calling Lisp code.
-    pub(crate) fn handle_exit<T, U: Into<T>>(&self, result: U) -> Result<T> {
-        match self.non_local_exit_get() {
-            (RETURN, ..) => Ok(result.into()),
+    pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
+        let mut symbol = unsafe { mem::uninitialized() };
+        let mut data = unsafe { mem::uninitialized() };
+        let status = self.non_local_exit_get(&mut symbol, &mut data);
+        match (status, symbol, data) {
+            (RETURN, ..) => Ok(result),
             (SIGNAL, symbol, data) => {
                 self.non_local_exit_clear();
-                Err(Error::signal(symbol, data))
+                Err(ErrorKind::Signal {
+                    symbol: unsafe { TempValue::new(symbol) },
+                    data: unsafe { TempValue::new(data) },
+                }.into())
             },
             (THROW, tag, value) => {
                 self.non_local_exit_clear();
-                Err(Error::throw(tag, value))
+                Err(ErrorKind::Throw {
+                    tag: unsafe { TempValue::new(tag) },
+                    value: unsafe { TempValue::new(value) },
+                }.into())
             },
-            // TODO: Don't panic here, use a custom error.
-            (status, ..) => panic!("Unexpected non local exit status {}", status),
+            _ => panic!("Unexpected non local exit status {}", status),
         }
     }
 
@@ -96,47 +87,84 @@ impl Env {
     pub(crate) unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value {
         match result {
             Ok(v) => v.raw,
-            Err(normal_error) => {
-                match normal_error.kind {
-                    ErrorKind::Signal { symbol, data } => self.signal(symbol, data),
-                    ErrorKind::Throw { tag, value } => self.throw(tag, value),
-                    // TODO: Better formatting.
-                    other_error => self.signal_str("error", &format!("Error: {:#?}", other_error))
-                        .expect("Fail to signal error to Emacs"),
+            Err(error) => {
+                match error.downcast_ref::<ErrorKind>() {
+                    Some(&ErrorKind::Signal { ref symbol, ref data }) =>
+                        self.signal(symbol.raw, data.raw),
+                    Some(&ErrorKind::Throw { ref tag, ref value }) =>
+                        self.throw(tag.raw, value.raw),
+                    Some(&ErrorKind::WrongTypeUserPtr { .. }) =>
+                        self.signal_str(WRONG_TYPE_USER_PTR, &format!("{}", error))
+                        .expect(&format!("Failed to signal {}", error)),
+                    _ => self.signal_str(ERROR, &format!("{}", error))
+                        .expect(&format!("Failed to signal {}", error)),
                 }
             }
         }
     }
 
-    // TODO: Prepare static values for the symbols.
-    pub(crate) fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
-        let message = message.into_lisp(&self)?;
-        let data = self.list(&[message])?;
-        let symbol = self.intern(symbol)?;
-        Ok(self.signal(symbol.raw, data.raw))
-    }
-
-    fn non_local_exit_get(&self) -> (FuncallExit, emacs_value, emacs_value) {
-        let mut buffer = Vec::<emacs_value>::with_capacity(2);
-        let symbol = buffer.as_mut_ptr();
-        let data = unsafe { symbol.offset(1) };
-        let result = critical!(self, non_local_exit_get, symbol, data);
-        unsafe {
-            (result, *symbol, *data)
+    pub(crate) fn handle_panic(&self, result: thread::Result<emacs_value>) -> emacs_value {
+        match result {
+            Ok(v) => v,
+            Err(error) => {
+                // TODO: Try to check for some common types to display?
+                self.signal_str(PANIC, &format!("{:#?}", error))
+                    .expect(&format!("Fail to signal panic {:#?}", error))
+            },
         }
     }
 
-    fn non_local_exit_clear(&self) {
-        critical!(self, non_local_exit_clear)
+    pub(crate) fn define_errors(&self) -> Result<()> {
+        // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
+        // not a sub-type of 'error.
+        self.define_error(PANIC, "Rust panic", "error")?;
+        self.define_error(ERROR, "Rust error", "error")?;
+        // TODO: This should also be a sub-types of 'wrong-type-argument?
+        self.define_error(WRONG_TYPE_USER_PTR, "Wrong type user-ptr", ERROR)?;
+        Ok(())
     }
 
-    fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
-        critical!(self, non_local_exit_throw, tag, value);
+    // TODO: Prepare static values for the symbols.
+    fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
+        let message = message.into_lisp(&self)?;
+        let data = self.list(&[message])?;
+        let symbol = self.intern(symbol)?;
+        unsafe {
+            Ok(self.signal(symbol.raw, data.raw))
+        }
+    }
+
+    fn define_error(&self, name: &str, message: &str, parent: &str) -> Result<Value> {
+        self.call("define-error", &[
+            self.intern(name)?,
+            message.into_lisp(self)?,
+            self.intern(parent)?
+        ])
+    }
+
+    fn non_local_exit_get(&self, symbol: &mut emacs_value, data: &mut emacs_value) -> FuncallExit {
+        raw_call_no_exit!(self, non_local_exit_get, symbol as *mut emacs_value, data as *mut emacs_value)
+    }
+
+    fn non_local_exit_clear(&self) {
+        raw_call_no_exit!(self, non_local_exit_clear)
+    }
+
+    /// # Safety
+    ///
+    /// The given raw values must still live.
+    #[allow(unused_unsafe)]
+    unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
+        raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
 
-    fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
-        critical!(self, non_local_exit_signal, symbol, data);
+    /// # Safety
+    ///
+    /// The given raw values must still live.
+    #[allow(unused_unsafe)]
+    unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
+        raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }
 }

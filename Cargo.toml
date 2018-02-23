@@ -14,6 +14,8 @@ keywords = ["emacs", "emacs-module"]
 [dependencies]
 libc = "0.2.34"
 lazy_static = "1.0.0"
+failure = { version = "0.1.1", features = ["std"] }
+failure_derive = "0.1.1"
 emacs_module = { path = "emacs-module", version = "0.3.0" }
 
 [workspace]

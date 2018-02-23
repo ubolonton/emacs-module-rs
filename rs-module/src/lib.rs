@@ -5,10 +5,11 @@ extern crate libloading as lib;
 #[macro_use]
 extern crate lazy_static;
 
-use emacs::{Env, CallEnv, Value, Result};
-use emacs::raw::emacs_env;
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+use emacs::{Env, CallEnv, Value, Result, ResultExt};
+use emacs::raw::emacs_env;
 
 emacs_plugin_is_GPL_compatible!();
 emacs_module_init!(init);
@@ -26,6 +27,12 @@ macro_rules! message {
     };
 }
 
+macro_rules! ctx {
+    ($call:expr) => {
+        $call.context(RS_MODULE)
+    }
+}
+
 /// Helper function that enables live-reloading of Emacs's dynamic module. To be reloadable, the
 /// module be loaded by this function (`rs-module/load` in ELisp) instead of Emacs'
 /// `module-load`. (Re)loading is achieved by calling `(rs-module/load "/path/to/module")`.
@@ -39,11 +46,11 @@ fn load_module(env: &CallEnv) -> Result<Value> {
         None => message!(env, "[{}]: not loaded yet", &path)?,
     };
     message!(env, "[{}]: loading...", &path)?;
-    let l = lib::Library::new(&path)?;
+    let l = ctx!(lib::Library::new(&path))?;
     message!(env, "[{}]: initializing...", &path)?;
     unsafe {
         let rs_init: lib::Symbol<unsafe extern fn(*mut emacs_env) -> u32> =
-            l.get(INIT_FROM_ENV.as_bytes())?;
+            ctx!(l.get(INIT_FROM_ENV.as_bytes()))?;
         rs_init(env.raw());
     }
     libraries.insert(path.clone(), l);

@@ -5,9 +5,12 @@ use std::ffi::CString;
 use libc;
 
 use emacs_module::emacs_value;
-use super::{Env, Value, Result};
+use super::{Env, Value};
 use super::{FromLisp, IntoLisp, Transfer};
-use super::{Finalizer, ErrorKind};
+use super::error::{Result, ErrorKind};
+
+#[doc(hidden)]
+pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
 impl FromLisp for i64 {
     fn from_lisp(value: Value) -> Result<Self> {
@@ -122,11 +125,11 @@ impl Env {
     fn string_bytes(&self, value: Value) -> Result<Vec<u8>> {
         let mut len: isize = 0;
         let mut bytes = unsafe {
-            let copy_string_contents = raw_fn!(self, copy_string_contents)?;
+            let copy_string_contents = raw_fn!(self, copy_string_contents);
             let ok: bool = self.handle_exit(copy_string_contents(
                 self.raw, value.raw, ptr::null_mut(), &mut len))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            // should be void, not bool.
             if !ok {
                 panic!("Emacs failed to give string's length but did not raise a signal");
             }
@@ -135,7 +138,7 @@ impl Env {
             let ok: bool = self.handle_exit(copy_string_contents(
                 self.raw, value.raw, bytes.as_mut_ptr() as *mut i8, &mut len))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool. TODO: Use a custom error type instead of panicking here.
+            // should be void, not bool.
             if !ok {
                 panic!("Emacs failed to copy string but did not raise a signal");
             }
@@ -151,14 +154,10 @@ impl Env {
                 let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
                 Ok(ptr as *mut T)
             },
-            Some(_) => {
+            _ => {
                 let expected = T::type_name();
-                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
+                Err(ErrorKind::WrongTypeUserPtr { expected }.into())
             },
-            None => {
-                let expected = T::type_name();
-                Err(ErrorKind::UnknownUserPtr { expected }.into())
-            }
         }
     }
 }

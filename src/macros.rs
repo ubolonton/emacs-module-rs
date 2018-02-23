@@ -1,9 +1,15 @@
-// TODO: Consider checking for existence of these upon startup, not on each call.
 macro_rules! raw_fn {
-    ($env:ident, $name:ident) => {
-        (*$env.raw).$name.ok_or($crate::error::Error {
-            kind: $crate::error::ErrorKind::CoreFnMissing(format!("{}", stringify!($name)))
-        })
+    ($env:ident, $name:ident) => { {
+        (*$env.raw).$name.expect(stringify!(Required module function does not exist: $name))
+    }};
+}
+
+macro_rules! raw_call_no_exit {
+    ($env:ident, $name:ident $(, $args:expr)*) => {
+        unsafe {
+            let $name = raw_fn!($env, $name);
+            $name($env.raw $(, $args)*)
+        }
     };
 }
 
@@ -12,7 +18,7 @@ macro_rules! raw_call {
         {
             let env = $env;
             let result = unsafe {
-                let $name = raw_fn!(env, $name)?;
+                let $name = raw_fn!(env, $name);
                 $name(env.raw $(, $args)*)
             };
             env.handle_exit(result)
@@ -27,18 +33,6 @@ macro_rules! raw_call_value {
             result.map(|raw| unsafe {
                 $crate::Value::new(raw, $env)
             })
-        }
-    };
-}
-/// Note: Some functions in emacs-module.h are critically important, like those that support error
-/// reporting to Emacs. If they are missing, the only sensible thing to do is crashing. Use this
-/// macro to call them instead of [`raw_call!`].
-macro_rules! critical {
-    ($env:ident, $name:ident $(, $args:expr)*) => {
-        unsafe {
-            let $name = raw_fn!($env, $name)
-                .expect(&format!("Required function {} cannot be found", stringify!($name)));
-            $name($env.raw $(, $args)*)
         }
     };
 }
@@ -68,6 +62,7 @@ macro_rules! enable_transfers {
     )*};
 }
 
+/// Declares that this module is GPL-compatible. Emacs will not load it otherwise.
 #[macro_export]
 macro_rules! emacs_plugin_is_GPL_compatible {
     () => {
@@ -133,6 +128,7 @@ macro_rules! emacs_lambda {
     };
 }
 
+/// Export Rust functions so that Lisp code can call them by name.
 #[macro_export]
 macro_rules! emacs_export_functions {
     // Cut trailing comma in top-level.

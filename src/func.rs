@@ -5,8 +5,9 @@ use std::ffi::CString;
 use libc;
 
 use emacs_module::{EmacsSubr, emacs_value};
-use super::{Env, CallEnv, Value, Result};
+use super::{Env, CallEnv, Value};
 use super::{FromLisp, IntoLisp};
+use super::error::Result;
 
 pub trait Manage {
     fn make_function<T: Into<Vec<u8>>>(
@@ -50,7 +51,7 @@ impl HandleInit for Env {
     where F: Fn(&Env) -> Result<Value> + panic::RefUnwindSafe
     {
         let result = panic::catch_unwind(|| {
-            match f(&self) {
+            match self.define_errors().and_then(|_| f(&self)) {
                 Ok(_) => 0,
                 Err(e) => {
                     self.message(&format!("Error during initialization: {:#?}", e))
@@ -62,9 +63,6 @@ impl HandleInit for Env {
         match result {
             Ok(v) => v,
             Err(e) => {
-                // TODO: Try some common types
-                // TODO: Get stack trace?
-                // TODO: Just exit?
                 self.message(&format!("Panic during initialization: {:#?}", e))
                     .expect("Fail to message Emacs about panic");
                 2
@@ -115,21 +113,12 @@ impl HandleCall for CallEnv {
     {
         let result = panic::catch_unwind(|| {
             unsafe {
-                let x = f(&self);
-                let y = x.and_then(|t| t.into_lisp(&self));
-                self.maybe_exit(y)
+                let rust_result = f(&self);
+                let lisp_result = rust_result.and_then(|t| t.into_lisp(&self));
+                self.maybe_exit(lisp_result)
             }
         });
-        match result {
-            Ok(v) => v,
-            Err(e) => {
-                // TODO: Try some common types
-                // TODO: Get stack trace?
-                // TODO: Just exit?
-                self.signal_str("panic", &format!("{:#?}", e))
-                    .expect("Fail to signal panic to Emacs")
-            },
-        }
+        self.handle_panic(result)
     }
 }
 

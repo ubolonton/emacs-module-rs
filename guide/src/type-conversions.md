@@ -2,7 +2,7 @@
 
 The type `Value` represents Lisp values:
 - They can be copied around, but cannot outlive the `env` they come from.
-- They are "proxy values": only useful when converted to Rust values, or as arguments when calling Lisp functions.
+- They are "proxy values": only useful when converted to Rust values, or used as arguments when calling back into the Lisp runtime..
 
 ## Converting a Lisp `Value` to Rust
 
