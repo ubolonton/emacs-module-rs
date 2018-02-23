@@ -41,11 +41,7 @@
                 :type 'no-catch))
 
 (ert-deftest error::panic-parsing-arg ()
-  (let ((err (condition-case err
-                 ;; This checks that panics cannot be ignored.
-                 (ignore-errors (t/error:parse-arg 5 "1"))
-               (rust-panic err))))
-    (should (equal (car err) 'rust-panic))))
+  (should-error (t/error:parse-arg 5 "1") :type 'rust-panic))
 
 (ert-deftest function::create ()
   (let ((dec (t/make-dec)))

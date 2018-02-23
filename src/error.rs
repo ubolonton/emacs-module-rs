@@ -131,7 +131,9 @@ impl Env {
     }
 
     pub(crate) fn define_errors(&self) -> Result<()> {
-        self.define_error(PANIC, "Rust panic", "quit")?;
+        // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
+        // not a sub-type of 'error.
+        self.define_error(PANIC, "Rust panic", "error")?;
         self.define_error(ERROR, "Rust error", "error")?;
         // TODO: These are also sub-types of 'wrong-type-argument?
         self.define_error(INVALID_USER_PTR, "Invalid user-pointer", ERROR)?;
