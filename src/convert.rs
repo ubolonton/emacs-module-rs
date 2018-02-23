@@ -154,14 +154,10 @@ impl Env {
                 let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
                 Ok(ptr as *mut T)
             },
-            Some(_) => {
+            _ => {
                 let expected = T::type_name();
-                Err(ErrorKind::UserPtrHasWrongType { expected }.into())
+                Err(ErrorKind::WrongTypeUserPtr { expected }.into())
             },
-            None => {
-                let expected = T::type_name();
-                Err(ErrorKind::UnknownUserPtr { expected }.into())
-            }
         }
     }
 }

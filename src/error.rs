@@ -21,7 +21,6 @@ pub struct TempValue {
     raw: emacs_value,
 }
 
-const INVALID_USER_PTR: &str = "rust-invalid-user-ptr";
 const WRONG_TYPE_USER_PTR: &str = "rust-wrong-type-user-ptr";
 const ERROR: &str = "rust-error";
 const PANIC: &str = "rust-panic";
@@ -34,11 +33,8 @@ pub enum ErrorKind {
     #[fail(display = "Non-local throw: tag={:?} value={:?}", tag, value)]
     Throw { tag: TempValue, value: TempValue },
 
-    #[fail(display = "Wrong user-pointer type, expected: {}", expected)]
-    UserPtrHasWrongType { expected: &'static str },
-
-    #[fail(display = "Invalid user-pointer, expected: {}", expected)]
-    UnknownUserPtr { expected: &'static str },
+    #[fail(display = "Wrong type user-ptr, expected: {}", expected)]
+    WrongTypeUserPtr { expected: &'static str },
 
     #[fail(display = "Invalid symbol name")]
     InvalidSymbol,
@@ -106,11 +102,8 @@ impl Env {
                         self.signal(symbol.raw, data.raw),
                     Some(&ErrorKind::Throw { ref tag, ref value }) =>
                         self.throw(tag.raw, value.raw),
-                    Some(&ErrorKind::UserPtrHasWrongType { ref expected }) =>
+                    Some(&ErrorKind::WrongTypeUserPtr { ref expected }) =>
                         self.signal_str(WRONG_TYPE_USER_PTR, expected)
-                        .expect(&format!("Failed to signal {}", error)),
-                    Some(&ErrorKind::UnknownUserPtr { ref expected }) =>
-                        self.signal_str(INVALID_USER_PTR, expected)
                         .expect(&format!("Failed to signal {}", error)),
                     _ => self.signal_str(ERROR, &format!("{}", error))
                         .expect(&format!("Failed to signal {}", error)),
@@ -135,9 +128,8 @@ impl Env {
         // not a sub-type of 'error.
         self.define_error(PANIC, "Rust panic", "error")?;
         self.define_error(ERROR, "Rust error", "error")?;
-        // TODO: These are also sub-types of 'wrong-type-argument?
-        self.define_error(INVALID_USER_PTR, "Invalid user-pointer", ERROR)?;
-        self.define_error(WRONG_TYPE_USER_PTR, "Wrong user-pointer type", ERROR)?;
+        // TODO: This should also be a sub-types of 'wrong-type-argument?
+        self.define_error(WRONG_TYPE_USER_PTR, "Wrong type user-ptr", ERROR)?;
         Ok(())
     }
 
