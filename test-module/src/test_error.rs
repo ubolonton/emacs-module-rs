@@ -1,4 +1,5 @@
-use emacs::{Env, CallEnv, Value, IntoLisp, Result, ErrorKind};
+use emacs::{Env, CallEnv, Value, IntoLisp, Result};
+use emacs::ErrorKind::{self, Signal, Throw};
 
 use super::MODULE_PREFIX;
 
@@ -25,12 +26,12 @@ fn get_type(env: &CallEnv) -> Result<Value> {
     let f = env.get_arg(0);
     match env.call("funcall", &[f]) {
         Err(error) => {
-            match error.kind() {
-                ErrorKind::Signal { symbol, .. } => unsafe {
-                    Ok(symbol.value(env))
-                },
-                _ => Err(error),
+            if let Some(&Signal { ref symbol, .. }) = error.downcast_ref::<ErrorKind>() {
+                unsafe {
+                    return Ok(symbol.value(env))
+                }
             }
+            Err(error)
         },
         v => v,
     }
@@ -41,16 +42,14 @@ fn catch(env: &CallEnv) -> Result<Value> {
     let f = env.get_arg(1);
     match env.call("funcall", &[f]) {
         Err(error) => {
-            match error.kind() {
-                ErrorKind::Throw { tag, value } => unsafe {
+            if let Some(&Throw { ref tag, ref value }) = error.downcast_ref::<ErrorKind>() {
+                unsafe {
                     if env.eq(tag.value(env), expected_tag) {
-                        Ok(value.value(env))
-                    } else {
-                        Err(error)
+                        return Ok(value.value(env))
                     }
-                },
-                _ => Err(error),
+                }
             }
+            Err(error)
         },
         v => v,
     }
