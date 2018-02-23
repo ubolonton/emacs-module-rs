@@ -55,12 +55,19 @@ fn catch(env: &CallEnv) -> Result<Value> {
     }
 }
 
+fn parse_arg(env: &CallEnv) -> Result<String> {
+    let i: i64 = env.parse_arg(0)?;
+    let s: String = env.parse_arg(i as usize)?;
+    Ok(s)
+}
+
 pub fn init(env: &Env) -> Result<()> {
     emacs_export_functions! {
         env, format!("{}error:", *MODULE_PREFIX), {
-            "lisp-divide" => (lisp_divide, 2..2),
-            "get-type"    => (get_type, 1..1),
-            "catch"       => (catch, 2..2),
+            "lisp-divide" => (lisp_divide , 2..2),
+            "get-type"    => (get_type    , 1..1),
+            "catch"       => (catch       , 2..2),
+            "parse-arg"   => (parse_arg   , 2..5),
         }
     }
 

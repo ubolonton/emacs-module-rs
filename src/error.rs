@@ -1,5 +1,6 @@
 use std::mem;
 use std::result;
+use std::thread;
 pub use failure::{Error, ResultExt};
 
 use emacs_module::*;
@@ -19,6 +20,11 @@ const THROW: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_throw;
 pub struct TempValue {
     raw: emacs_value,
 }
+
+const INVALID_USER_PTR: &str = "rust-invalid-user-ptr";
+const WRONG_TYPE_USER_PTR: &str = "rust-wrong-type-user-ptr";
+const ERROR: &str = "rust-error";
+const PANIC: &str = "rust-panic";
 
 #[derive(Debug, Fail)]
 pub enum ErrorKind {
@@ -100,22 +106,55 @@ impl Env {
                         self.signal(symbol.raw, data.raw),
                     Some(&ErrorKind::Throw { ref tag, ref value }) =>
                         self.throw(tag.raw, value.raw),
-                    // TODO: Internal
-                    _ => self.signal_str("error", &format!("Error: {}", error))
-                        .expect("Fail to signal error to Emacs"),
+                    Some(&ErrorKind::UserPtrHasWrongType { ref expected }) =>
+                        self.signal_str(WRONG_TYPE_USER_PTR, expected)
+                        .expect(&format!("Failed to signal {}", error)),
+                    Some(&ErrorKind::UnknownUserPtr { ref expected }) =>
+                        self.signal_str(INVALID_USER_PTR, expected)
+                        .expect(&format!("Failed to signal {}", error)),
+                    _ => self.signal_str(ERROR, &format!("{}", error))
+                        .expect(&format!("Failed to signal {}", error)),
                 }
             }
         }
     }
 
+    pub(crate) fn handle_panic(&self, result: thread::Result<emacs_value>) -> emacs_value {
+        match result {
+            Ok(v) => v,
+            Err(error) => {
+                // TODO: Try to check for some common types to display?
+                self.signal_str(PANIC, &format!("{:#?}", error))
+                    .expect(&format!("Fail to signal panic {:#?}", error))
+            },
+        }
+    }
+
+    pub(crate) fn define_errors(&self) -> Result<()> {
+        self.define_error(PANIC, "Rust panic", "quit")?;
+        self.define_error(ERROR, "Rust error", "error")?;
+        // TODO: These are also sub-types of 'wrong-type-argument?
+        self.define_error(INVALID_USER_PTR, "Invalid user-pointer", ERROR)?;
+        self.define_error(WRONG_TYPE_USER_PTR, "Wrong user-pointer type", ERROR)?;
+        Ok(())
+    }
+
     // TODO: Prepare static values for the symbols.
-    pub(crate) fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
+    fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
         let message = message.into_lisp(&self)?;
         let data = self.list(&[message])?;
         let symbol = self.intern(symbol)?;
         unsafe {
             Ok(self.signal(symbol.raw, data.raw))
         }
+    }
+
+    fn define_error(&self, name: &str, message: &str, parent: &str) -> Result<Value> {
+        self.call("define-error", &[
+            self.intern(name)?,
+            message.into_lisp(self)?,
+            self.intern(parent)?
+        ])
     }
 
     fn non_local_exit_get(&self, symbol: &mut emacs_value, data: &mut emacs_value) -> FuncallExit {

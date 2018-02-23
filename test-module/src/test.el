@@ -40,6 +40,13 @@
                                (lambda () (throw 'knife "Watch out!")))
                 :type 'no-catch))
 
+(ert-deftest error::panic-parsing-arg ()
+  (let ((err (condition-case err
+                 ;; This checks that panics cannot be ignored.
+                 (ignore-errors (t/error:parse-arg 5 "1"))
+               (rust-panic err))))
+    (should (equal (car err) 'rust-panic))))
+
 (ert-deftest function::create ()
   (let ((dec (t/make-dec)))
     (should (= (funcall dec 9) 8))
@@ -99,8 +106,8 @@
 
   (let ((s (t/wrap-string "abc")))
     (should (string-prefix-p "#<user-ptr" (format "%s" s)))
-    ;; TODO: :type
-    (should-error (t/vector:to-list s))))
+    ;; TODO: Test 'rust-invalid-user-ptr. That probably requires 2 modules.
+    (should-error (t/vector:to-list s) :type 'rust-wrong-type-user-ptr)))
 
 (ert-deftest transfer::ref-cell-double-mutation ()
   ;; TODO: :type
