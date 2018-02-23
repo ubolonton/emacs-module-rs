@@ -17,8 +17,28 @@
 (ert-deftest convert::string ()
   (should (equal (t/to-uppercase "abc") "ABC")))
 
-(ert-deftest error::propagation ()
+(ert-deftest error::propagating-signal ()
   (should-error (t/error:lisp-divide 1 0) :type 'arith-error))
+
+(ert-deftest error::propagating-throw ()
+  (should (let ((msg "Catch this!"))
+            (eq (catch 'ball
+                  (t/error:get-type
+                   (lambda () (throw 'ball msg))))
+                msg))))
+
+(ert-deftest error::handling-signal ()
+  (should (eq (t/error:get-type (lambda () (error "?"))) 'error))
+  (should (eq (t/error:get-type (lambda () (user-error "?"))) 'user-error)))
+
+(ert-deftest error::handling-throw ()
+  (should (let ((msg "Catch this!"))
+            (eq (t/error:catch 'ball
+                               (lambda () (throw 'ball msg)))
+                msg)))
+  (should-error (t/error:catch 'ball
+                               (lambda () (throw 'knife "Watch out!")))
+                :type 'no-catch))
 
 (ert-deftest function::create ()
   (let ((dec (t/make-dec)))
