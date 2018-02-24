@@ -14,12 +14,14 @@ Modify `Cargo.toml`:
 crate-type = ["cdylib"]
 
 [dependencies]
+libc = "0.2.36"
 emacs = "0.5.0"
 ```
 
 Write code in `src/lib.rs`:
 
 ```rust
+extern crate libc;
 #[macro_use]
 extern crate emacs;
 
@@ -41,13 +43,17 @@ Build the module and create a symlink with `.so` extension so that Emacs can rec
 ```bash
 cargo build
 cd target/debug
-# If you are on Linux, it would be libgreeting.so
+
+# If you are on Linux
+ln -s libgreeting.so greeting.so
+
+# If you are on OS X
 ln -s libgreeting.dylib greeting.so
 ```
 
 Add `target/debug` to your Emacs's `load-path`, then load the module:
-
 ```emacs-lisp
+(add-to-list 'load-path "/path/to/target/debug")
 (require 'greeting)
 ```
 

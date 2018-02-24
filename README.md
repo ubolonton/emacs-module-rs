@@ -10,6 +10,7 @@ This provides a high-level binding to `emacs-module`. Cargo package: [emacs](htt
 Code for a minimal module looks like this:
 
 ```rust
+extern crate libc;
 #[macro_use]
 extern crate emacs;
 
