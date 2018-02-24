@@ -1,16 +1,27 @@
 language: rust
 
-os:
-  - linux
-  - osx
-
-sudo: true
-dist: trusty
-
 rust:
   - stable
 
 cache: cargo
 
-script:
+os:
+  - linux
+  - osx
+
+dist: trusty
+
+env:
+  - EVM_EMACS=emacs-25.3-travis
+
+before_install:
+  - export PATH="$HOME/.evm/bin:$PATH"
+  - git clone https://github.com/rejeep/evm.git $HOME/.evm
+  - evm config path /tmp
+  - evm install $EVM_EMACS --use --skip
+
+install:
   - cargo build --verbose --all
+
+script:
+  - ./bin/test.sh
