@@ -1,0 +1,16 @@
+language: rust
+
+os:
+  - linux
+  - osx
+
+sudo: true
+dist: trusty
+
+rust:
+  - stable
+
+cache: cargo
+
+script:
+  - cargo build --verbose --all
