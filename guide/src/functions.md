@@ -1,5 +1,5 @@
 # Writing Functions
-You can write Rust functions to be called by Lisp code. These functions must have the signature of `fn(&CallEnv) -> Result<T>`, where `T` is any type that implements `IntoLisp` trait:
+You can write Rust functions to be called by Lisp code. These functions must have the signature `fn(&CallEnv) -> Result<T>`, where `T` is any type that implements the `IntoLisp` trait:
 
 ```rust
 fn inc(env: &CallEnv) -> Result<i64> {

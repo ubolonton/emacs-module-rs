@@ -1,6 +1,6 @@
 # Error Handling
 
-Emacs Lisp's error handling mechanism uses non-local exits. Rust uses `Result` enum. `emacs-module-rs` converts between the 2 at the Rust-Lisp boundaries (more precisely, Rust-C).
+Emacs Lisp's [error handling mechanism](https://www.gnu.org/software/emacs/manual/html_node/elisp/Handling-Errors.html) uses [non-local exits](https://www.gnu.org/software/emacs/manual/html_node/elisp/Nonlocal-Exits.html). Rust uses `Result` enum. `emacs-module-rs` converts between the 2 at the Rust-Lisp boundaries (more precisely, Rust-C).
 
 The chosen error type is the `Error` struct from [`failure` crate](https://github.com/withoutboats/failure):
 

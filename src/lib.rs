@@ -134,10 +134,12 @@ impl Env {
         raw_call_value!(self, funcall, symbol.raw, args.len() as libc::ptrdiff_t, args.as_mut_ptr())
     }
 
+    // TODO: Add a method to Value instead.
     pub fn is_not_nil(&self, value: Value) -> bool {
         raw_call_no_exit!(self, is_not_nil, value.raw)
     }
 
+    // TODO: Implement Eq for Value instead.
     pub fn eq(&self, a: Value, b: Value) -> bool {
         raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
