@@ -2,7 +2,7 @@
 
 If a type implements `Transfer`, its `Box`-wrapped values can be moved into Lisp, to be owned by the GC.
 
-Lisp code sees these as opaque "embedded user pointers" (whose printed representations look like`#<user-ptr ...>`). For these values to be useful, a Rust module needs to export additional functions to manipulate them.
+Lisp code sees these as opaque "embedded user pointers" (whose printed representations look like`#<user-ptr ...>`). For these values to be usable, a Rust module needs to export additional functions to manipulate them.
 
 Since these values are owned by the GC, Rust code can only safely access them through immutable references. To make them useful, interior mutability is usually needed. Therefore `Transfer` is implemented for `RefCell`, `Mutex`, and `RwLock`. Note that currently, only `RefCell` is useful, since a GC-integrated equivalent of `Arc` has not been implemented.
 
