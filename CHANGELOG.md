@@ -1,3 +1,14 @@
+# 0.5.0 (Feb 24, 2018)
+- Error handling integration with other Rust crates is improved:
+  + The exposed error type is now `failure::Error`.
+  + `ErrorKind` enum now implements `failure::Fail`.
+- Redundant variants of `ErrorKind` were removed.
+- Errors in Rust code now signal custom error types to Lisp:
+  + `rust-error`
+  + `rust-wrong-type-user-ptr`
+- Panics are now caught and signaled to Lisp as a special error type: `rust-panic`.
+- `env.is_not_nil` and `env.eq` now return `bool` instead of `Result`.
+
 # 0.4.0 (Feb 18, 2018)
 - APIs now take `&Env` instead of `&mut Env`.
 - `Value`s are no longer passed by reference, and are lifetime-scoped by `Env`.
