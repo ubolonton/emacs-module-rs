@@ -1,12 +1,8 @@
-# Emacs Module in Rust #
+# Emacs Module in Rust [![crates.io](https://meritbadge.herokuapp.com/emacs)](https://crates.io/crates/emacs) [![doc.rs](https://docs.rs/emacs/badge.svg)](https://docs.rs/emacs/)
 
-This provides a high-level binding to `emacs-module`. Cargo package: [emacs](https://crates.io/crates/emacs/).
+[User Guide](https://ubolonton.github.io/emacs-module-rs/) | [Example](https://github.com/ubolonton/magit-libgit2)
 
-## Documentation
-
-- [User Guide](https://ubolonton.github.io/emacs-module-rs/)
-- [API Docs](https://docs.rs/emacs/)
-
+This provides a high-level binding to `emacs-module`.
 Code for a minimal module looks like this:
 
 ```rust
@@ -14,7 +10,7 @@ extern crate libc;
 #[macro_use]
 extern crate emacs;
 
-use emacs::{Env, Result, Value};
+use emacs::{Env, CallEnv, Result, Value};
 
 emacs_plugin_is_GPL_compatible!();
 emacs_module_init!(init);
