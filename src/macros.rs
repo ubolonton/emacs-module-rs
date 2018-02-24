@@ -70,7 +70,7 @@ macro_rules! emacs_plugin_is_GPL_compatible {
         /// Emacs won't load the module if this symbol is undefined.
         #[no_mangle]
         #[allow(non_upper_case_globals)]
-        pub static plugin_is_GPL_compatible: libc::c_int = 0;
+        pub static plugin_is_GPL_compatible: ::libc::c_int = 0;
     }
 }
 
