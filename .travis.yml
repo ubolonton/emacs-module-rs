@@ -1,0 +1,29 @@
+language: rust
+
+rust:
+  - stable
+
+cache: cargo
+
+os:
+  - linux
+  - osx
+
+# https://github.com/travis-ci/travis-ci/issues/9073
+sudo: required
+dist: trusty
+
+env:
+  - EVM_EMACS=emacs-25.3
+
+before_install:
+  - export PATH="$HOME/.evm/bin:$PATH"
+  - git clone https://github.com/ubolonton/evm.git $HOME/.evm
+  - evm config path /tmp
+  - evm install $EVM_EMACS --use --skip
+
+install:
+  - cargo build --verbose --all
+
+script:
+  - ./bin/test.sh
