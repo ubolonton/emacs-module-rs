@@ -15,10 +15,11 @@ dist: trusty
 
 env:
   - EVM_EMACS=emacs-25.3
+  - EVM_EMACS=emacs-26-pretest
 
 before_install:
   - export PATH="$HOME/.evm/bin:$PATH"
-  - git clone https://github.com/ubolonton/evm.git $HOME/.evm
+  - git clone -b tmp https://github.com/ubolonton/evm.git $HOME/.evm
   - evm config path /tmp
   - evm install $EVM_EMACS --use --skip
 
