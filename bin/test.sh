@@ -11,6 +11,9 @@ source $here/env.sh
 # test-module
 `cd $MODULE_DIR && ln -f -s $MODULE_ORIGINAL $MODULE_RENAMED`
 
+$EMACS --version
+echo "Testing $MODULE_DIR/$MODULE_RENAMED"
+
 $EMACS -batch -l ert \
        -l "$MODULE_DIR/$MODULE_RENAMED" \
        -l "$MODULE_DIR/rs-module.so" \
