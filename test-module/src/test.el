@@ -17,6 +17,11 @@
 (ert-deftest convert::string ()
   (should (equal (t/to-uppercase "abc") "ABC")))
 
+(ert-deftest convert::option-string ()
+  (should (equal (t/to-lowercase-or-nil "CDE") "cde"))
+  (should (equal (t/to-lowercase-or-nil nil) nil))
+  (should-error (t/to-lowercase-or-nil 1) :type 'wrong-type-argument))
+
 (ert-deftest error::propagating-signal ()
   (should-error (t/error:lisp-divide 1 0) :type 'arith-error))
 

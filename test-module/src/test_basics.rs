@@ -87,6 +87,11 @@ fn using_defuns(env: &Env) -> Result<()> {
     Ok(())
 }
 
+fn to_lowercase_or_nil(env: &CallEnv) -> Result<Value> {
+    let s: Option<String> = env.parse_arg(0)?;
+    Ok(s.map(|s| s.to_lowercase()).into_lisp(env)?)
+}
+
 pub fn init(env: &Env) -> Result<()> {
     using_fset(env)?;
     using_defuns(env)?;
@@ -99,8 +104,8 @@ pub fn init(env: &Env) -> Result<()> {
 
     emacs_export_functions! {
         env, *MODULE_PREFIX, {
-            "test" => (test, 0..0, "doc string"),
             "sum" => (sum, 2..2),
+            "to-lowercase-or-nil" => (to_lowercase_or_nil, 1..1),
         }
     }
 

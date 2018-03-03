@@ -33,6 +33,16 @@ impl FromLisp for String {
     }
 }
 
+impl<T: FromLisp> FromLisp for Option<T> {
+    fn from_lisp(value: Value) -> Result<Self> {
+        if value.env.is_not_nil(value) {
+            Ok(Some(<T as FromLisp>::from_lisp(value)?))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 impl<'a, T: Transfer> FromLisp for &'a T {
     fn from_lisp(value: Value) -> Result<Self> {
         value.env.get_raw_pointer(value.raw).map(|r| unsafe {
