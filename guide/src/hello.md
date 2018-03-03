@@ -14,8 +14,8 @@ Modify `Cargo.toml`:
 crate-type = ["cdylib"]
 
 [dependencies]
-libc = "0.2.36"
-emacs = "0.5.0"
+libc = "0.2"
+emacs = "0.5.1"
 ```
 
 Write code in `src/lib.rs`:

@@ -1,3 +1,7 @@
+# 0.5.1 (Mar 3, 2018)
+- Added `FromLisp` implementation for `Option`.
+- Fixed `IntoLisp` not working on `Option<&str>`.
+
 # 0.5.0 (Feb 24, 2018)
 - Error handling integration with other Rust crates is improved:
   + The exposed error type is now `failure::Error`.
