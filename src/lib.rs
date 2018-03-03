@@ -18,7 +18,6 @@ pub mod raw;
 mod convert;
 
 /// Main point of interaction with the Lisp runtime.
-#[repr(C)]
 #[derive(Debug)]
 pub struct Env {
     pub(crate) raw: *mut emacs_env,
@@ -49,7 +48,6 @@ pub struct CallEnv {
 /// unsafe...)
 ///
 /// [`Env`]: struct.Env.html
-#[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
