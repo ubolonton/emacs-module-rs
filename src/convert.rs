@@ -85,7 +85,7 @@ impl<'e> IntoLisp<'e> for f64 {
     }
 }
 
-impl<'e, 'a, T: AsRef<str>> IntoLisp<'e> for &'a T {
+impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
     fn into_lisp(self, env: &'e Env) -> Result<Value> {
         let cstring = CString::new(self.as_ref())?;
         let ptr = cstring.as_ptr();

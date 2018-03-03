@@ -88,8 +88,14 @@ fn using_defuns(env: &Env) -> Result<()> {
 }
 
 fn to_lowercase_or_nil(env: &CallEnv) -> Result<Value> {
-    let s: Option<String> = env.parse_arg(0)?;
-    Ok(s.map(|s| s.to_lowercase()).into_lisp(env)?)
+    let input: Option<String> = env.parse_arg(0)?;
+    let output = input.map(|s| s.to_lowercase());
+    // This tests IntoLisp for Option<&str>. It looks a bit convoluted. TODO: Improve it.
+    let r: Option<&str> = match &output {
+        &None => None,
+        &Some(ref s) => Some(s),
+    };
+    r.into_lisp(env)
 }
 
 pub fn init(env: &Env) -> Result<()> {
