@@ -5,41 +5,6 @@ use emacs::{Env, CallEnv, Value, IntoLisp, Result};
 
 use super::MODULE_PREFIX;
 
-fn test(env: &CallEnv) -> Result<Value> {
-    5.into_lisp(env)?;
-    match "1\0a".into_lisp(env) {
-        Ok(_) => {
-            println!("ok");
-            call!(env, "message", "Should not get to this because we used a string with a zero byte")?;
-        },
-        Err(_) => {
-            println!("err");
-            call!(env, "message", "Caught error here and continue")?;
-        }
-    };
-
-    println!("Start");
-    let range = std::ops::Range { start: 0, end: 2usize.pow(22) };
-    for i in range {
-        println!("{}", i);
-        let result = call!(env, "/", 1, 0);
-        match result {
-            _ => continue
-        }
-    }
-    println!("Stop");
-
-    let args = &[call!(env, "+", 1)?, "(+ 1) -> %s".into_lisp(env)?];
-    env.call("message", args)?;
-
-    // Wrong type argument: symbolp, (throw-)
-    call!(env, "throw-", 1)?;
-
-    call!(env, "error", 1)?;
-    call!(env, "+", "1\0", 2)?;
-    call!(env, "message", "Should not ever get here")
-}
-
 fn using_fset(env: &Env) -> Result<()> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
