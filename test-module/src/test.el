@@ -1,5 +1,11 @@
 (require 't)
 
+(ert-deftest lifetime ()
+  (let ((h (t/use-after-gc)))
+    (message "Here")
+    (garbage-collect)
+    (print h)))
+
 (ert-deftest convert::inc ()
   (should (= (t/inc 3) 4))
   (should (equal (documentation 't/inc) "1+"))
