@@ -1,11 +1,5 @@
 (require 't)
 
-(ert-deftest lifetime ()
-  (let ((h (t/use-after-gc)))
-    (message "Here")
-    (garbage-collect)
-    (print h)))
-
 (ert-deftest convert::inc ()
   (should (= (t/inc 3) 4))
   (should (equal (documentation 't/inc) "1+"))
@@ -134,3 +128,12 @@
 
     (should (equal (t/hash-map:set m "a" "2") "1"))
     (should (equal (t/hash-map:get m "a") "2"))))
+
+(ert-deftest lifetime::gc-after-new-string ()
+  (t/gc-after-new-string))
+
+(ert-deftest lifetime::gc-after-uninterning ()
+  (t/gc-after-uninterning))
+
+(ert-deftest lifetime::gc-after-retrieving ()
+  (t/gc-after-retrieving))
