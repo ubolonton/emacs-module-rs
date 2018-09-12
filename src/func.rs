@@ -50,11 +50,12 @@ impl HandleInit for Env {
     fn handle_init<F>(self, f: F) -> libc::c_int
     where F: Fn(&Env) -> Result<Value> + panic::RefUnwindSafe
     {
+        let env = panic::AssertUnwindSafe(self);
         let result = panic::catch_unwind(|| {
-            match self.define_errors().and_then(|_| f(&self)) {
+            match env.define_errors().and_then(|_| f(&env)) {
                 Ok(_) => 0,
                 Err(e) => {
-                    self.message(&format!("Error during initialization: {:#?}", e))
+                    env.message(&format!("Error during initialization: {:#?}", e))
                         .expect("Fail to message Emacs about error");
                     1
                 },
@@ -63,7 +64,7 @@ impl HandleInit for Env {
         match result {
             Ok(v) => v,
             Err(e) => {
-                self.message(&format!("Panic during initialization: {:#?}", e))
+                env.message(&format!("Panic during initialization: {:#?}", e))
                     .expect("Fail to message Emacs about panic");
                 2
             },
@@ -111,14 +112,15 @@ impl HandleCall for CallEnv {
         F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
         T: IntoLisp<'e>,
     {
+        let env = panic::AssertUnwindSafe(self);
         let result = panic::catch_unwind(|| {
             unsafe {
-                let rust_result = f(&self);
-                let lisp_result = rust_result.and_then(|t| t.into_lisp(&self));
-                self.maybe_exit(lisp_result)
+                let rust_result = f(&env);
+                let lisp_result = rust_result.and_then(|t| t.into_lisp(&env));
+                env.maybe_exit(lisp_result)
             }
         });
-        self.handle_panic(result)
+        env.handle_panic(result)
     }
 }
 

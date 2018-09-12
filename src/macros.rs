@@ -34,7 +34,8 @@ macro_rules! raw_call_value {
             // println!("raw_call_value {:?}", stringify!($name));
             let result: $crate::Result<$crate::raw::emacs_value> = raw_call!($env, $name $(, $args)*);
             result.map(|raw| unsafe {
-                $crate::Value::new(raw, $env)
+                // TODO: In some cases, we can get away without protection. Try optimizing them.
+                $crate::Value::new_protected(raw, $env)
             })
         }
     };

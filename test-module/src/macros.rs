@@ -82,7 +82,7 @@ macro_rules! defuns {
                 let mut _iter = args.iter();
                 // XXX: .unwrap()
                 $(let $arg = unsafe {
-                    $crate::Value::new(*_iter.next().unwrap(), &env)
+                    $crate::Value::new_protected(*_iter.next().unwrap(), &env)
                 };)*
                 wrapped(&env $(, $arg)*)
             }

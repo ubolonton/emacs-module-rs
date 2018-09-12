@@ -44,14 +44,18 @@ fn create_collect_use<'e, CF, UF>(
     Ok(v[0])
 }
 
-// macOS: Segmentation fault
+// Before fixing:
+// - macOS: Segmentation fault
+// - Linux: Segmentation fault
 fn gc_after_new_string(env: &CallEnv) -> Result<Value> {
     create_collect_use(env, 2, || {
         "0".into_lisp(env)
     }, print)
 }
 
-// macOS: Segmentation fault
+// Before fixing:
+// - macOS: Segmentation fault
+// - Linux: Segmentation fault
 fn gc_after_uninterning(env: &CallEnv) -> Result<Value> {
     // Wouldn't fail if count is 1 or 2.
     create_collect_use(env, 3, || {
@@ -61,7 +65,9 @@ fn gc_after_uninterning(env: &CallEnv) -> Result<Value> {
     }, print)
 }
 
-// macOS: Abort trap (since the violation happens in Rust)
+// Before fixing:
+// - macOS: Abort trap (since the violation happens in Rust)
+// - Linux: wrong-type-argument (maybe the runtime is a bit different in Linux?)
 fn gc_after_retrieving(env: &CallEnv) -> Result<Value> {
     create_collect_use(env, 2, || {
         // XXX: These come from `test_transfer` module.
