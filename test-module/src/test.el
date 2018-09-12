@@ -159,3 +159,9 @@
 (destructive-test gc-after-new-string)
 (destructive-test gc-after-uninterning)
 (destructive-test gc-after-retrieving)
+
+;;; TODO: The way this test is called is a bit convoluted.
+(defun t/gc-after-catching ()
+  (t/gc-after-catching-1
+   (lambda () (error "abc"))))
+(destructive-test gc-after-catching)

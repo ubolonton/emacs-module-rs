@@ -1,4 +1,5 @@
 use emacs::{Env, CallEnv, Value, IntoLisp, Result};
+use emacs::ErrorKind::{self, Signal};
 
 use super::MODULE_PREFIX;
 
@@ -82,12 +83,30 @@ fn gc_after_retrieving(env: &CallEnv) -> Result<Value> {
     })
 }
 
+fn gc_after_catching_1(env: &CallEnv) -> Result<Value> {
+    let f = env.get_arg(0);
+    create_collect_use(env, 2, || {
+        match env.call("funcall", &[f] ) {
+            Err(error) => {
+                if let Some(&Signal { ref data, .. }) = error.downcast_ref::<ErrorKind>() {
+                    unsafe {
+                        return Ok(data.value(env))
+                    }
+                }
+                Err(error)
+            },
+            v => v,
+        }
+    }, print)
+}
+
 pub fn init(env: &Env) -> Result<()> {
     emacs_export_functions! {
         env, *MODULE_PREFIX, {
             "gc-after-new-string" => (gc_after_new_string, 0..0),
             "gc-after-uninterning" => (gc_after_uninterning, 0..0),
             "gc-after-retrieving" => (gc_after_retrieving, 0..0),
+            "gc-after-catching-1" => (gc_after_catching_1, 1..1),
         }
     }
 

@@ -8,5 +8,6 @@ source $here/env.sh
 
 FN=$1
 MODULE="$MODULE_DIR/$MODULE_RENAMED"
+TEST="$PROJECT_ROOT/test-module/src/test.el"
 
-$EMACS -batch -l $MODULE -f $FN
+$EMACS -batch -l $MODULE -l $TEST -f $FN
