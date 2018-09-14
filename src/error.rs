@@ -50,9 +50,11 @@ impl TempValue {
 
     /// # Safety
     ///
-    /// This must only be temporarily used to inspect a non-local signal/throw from Lisp.
+    /// This must only be used with the [`Env`] from which the error originated.
+    ///
+    /// [`Env`]: struct.Env.html
     pub unsafe fn value<'e>(&self, env: &'e Env) -> Value<'e> {
-        Value::new(self.raw, env)
+        Value::new_protected(self.raw, env)
     }
 }
 
