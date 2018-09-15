@@ -33,7 +33,7 @@ fn init(env: &Env) -> Result<Value> {
     }
 
     emacs_export_functions! {
-        env, format!("rs-hash-map/", *MODULE_PREFIX), {
+        env, "rs-hash-map/", {
             "make" => (make, 0..0),
             "get"  => (get,  2..2),
             "set"  => (set,  3..3),
