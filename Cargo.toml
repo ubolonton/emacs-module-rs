@@ -1,6 +1,6 @@
 [package]
 name = "emacs"
-version = "0.5.1"
+version = "0.5.2"
 description = "Rust library for creating emacs modules"
 authors = [
     "Aaron France <aaron.l.france@gmail.com>",

@@ -1,3 +1,6 @@
+# 0.5.2 (Sep 15, 2018)
+- New values obtained from `Env` are now GC-protected. This fixes memory issue #2.
+
 # 0.5.1 (Mar 3, 2018)
 - Added `FromLisp` implementation for `Option`.
 - Fixed `IntoLisp` not working on `Option<&str>`.

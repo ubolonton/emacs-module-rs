@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 libc = "0.2"
-emacs = "0.5.1"
+emacs = "0.5.2"
 ```
 
 Write code in `src/lib.rs`:

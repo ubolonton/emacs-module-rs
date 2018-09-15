@@ -1,6 +1,6 @@
 [package]
 name = "test-module"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Nguyễn Tuấn Anh <ubolonton@gmail.com>"]
 publish = false
 
@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 [dependencies]
 libc = "0.2.34"
 lazy_static = "1.0.0"
-emacs = { path = "..", version = "0.5.1" }
+emacs = { path = "..", version = "0.5.2" }
 
 [dev-dependencies]
 emacs-rs-module = { path = "../rs-module", version = "0.5.0" }
