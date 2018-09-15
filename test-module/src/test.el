@@ -1,4 +1,5 @@
 (require 't)
+(require 'subr-x)
 
 (ert-deftest convert::inc ()
   (should (= (t/inc 3) 4))
@@ -128,3 +129,39 @@
 
     (should (equal (t/hash-map:set m "a" "2") "1"))
     (should (equal (t/hash-map:get m "a") "2"))))
+
+;;; Tests that, if failed, crash the whole process unrecoverably. They will be run under a
+;;; sub-process Emacs.
+(defmacro destructive-test (name)
+  `(ert-deftest ,(intern (format "destructive::%s" name)) ()
+     (let ((name ,(format "t/%s" name))
+           (exit-code)
+           (error-string)
+           (error-file (make-temp-file "destructive-fn")))
+       (setq exit-code (call-process
+                        (format "%s/%s" (getenv "PROJECT_ROOT") "bin/fn.sh")
+                        nil             ; no input
+                        (list (if (getenv "VERBOSE")
+                                  '(:file "/dev/stderr") ; ert prints stderr, not stdout.
+                                t)
+                              error-file)
+                        t
+                        name))
+       (setq error-string (with-temp-buffer
+                            (insert-file-contents error-file)
+                            (goto-char (point-max))
+                            (beginning-of-line 0)
+                            (string-trim-right
+                             (buffer-substring-no-properties (point) (point-max)))))
+       (unless (= exit-code 0)
+         (error "Exit code: %s. Error: %s" exit-code error-string)))))
+
+(destructive-test gc-after-new-string)
+(destructive-test gc-after-uninterning)
+(destructive-test gc-after-retrieving)
+
+;;; TODO: The way this test is called is a bit convoluted.
+(defun t/gc-after-catching ()
+  (t/gc-after-catching-1
+   (lambda () (error "abc"))))
+(destructive-test gc-after-catching)

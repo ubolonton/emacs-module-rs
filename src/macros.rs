@@ -7,6 +7,7 @@ macro_rules! raw_fn {
 macro_rules! raw_call_no_exit {
     ($env:ident, $name:ident $(, $args:expr)*) => {
         unsafe {
+            // println!("raw_call_no_exit {:?}", stringify!($name));
             let $name = raw_fn!($env, $name);
             $name($env.raw $(, $args)*)
         }
@@ -16,6 +17,7 @@ macro_rules! raw_call_no_exit {
 macro_rules! raw_call {
     ($env:expr, $name:ident $(, $args:expr)*) => {
         {
+            // println!("raw_call {:?}", stringify!($name));
             let env = $env;
             let result = unsafe {
                 let $name = raw_fn!(env, $name);
@@ -29,9 +31,11 @@ macro_rules! raw_call {
 macro_rules! raw_call_value {
     ($env:ident, $name:ident $(, $args:expr)*) => {
         {
+            // println!("raw_call_value {:?}", stringify!($name));
             let result: $crate::Result<$crate::raw::emacs_value> = raw_call!($env, $name $(, $args)*);
             result.map(|raw| unsafe {
-                $crate::Value::new(raw, $env)
+                // TODO: In some cases, we can get away without protection. Try optimizing them.
+                $crate::Value::new_protected(raw, $env)
             })
         }
     };
@@ -41,6 +45,7 @@ macro_rules! raw_call_value {
 macro_rules! call_lisp {
     ($env:ident, $name:expr $(, $arg:expr)*) => {
         {
+            // println!("call_lisp {:?}", $name);
             let symbol: $crate::Value = $env.intern($name)?;
             let args = &mut [$($arg.raw,)*];
             raw_call_value!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())

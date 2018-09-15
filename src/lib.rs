@@ -5,6 +5,7 @@ extern crate failure;
 extern crate failure_derive;
 
 use std::ffi::CString;
+use std::cell::RefCell;
 
 use emacs_module::{emacs_runtime, emacs_env, emacs_value};
 pub use self::error::{Error, ErrorKind, Result, ResultExt};
@@ -21,6 +22,8 @@ mod convert;
 #[derive(Debug)]
 pub struct Env {
     pub(crate) raw: *mut emacs_env,
+    /// Raw values "rooted" during the lifetime of this `Env`.
+    pub(crate) protected: RefCell<Vec<emacs_value>>,
 }
 
 /// Like [`Env`], but is available only in exported functions. This has additional methods to handle
@@ -70,6 +73,8 @@ pub trait FromLisp: Sized {
 ///
 /// [`Value`]: struct.Value.html
 pub trait IntoLisp<'e> {
+    // TODO: Consider putting the lifetime parameter on the method. Look at rustler, maybe use its
+    // env lifetime invariance trick.
     fn into_lisp(self, env: &'e Env) -> Result<Value<'e>>;
 }
 
@@ -102,13 +107,14 @@ pub trait Transfer: Sized {
 /// Public APIs.
 impl Env {
     pub unsafe fn new(raw: *mut emacs_env) -> Self {
-        Self { raw }
+        let protected = RefCell::new(vec![]);
+        Self { raw, protected }
     }
 
     pub unsafe fn from_runtime(runtime: *mut emacs_runtime) -> Self {
         let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
         let raw = get_env(runtime);
-        Self { raw }
+        Self::new(raw)
     }
 
     pub fn raw(&self) -> *mut emacs_env {
@@ -157,8 +163,20 @@ impl Env {
     }
 }
 
+// TODO: Add tests to make sure the protected values are not leaked.
+impl Drop for Env {
+    fn drop(&mut self) {
+        #[cfg(build = "debug")]
+        println!("Unrooting {} values protected by {:?}", self.protected.borrow().len(), self);
+        for raw in self.protected.borrow().iter() {
+            raw_call_no_exit!(self, free_global_ref, *raw);
+        }
+    }
+}
+
 impl<'e> Value<'e> {
-    /// Constructs a new `Value`
+    /// Constructs a new `Value`. Module code should not call this directly. It is public only for
+    /// some internal macros to use.
     ///
     /// # Safety
     ///
@@ -167,6 +185,22 @@ impl<'e> Value<'e> {
     /// [`Env`]: struct.Env.html
     pub unsafe fn new(raw: emacs_value, env: &'e Env) -> Self {
         Self { raw, env }
+    }
+
+    /// Constructs a new `Value` and "roots" its underlying raw value (GC-managed) during the
+    /// lifetime of the given [`Env`]. Module code should not call this directly. It is public only
+    /// for some internal macros to use.
+    ///
+    /// # Safety
+    ///
+    /// The raw value must still be alive. This function is needed to protect new values returned
+    /// from Emacs runtime, due to [this issue](https://github.com/ubolonton/emacs-module-rs/issues/2).
+    ///
+    /// [`Env`]: struct.Env.html
+    #[allow(unused_unsafe)]
+    pub unsafe fn new_protected(raw: emacs_value, env: &'e Env) -> Self {
+        env.protected.borrow_mut().push(raw_call_no_exit!(env, make_global_ref, raw));
+        Self::new(raw, env)
     }
 
     /// Converts this value into a Rust value of the given type.

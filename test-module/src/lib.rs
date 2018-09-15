@@ -12,6 +12,7 @@ mod macros;
 mod test_basics;
 mod test_error;
 mod test_transfer;
+mod test_lifetime;
 
 emacs_plugin_is_GPL_compatible!();
 emacs_module_init!(init);
@@ -27,6 +28,7 @@ fn init(env: &Env) -> Result<Value> {
     test_basics::init(env)?;
     test_error::init(env)?;
     test_transfer::init(env)?;
+    test_lifetime::init(env)?;
 
     env.provide(MODULE)
 }

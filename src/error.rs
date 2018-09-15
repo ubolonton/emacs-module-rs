@@ -39,6 +39,10 @@ pub enum ErrorKind {
 
 pub type Result<T> = result::Result<T, Error>;
 
+// FIX: Make this into RootedValue (or ProtectedValue), and make it safe. XXX: The problem is that
+// the raw value will be leaked when RootedValue is dropped, since `free_global_ref` requires an env
+// (thus cannot be called there). This is likely a mis-design in Emacs (In Erlang,
+// `enif_keep_resource` and `enif_release_resource` don't require an env).
 impl TempValue {
     unsafe fn new(raw: emacs_value) -> Self {
         Self { raw }
@@ -46,9 +50,11 @@ impl TempValue {
 
     /// # Safety
     ///
-    /// This must only be temporarily used to inspect a non-local signal/throw from Lisp.
+    /// This must only be used with the [`Env`] from which the error originated.
+    ///
+    /// [`Env`]: struct.Env.html
     pub unsafe fn value<'e>(&self, env: &'e Env) -> Value<'e> {
-        Value::new(self.raw, env)
+        Value::new_protected(self.raw, env)
     }
 }
 
