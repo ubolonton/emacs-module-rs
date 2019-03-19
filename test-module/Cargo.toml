@@ -1,6 +1,7 @@
 [package]
 name = "test-module"
 version = "0.5.2"
+edition = "2018"
 authors = ["Nguyễn Tuấn Anh <ubolonton@gmail.com>"]
 publish = false
 

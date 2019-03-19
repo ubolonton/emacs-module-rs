@@ -1,6 +1,7 @@
 [package]
 name = "emacs-rs-module"
 version = "0.5.0"
+edition = "2018"
 authors = ["Nguyễn Tuấn Anh <ubolonton@gmail.com>"]
 description = "An Emacs dynamic module that helps developing other dynamic modules, in Rust"
 license = "BSD-3-Clause"

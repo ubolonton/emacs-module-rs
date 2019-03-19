@@ -1,6 +1,7 @@
 [package]
 name = "emacs_module"
 version = "0.3.0"
+edition = "2018"
 authors = [
     "Aaron France <aaron.l.france@gmail.com>",
     "Joey Ezechiëls <joey.ezechiels@gmail.com>",
