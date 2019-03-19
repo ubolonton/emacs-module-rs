@@ -1,6 +1,4 @@
 
-#[macro_use]
-extern crate emacs;
 use libloading as lib;
 #[macro_use]
 extern crate lazy_static;
@@ -8,11 +6,12 @@ extern crate lazy_static;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use emacs;
 use emacs::{Env, CallEnv, Value, Result, ResultExt};
 use emacs::raw::emacs_env;
 
-emacs_plugin_is_GPL_compatible!();
-emacs_module_init!(init);
+emacs::emacs_plugin_is_GPL_compatible!();
+emacs::emacs_module_init!(init);
 
 lazy_static! {
     static ref LIBRARIES: Mutex<HashMap<String, lib::Library>> = Mutex::new(HashMap::new());
@@ -61,7 +60,7 @@ fn load_module(env: &CallEnv) -> Result<Value<'_>> {
 /// cannot be reloaded.
 fn init(env: &Env) -> Result<Value<'_>> {
     message!(env, "[{}]: defining functions...", RS_MODULE)?;
-    emacs_export_functions! {
+    emacs::emacs_export_functions! {
         env, format!("{}/", RS_MODULE), {
             "load" => (load_module, 1..1, format!("Load a dynamic module that defines {}.", INIT_FROM_ENV)),
         },

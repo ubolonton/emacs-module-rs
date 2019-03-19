@@ -1,3 +1,4 @@
+use emacs::emacs_export_functions;
 use emacs::{Env, CallEnv, Value, IntoLisp, Result};
 use emacs::ErrorKind::{self, Signal};
 

@@ -1,5 +1,6 @@
 use std;
 
+use emacs::{emacs_lambda, emacs_export_functions};
 use emacs::func::Manage;
 use emacs::{Env, CallEnv, Value, IntoLisp, Result};
 

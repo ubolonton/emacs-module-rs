@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use emacs::emacs_export_functions;
 use emacs::{Env, CallEnv, Value, IntoLisp, Result, ResultExt};
 
 use super::MODULE_PREFIX;

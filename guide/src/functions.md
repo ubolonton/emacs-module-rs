@@ -52,7 +52,7 @@ fn dec(env: &CallEnv) -> Result<i64> {
 }
 
 // This should be put inside the init function.
-emacs_export_functions! {
+emacs::emacs_export_functions! {
     env, "math-", {
         "inc" => (inc, 1..1, "Return NUMBER plus one."),
         "dec" => (dec, 1..1, "Return NUMBER minus one."),

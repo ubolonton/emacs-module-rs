@@ -1,9 +1,8 @@
 
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate emacs;
 
+use emacs;
 use emacs::{Env, Value, Result};
 
 #[macro_use]
@@ -14,8 +13,8 @@ mod test_error;
 mod test_transfer;
 mod test_lifetime;
 
-emacs_plugin_is_GPL_compatible!();
-emacs_module_init!(init);
+emacs::emacs_plugin_is_GPL_compatible!();
+emacs::emacs_module_init!(init);
 
 const MODULE: &str = "t";
 lazy_static! {
