@@ -1,6 +1,6 @@
-extern crate libc;
-extern crate emacs_module;
-extern crate failure;
+use libc;
+
+use failure;
 #[macro_use]
 extern crate failure_derive;
 
@@ -61,7 +61,7 @@ pub struct Value<'e> {
 ///
 /// [`Value`]: struct.Value.html
 pub trait FromLisp: Sized {
-    fn from_lisp(value: Value) -> Result<Self>;
+    fn from_lisp(value: Value<'_>) -> Result<Self>;
 }
 
 /// Converting a Rust type into Lisp [`Value`].
@@ -121,17 +121,17 @@ impl Env {
         self.raw
     }
 
-    pub fn intern(&self, name: &str) -> Result<Value> {
+    pub fn intern(&self, name: &str) -> Result<Value<'_>> {
         raw_call_value!(self, intern, CString::new(name)?.as_ptr())
     }
 
     // TODO: Return an enum?
-    pub fn type_of(&self, value: Value) -> Result<Value> {
+    pub fn type_of(&self, value: Value<'_>) -> Result<Value<'_>> {
         raw_call_value!(self, type_of, value.raw)
     }
 
     // TODO: Add a convenient macro?
-    pub fn call(&self, name: &str, args: &[Value]) -> Result<Value> {
+    pub fn call(&self, name: &str, args: &[Value<'_>]) -> Result<Value<'_>> {
         let symbol = self.intern(name)?;
         // XXX Hmm
         let mut args: Vec<emacs_value> = args.iter().map(|v| v.raw).collect();
@@ -139,25 +139,25 @@ impl Env {
     }
 
     // TODO: Add a method to Value instead.
-    pub fn is_not_nil(&self, value: Value) -> bool {
+    pub fn is_not_nil(&self, value: Value<'_>) -> bool {
         raw_call_no_exit!(self, is_not_nil, value.raw)
     }
 
     // TODO: Implement Eq for Value instead.
-    pub fn eq(&self, a: Value, b: Value) -> bool {
+    pub fn eq(&self, a: Value<'_>, b: Value<'_>) -> bool {
         raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
 
-    pub fn list(&self, args: &[Value]) -> Result<Value> {
+    pub fn list(&self, args: &[Value<'_>]) -> Result<Value<'_>> {
         self.call("list", args)
     }
 
-    pub fn provide(&self, name: &str) -> Result<Value> {
+    pub fn provide(&self, name: &str) -> Result<Value<'_>> {
         let name = self.intern(name)?;
         call_lisp!(self, "provide", name)
     }
 
-    pub fn message(&self, text: &str) -> Result<Value> {
+    pub fn message(&self, text: &str) -> Result<Value<'_>> {
         let text = text.into_lisp(self)?;
         call_lisp!(self, "message", text)
     }

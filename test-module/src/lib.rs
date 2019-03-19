@@ -1,4 +1,4 @@
-extern crate libc;
+
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -22,7 +22,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn init(env: &Env) -> Result<Value> {
+fn init(env: &Env) -> Result<Value<'_>> {
     env.message("Hello, Emacs!")?;
 
     test_basics::init(env)?;

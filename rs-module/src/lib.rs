@@ -1,7 +1,7 @@
-extern crate libc;
+
 #[macro_use]
 extern crate emacs;
-extern crate libloading as lib;
+use libloading as lib;
 #[macro_use]
 extern crate lazy_static;
 
@@ -36,7 +36,7 @@ macro_rules! ctx {
 /// Helper function that enables live-reloading of Emacs's dynamic module. To be reloadable, the
 /// module be loaded by this function (`rs-module/load` in ELisp) instead of Emacs'
 /// `module-load`. (Re)loading is achieved by calling `(rs-module/load "/path/to/module")`.
-fn load_module(env: &CallEnv) -> Result<Value> {
+fn load_module(env: &CallEnv) -> Result<Value<'_>> {
     let path: String = env.parse_arg(0)?;
     let mut libraries = LIBRARIES.lock()
         .expect("Failed to acquire lock for module map");
@@ -49,7 +49,7 @@ fn load_module(env: &CallEnv) -> Result<Value> {
     let l = ctx!(lib::Library::new(&path))?;
     message!(env, "[{}]: initializing...", &path)?;
     unsafe {
-        let rs_init: lib::Symbol<unsafe extern fn(*mut emacs_env) -> u32> =
+        let rs_init: lib::Symbol<'_, unsafe extern fn(*mut emacs_env) -> u32> =
             ctx!(l.get(INIT_FROM_ENV.as_bytes()))?;
         rs_init(env.raw());
     }
@@ -59,7 +59,7 @@ fn load_module(env: &CallEnv) -> Result<Value> {
 
 /// This is not exported, since this module should be loaded by Emacs's built-in `module-load`, thus
 /// cannot be reloaded.
-fn init(env: &Env) -> Result<Value> {
+fn init(env: &Env) -> Result<Value<'_>> {
     message!(env, "[{}]: defining functions...", RS_MODULE)?;
     emacs_export_functions! {
         env, format!("{}/", RS_MODULE), {

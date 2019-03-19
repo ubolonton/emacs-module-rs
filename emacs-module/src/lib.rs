@@ -8,7 +8,7 @@
 // generates a lot of constants that aren't used in this crate directly
 #![allow(dead_code)]
 
-extern crate libc;
+use libc;
 
 /// The type of all Emacs subroutines.
 pub type EmacsSubr =

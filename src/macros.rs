@@ -46,7 +46,7 @@ macro_rules! call_lisp {
     ($env:ident, $name:expr $(, $arg:expr)*) => {
         {
             // println!("call_lisp {:?}", $name);
-            let symbol: $crate::Value = $env.intern($name)?;
+            let symbol: $crate::Value<'_> = $env.intern($name)?;
             let args = &mut [$($arg.raw,)*];
             raw_call_value!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
         }
@@ -60,7 +60,7 @@ macro_rules! enable_transfers {
         }
 
         impl<'e, T> $crate::IntoLisp<'e> for $name<T> {
-            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value> {
+            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value<'_>> {
                 ::std::boxed::Box::new(self).into_lisp(env)
             }
         }

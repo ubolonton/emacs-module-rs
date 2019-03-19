@@ -8,7 +8,7 @@ use super::MODULE_PREFIX;
 fn using_fset(env: &Env) -> Result<()> {
     make_prefix!(prefix, *MODULE_PREFIX);
 
-    fn sum_and_diff(env: &CallEnv) -> Result<Value> {
+    fn sum_and_diff(env: &CallEnv) -> Result<Value<'_>> {
         let x: i64 = env.parse_arg(0)?;
         let y: i64 = env.parse_arg(1)?;
         env.list(&[
@@ -52,7 +52,7 @@ fn using_defuns(env: &Env) -> Result<()> {
         }
 
         "make-dec", "", (env) {
-            fn dec(env: &CallEnv) -> Result<Value> {
+            fn dec(env: &CallEnv) -> Result<Value<'_>> {
                 let i: i64 = env.parse_arg(0)?;
                 (i - 1).into_lisp(env)
             }
@@ -60,12 +60,12 @@ fn using_defuns(env: &Env) -> Result<()> {
         }
 
         "make-inc-and-plus", "", (env) {
-            fn inc(env: &CallEnv) -> Result<Value> {
+            fn inc(env: &CallEnv) -> Result<Value<'_>> {
                 let i: i64 = env.parse_arg(0)?;
                 (i + 1).into_lisp(env)
             }
 
-            fn plus(env: &CallEnv) -> Result<Value> {
+            fn plus(env: &CallEnv) -> Result<Value<'_>> {
                 let x: i64 = env.parse_arg(0)?;
                 let y: i64 = env.parse_arg(1)?;
                 (x + y).into_lisp(env)
@@ -87,7 +87,7 @@ fn using_defuns(env: &Env) -> Result<()> {
     Ok(())
 }
 
-fn to_lowercase_or_nil(env: &CallEnv) -> Result<Value> {
+fn to_lowercase_or_nil(env: &CallEnv) -> Result<Value<'_>> {
     let input: Option<String> = env.parse_arg(0)?;
     let output = input.map(|s| s.to_lowercase());
     // This tests IntoLisp for Option<&str>. It looks a bit convoluted. TODO: Improve it.
