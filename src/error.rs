@@ -1,6 +1,7 @@
 use std::mem;
 use std::result;
 use std::thread;
+use failure_derive::Fail;
 pub use failure::{Error, ResultExt};
 
 use emacs_module::*;

@@ -1,8 +1,6 @@
 use libc;
 
 use failure;
-#[macro_use]
-extern crate failure_derive;
 
 use std::ffi::CString;
 use std::cell::RefCell;
