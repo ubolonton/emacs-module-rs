@@ -1,6 +1,4 @@
-
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::lazy_static;
 
 use emacs;
 use emacs::{Env, Value, Result};

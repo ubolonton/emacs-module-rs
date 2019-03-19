@@ -1,7 +1,5 @@
-
 use libloading as lib;
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::lazy_static;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
