@@ -11,6 +11,7 @@ For example, a module that allows Emacs to use Rust's `HashMap` may look like th
 ``` rust
 use std::cell::RefCell;
 use std::collections::HashMap;
+use emacs;
 
 fn init(env: &Env) -> Result<Value> {
     type Map = RefCell<HashMap<String, String>>;
@@ -32,7 +33,7 @@ fn init(env: &Env) -> Result<Value> {
         Ok(map.borrow_mut().insert(key,value))
     }
 
-    emacs_export_functions! {
+    emacs::emacs_export_functions! {
         env, "rs-hash-map/", {
             "make" => (make, 0..0),
             "get"  => (get,  2..2),

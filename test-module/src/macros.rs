@@ -67,8 +67,8 @@ macro_rules! defuns {
         make_prefix!(prefix, "");
 
         $({
-            extern crate libc;
-            extern crate emacs;
+
+            use emacs;
             use emacs::Value;
             use emacs::{CallEnv, Result};
 
@@ -76,7 +76,7 @@ macro_rules! defuns {
             // See https://github.com/rust-lang/rust/issues/29599 (`concat_idents` is useless),
             // https://github.com/rust-lang/rfcs/pull/1628,
             // and https://crates.io/crates/interpolate_idents (procedural macros, nightly).
-            fn wrapper(env: &CallEnv) -> Result<Value> {
+            fn wrapper(env: &CallEnv) -> Result<Value<'_>> {
                 let args = env.raw_args();
                 // TODO: Don't do this for zero-arg functions.
                 let mut _iter = args.iter();
@@ -92,7 +92,7 @@ macro_rules! defuns {
             }
 
             let nargs = count_tts!($( $arg )*);
-            emacs_export_functions! {
+            emacs::emacs_export_functions! {
                 $env_var, $prefix, {
                     prefix!($name) => (wrapper, nargs..nargs, $doc)
                 }

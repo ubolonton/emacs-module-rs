@@ -1,6 +1,7 @@
 use std::mem;
 use std::result;
 use std::thread;
+use failure_derive::Fail;
 pub use failure::{Error, ResultExt};
 
 use emacs_module::*;
@@ -90,7 +91,7 @@ impl Env {
     }
 
     /// Converts a Rust's `Result` to either a normal value, or a non-local exit in Lisp.
-    pub(crate) unsafe fn maybe_exit(&self, result: Result<Value>) -> emacs_value {
+    pub(crate) unsafe fn maybe_exit(&self, result: Result<Value<'_>>) -> emacs_value {
         match result {
             Ok(v) => v.raw,
             Err(error) => {
@@ -140,7 +141,7 @@ impl Env {
         }
     }
 
-    fn define_error(&self, name: &str, message: &str, parent: &str) -> Result<Value> {
+    fn define_error(&self, name: &str, message: &str, parent: &str) -> Result<Value<'_>> {
         self.call("define-error", &[
             self.intern(name)?,
             message.into_lisp(self)?,

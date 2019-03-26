@@ -12,14 +12,14 @@ use super::error::Result;
 pub trait Manage {
     fn make_function<T: Into<Vec<u8>>>(
         &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void
-    ) -> Result<Value>;
+    ) -> Result<Value<'_>>;
 
-    fn fset(&self, name: &str, func: Value) -> Result<Value>;
+    fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>>;
 }
 
 pub trait HandleInit {
     fn handle_init<F>(self, f: F) -> libc::c_int
-    where F: Fn(&Env) -> Result<Value> + panic::RefUnwindSafe;
+    where F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe;
 }
 
 pub trait HandleCall {
@@ -32,7 +32,7 @@ pub trait HandleCall {
 impl Manage for Env {
     fn make_function<T: Into<Vec<u8>>>(
         &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void
-    ) -> Result<Value> {
+    ) -> Result<Value<'_>> {
         raw_call_value!(
             self, make_function,
             arities.start as isize, arities.end as isize,
@@ -40,7 +40,7 @@ impl Manage for Env {
         )
     }
 
-    fn fset(&self, name: &str, func: Value) -> Result<Value> {
+    fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>> {
         let symbol = self.intern(name)?;
         call_lisp!(self, "fset", symbol, func)
     }
@@ -48,7 +48,7 @@ impl Manage for Env {
 
 impl HandleInit for Env {
     fn handle_init<F>(self, f: F) -> libc::c_int
-    where F: Fn(&Env) -> Result<Value> + panic::RefUnwindSafe
+    where F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe
     {
         let env = panic::AssertUnwindSafe(self);
         let result = panic::catch_unwind(|| {
@@ -88,13 +88,13 @@ impl CallEnv {
         }
     }
 
-    pub fn args(&self) -> Vec<Value> {
+    pub fn args(&self) -> Vec<Value<'_>> {
         self.raw_args().iter().map(|v| unsafe {
             Value::new(*v, &self.env)
         }).collect()
     }
 
-    pub fn get_arg(&self, i: usize) -> Value {
+    pub fn get_arg(&self, i: usize) -> Value<'_> {
         let args: &[emacs_value] = self.raw_args();
         unsafe {
             Value::new(args[i], &self)

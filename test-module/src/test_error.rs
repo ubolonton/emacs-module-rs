@@ -1,3 +1,4 @@
+use emacs::emacs_export_functions;
 use emacs::{Env, CallEnv, Value, IntoLisp, Result};
 use emacs::ErrorKind::{self, Signal, Throw};
 
@@ -7,11 +8,11 @@ fn lisp_divide(env: &CallEnv) -> Result<i64> {
     let x = env.get_arg(0);
     let y = env.get_arg(1);
 
-    fn inner(env: &Env, x: i64, y: i64) -> Result<Value> {
+    fn inner(env: &Env, x: i64, y: i64) -> Result<Value<'_>> {
         call!(env, "/", x, y)
     }
 
-    fn foo<'e>(env: &'e Env, x: Value, y: Value) -> Result<Value<'e>> {
+    fn foo<'e>(env: &'e Env, x: Value<'_>, y: Value<'_>) -> Result<Value<'e>> {
         inner(
             env,
             x.into_rust()?,
@@ -22,7 +23,7 @@ fn lisp_divide(env: &CallEnv) -> Result<i64> {
     foo(env, x, y)?.into_rust()
 }
 
-fn get_type(env: &CallEnv) -> Result<Value> {
+fn get_type(env: &CallEnv) -> Result<Value<'_>> {
     let f = env.get_arg(0);
     match env.call("funcall", &[f]) {
         Err(error) => {
@@ -37,7 +38,7 @@ fn get_type(env: &CallEnv) -> Result<Value> {
     }
 }
 
-fn catch(env: &CallEnv) -> Result<Value> {
+fn catch(env: &CallEnv) -> Result<Value<'_>> {
     let expected_tag = env.get_arg(0);
     let f = env.get_arg(1);
     match env.call("funcall", &[f]) {

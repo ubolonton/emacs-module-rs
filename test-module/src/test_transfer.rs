@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use emacs::emacs_export_functions;
 use emacs::{Env, CallEnv, Value, IntoLisp, Result, ResultExt};
 
 use super::MODULE_PREFIX;
@@ -41,7 +42,7 @@ fn expose_hash_map(env: &Env) -> Result<()> {
         Ok(RefCell::new(HashMap::new()))
     }
 
-    fn get(env: &CallEnv) -> Result<Value> {
+    fn get(env: &CallEnv) -> Result<Value<'_>> {
         let map: &Map = env.parse_arg(0)?;
         let key: String = env.parse_arg(1)?;
         map.borrow().get(&key).into_lisp(env)
@@ -75,7 +76,7 @@ fn expose_custom_vector(env: &Env) -> Result<()> {
         Vector as "Vector";
     }
 
-    fn swap_components(env: &CallEnv) -> Result<Value> {
+    fn swap_components(env: &CallEnv) -> Result<Value<'_>> {
         let mut v = env.get_arg(0);
         {
             let vec: &mut Vector = unsafe { v.get_mut()? };

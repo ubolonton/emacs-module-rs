@@ -1,9 +1,6 @@
-extern crate libc;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate emacs;
+use lazy_static::lazy_static;
 
+use emacs;
 use emacs::{Env, Value, Result};
 
 #[macro_use]
@@ -14,15 +11,15 @@ mod test_error;
 mod test_transfer;
 mod test_lifetime;
 
-emacs_plugin_is_GPL_compatible!();
-emacs_module_init!(init);
+emacs::emacs_plugin_is_GPL_compatible!();
+emacs::emacs_module_init!(init);
 
 const MODULE: &str = "t";
 lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-fn init(env: &Env) -> Result<Value> {
+fn init(env: &Env) -> Result<Value<'_>> {
     env.message("Hello, Emacs!")?;
 
     test_basics::init(env)?;

@@ -13,20 +13,20 @@ use super::error::{Result, ErrorKind};
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
 impl FromLisp for i64 {
-    fn from_lisp(value: Value) -> Result<Self> {
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
         raw_call!(value.env, extract_integer, value.raw)
     }
 }
 
 impl FromLisp for f64 {
-    fn from_lisp(value: Value) -> Result<Self> {
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
         raw_call!(value.env, extract_float, value.raw)
     }
 }
 
 impl FromLisp for String {
     // TODO: Optimize this.
-    fn from_lisp(value: Value) -> Result<Self> {
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.env.string_bytes(value)?;
         // FIX
         Ok(String::from_utf8(bytes).unwrap())
@@ -34,7 +34,7 @@ impl FromLisp for String {
 }
 
 impl<T: FromLisp> FromLisp for Option<T> {
-    fn from_lisp(value: Value) -> Result<Self> {
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
         if value.env.is_not_nil(value) {
             Ok(Some(<T as FromLisp>::from_lisp(value)?))
         } else {
@@ -44,7 +44,7 @@ impl<T: FromLisp> FromLisp for Option<T> {
 }
 
 impl<'a, T: Transfer> FromLisp for &'a T {
-    fn from_lisp(value: Value) -> Result<Self> {
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
         value.env.get_raw_pointer(value.raw).map(|r| unsafe {
             &*r
         })
@@ -52,19 +52,19 @@ impl<'a, T: Transfer> FromLisp for &'a T {
 }
 
 impl<'e> IntoLisp<'e> for Value<'e> {
-    fn into_lisp(self, _env: &'e Env) -> Result<Value> {
+    fn into_lisp(self, _env: &'e Env) -> Result<Value<'_>> {
         Ok(self)
     }
 }
 
 impl<'e> IntoLisp<'e> for () {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         env.intern("nil")
     }
 }
 
 impl<'e> IntoLisp<'e> for bool {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         if self {
             env.intern("t")
         } else {
@@ -74,19 +74,19 @@ impl<'e> IntoLisp<'e> for bool {
 }
 
 impl<'e> IntoLisp<'e> for i64 {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         raw_call_value!(env, make_integer, self)
     }
 }
 
 impl<'e> IntoLisp<'e> for f64 {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         raw_call_value!(env, make_float, self)
     }
 }
 
 impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
-    fn into_lisp(self, env: &'e Env) -> Result<Value> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
         let cstring = CString::new(self.as_ref())?;
         let ptr = cstring.as_ptr();
         raw_call_value!(env, make_string, ptr, libc::strlen(ptr) as libc::ptrdiff_t)
@@ -94,13 +94,13 @@ impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
 }
 
 impl<'e> IntoLisp<'e> for String {
-    fn into_lisp(self, env: &Env) -> Result<Value> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         self.as_str().into_lisp(env)
     }
 }
 
 impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
-    fn into_lisp(self, env: &'e Env) -> Result<Value> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
         match self {
             Some(t) => t.into_lisp(env),
             None => env.intern("nil"),
@@ -109,7 +109,7 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
 }
 
 impl<'e, T: Transfer> IntoLisp<'e> for Box<T> {
-    fn into_lisp(self, env: &'e Env) -> Result<Value> {
+    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut libc::c_void;
         raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)
@@ -132,7 +132,7 @@ fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
 
 /// Implementation details.
 impl Env {
-    fn string_bytes(&self, value: Value) -> Result<Vec<u8>> {
+    fn string_bytes(&self, value: Value<'_>) -> Result<Vec<u8>> {
         let mut len: isize = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);

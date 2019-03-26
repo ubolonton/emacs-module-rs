@@ -7,13 +7,12 @@ Code for a minimal module looks like this:
 
 ```rust
 extern crate libc;
-#[macro_use]
-extern crate emacs;
 
+use emacs;
 use emacs::{Env, CallEnv, Result, Value};
 
-emacs_plugin_is_GPL_compatible!();
-emacs_module_init!(init);
+emacs::emacs_plugin_is_GPL_compatible!();
+emacs::emacs_module_init!(init);
 
 fn init(env: &Env) -> Result<Value> {
     fn hello(env: &CallEnv) -> Result<Value> {
@@ -21,7 +20,7 @@ fn init(env: &Env) -> Result<Value> {
         env.message(&format!("Hello, {}!", name))
     }
 
-    emacs_export_functions! {
+    emacs::emacs_export_functions! {
         env, "greeting-", {
             "say-hello" => (hello, 1..1)
         }

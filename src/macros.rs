@@ -46,7 +46,7 @@ macro_rules! call_lisp {
     ($env:ident, $name:expr $(, $arg:expr)*) => {
         {
             // println!("call_lisp {:?}", $name);
-            let symbol: $crate::Value = $env.intern($name)?;
+            let symbol: $crate::Value<'_> = $env.intern($name)?;
             let args = &mut [$($arg.raw,)*];
             raw_call_value!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
         }
@@ -60,7 +60,7 @@ macro_rules! enable_transfers {
         }
 
         impl<'e, T> $crate::IntoLisp<'e> for $name<T> {
-            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value> {
+            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value<'_>> {
                 ::std::boxed::Box::new(self).into_lisp(env)
             }
         }
@@ -99,9 +99,17 @@ macro_rules! emacs_module_init {
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! _emacs_format {
+    ($($inner:tt)*) => {
+        format!($($inner)*)
+    }
+}
+
 // TODO: Consider making this a function, using `data` to do the actual routing, like in
 // https://github.com/Wilfred/remacs/pull/516.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! emacs_lambda {
     // Default function-specific data is (unused) null pointer.
     ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
@@ -133,8 +141,10 @@ macro_rules! emacs_lambda {
     };
 }
 
+// TODO: Use `$crate::` instead of `local_inner_macros` once everyone is on 1.30.
+// See https://doc.rust-lang.org/nightly/edition-guide/rust-2018/macros/macro-changes.html#macros-using-local_inner_macros.
 /// Export Rust functions so that Lisp code can call them by name.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! emacs_export_functions {
     // Cut trailing comma in top-level.
     ($env:expr, $prefix:expr, $mappings:tt,) => {
@@ -160,12 +170,12 @@ macro_rules! emacs_export_functions {
 
     // Cut trailing comma in declaration.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
-        emacs_export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
+        $crate::emacs_export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
     };
     // Create a function and set a symbol to it.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
         $env.fset(
-            &format!("{}{}", $prefix, $name),
+            &_emacs_format!("{}{}", $prefix, $name),
             emacs_lambda!($env, $func, $($opt),*)?
         )
     };
