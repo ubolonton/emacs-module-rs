@@ -8,19 +8,19 @@ Since these values are owned by the GC, Rust code can only safely access them th
 
 For example, a module that allows Emacs to use Rust's `HashMap` may look like this:
 
-``` rust
+```rust
 use std::cell::RefCell;
 use std::collections::HashMap;
 use emacs;
 
-fn init(env: &Env) -> Result<Value> {
+fn init(env: &Env) -> Result<Value<'_>> {
     type Map = RefCell<HashMap<String, String>>;
 
     fn make(_: &CallEnv) -> Result<Map> {
         Ok(RefCell::new(HashMap::new()))
     }
 
-    fn get(env: &CallEnv) -> Result<Value> {
+    fn get(env: &CallEnv) -> Result<Value<'_>> {
         let map: &Map = env.parse_arg(0)?;
         let key: String = env.parse_arg(1)?;
         map.borrow().get(&key).into_lisp(env)

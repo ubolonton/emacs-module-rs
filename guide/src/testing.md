@@ -7,7 +7,7 @@ You can define tests using [ert](https://www.gnu.org/software/emacs/manual/html_
 
 Continuous testing during development can be done using `cargo-watch`:
 
-``` bash
+```bash
 cargo watch -x 'build --all' -s bin/test.sh
 ```
 

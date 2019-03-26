@@ -4,7 +4,7 @@ Emacs Lisp's [error handling mechanism](https://www.gnu.org/software/emacs/manua
 
 The chosen error type is the `Error` struct from [`failure` crate](https://github.com/withoutboats/failure):
 
-``` rust
+```rust
 pub type Result<T> = result::Result<T, failure::Error>;
 ```
 
@@ -12,7 +12,7 @@ pub type Result<T> = result::Result<T, failure::Error>;
 
 When calling a Lisp function, it's usually a good idea to propagate signaled errors with the `?` operator, letting higher level (Lisp) code handle them. If you want to handle a specific error, you can use `error.downcast_ref`:
 
-``` rust
+```rust
 match env.call("insert", &[some_text]) {
     Err(error) => {
         // Handle `buffer-read-only` error.
@@ -40,7 +40,7 @@ In addition to [standard errors](https://www.gnu.org/software/emacs/manual/html_
 
 - `rust-error`: The message is `Rust error`. This covers all generic Rust-originated errors.
 - `rust-wrong-type-user-ptr`: The message is `Wrong type user-ptr`. This happens when Rust code is passed a `user-ptr` of a type it's not expecting. It is a sub-type of `rust-error`.
-    ``` rust
+    ```rust
     // May signal if `value` holds a different type of hash map,
     // or is a `user-ptr` defined in a non-Rust module.
     let r: &RefCell<HashMap<String, String>> = value.into_rust()?;

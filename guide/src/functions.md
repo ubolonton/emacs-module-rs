@@ -7,7 +7,7 @@ fn inc(env: &CallEnv) -> Result<i64> {
     Ok(x + 1)
 }
 
-fn sum(env: &CallEnv) -> Result<Value> {
+fn sum(env: &CallEnv) -> Result<Value<'_>> {
     let x: f64 = env.parse_arg(0)?;
     let y: f64 = env.parse_arg(1)?;
     (x + y).into_lisp(env)
@@ -18,15 +18,15 @@ fn sum(env: &CallEnv) -> Result<Value> {
 
 To get a typed argument, use `env.parse_arg(i)`:
 
-``` rust
+```rust
 let path: String = env.parse_arg(0)?;
 let count: i64 = env.parse_arg(1)?;
 ```
 
 To get an argument as `Value`, use `env.get_arg(i)`. This is useful in case you want to use it as a return value or delay the conversion to Rust until necessary:
 
-``` rust
-fn get_or_default(env: &CallEnv) -> Result<Value> {
+```rust
+fn get_or_default(env: &CallEnv) -> Result<Value<'_>> {
     let map: &HashMap<String, String> = env.parse_arg(0)?;
     let key: &str = env.parse_arg(1)?;
     match m.get(key) {
@@ -36,13 +36,13 @@ fn get_or_default(env: &CallEnv) -> Result<Value> {
 }
 ```
 
-To get all arguments as a `Vec<Value>`, use `env.args()`.
+To get all arguments as a `Vec<Value<'_>>`, use `env.args()`.
 
 ## Exporting named functions
 
 To allow Lisp code to call these functions by name, use `emacs_export_funtions!`:
 
-``` rust
+```rust
 fn inc(env: &CallEnv) -> Result<i64> {
     env.parse_arg::<i64>(0)? + 1
 }

@@ -2,7 +2,7 @@
 
 Frequently-used Lisp functions are exposed as methods on `env`:
 
-``` rust
+```rust
 env.intern("defun")?;
 
 env.message("Hello")?;
@@ -14,7 +14,7 @@ env.provide("my-module")?;
 
 To call arbitrary Lisp functions, use `env.call(&str, &[Value])`:
 
-``` rust
+```rust
 // (list "1" 2)
 env.call("list", &[
     "1".into_lisp(env)?,

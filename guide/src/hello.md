@@ -14,15 +14,13 @@ Modify `Cargo.toml`:
 crate-type = ["cdylib"]
 
 [dependencies]
-libc = "0.2"
-emacs = "0.5.2"
+libc = "0.2.34"
+emacs = "0.6.0"
 ```
 
 Write code in `src/lib.rs`:
 
 ```rust
-extern crate libc;
-
 use emacs;
 use emacs::{Env, Result, Value};
 
@@ -31,7 +29,7 @@ emacs::emacs_plugin_is_GPL_compatible!();
 
 // Declare and define the init function, which Emacs will call when it loads the module.
 emacs::emacs_module_init!(init);
-fn init(env: &Env) -> Result<Value> {
+fn init(env: &Env) -> Result<Value<'_>> {
     env.message("Hello, Emacs!")?;
     env.provide("greeting")
 }
