@@ -1,3 +1,6 @@
+# 0.6.0 (Mar 26, 2019)
+- Upgraded to Rust 2018 edition.
+
 # 0.5.2 (Sep 15, 2018)
 - New values obtained from `Env` are now GC-protected. This fixes memory issue #2.
 

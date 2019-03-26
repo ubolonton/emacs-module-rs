@@ -19,7 +19,7 @@ Then use it to load other modules instead of `require` or `module-load`:
 
 ```toml
 [dev-dependencies]
-emacs-rs-module = { version = "0.5.0" }
+emacs-rs-module = { version = "0.6.0" }
 ```
 
 [magit-libgit2](https://github.com/ubolonton/magit-libgit2#interactive-development) is an example of how to set this all up, to have live-reloading on-save.
