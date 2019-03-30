@@ -8,14 +8,12 @@ use emacs_module::*;
 use super::{Env, Value};
 use super::IntoLisp;
 
-/// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
-/// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
-/// statuses in the future). FIX: Use an enum, and check for compatibility on load. Possible or not?
-pub type FuncallExit = emacs_funcall_exit;
-
-const RETURN: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_return;
-const SIGNAL: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_signal;
-const THROW: FuncallExit = emacs_funcall_exit_emacs_funcall_exit_throw;
+// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
+// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
+// statuses in the future). FIX: Use an enum, and check for compatibility on load. Possible or not?
+const RETURN: emacs_funcall_exit = emacs_funcall_exit_emacs_funcall_exit_return;
+const SIGNAL: emacs_funcall_exit = emacs_funcall_exit_emacs_funcall_exit_signal;
+const THROW: emacs_funcall_exit = emacs_funcall_exit_emacs_funcall_exit_throw;
 
 #[derive(Debug)]
 pub struct TempValue {
@@ -149,7 +147,7 @@ impl Env {
         ])
     }
 
-    fn non_local_exit_get(&self, symbol: &mut emacs_value, data: &mut emacs_value) -> FuncallExit {
+    fn non_local_exit_get(&self, symbol: &mut emacs_value, data: &mut emacs_value) -> emacs_funcall_exit {
         raw_call_no_exit!(self, non_local_exit_get, symbol as *mut emacs_value, data as *mut emacs_value)
     }
 
