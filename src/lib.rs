@@ -1,20 +1,27 @@
-use libc;
-
-use failure;
-
 use std::ffi::CString;
 use std::cell::RefCell;
 
-use emacs_module::{emacs_runtime, emacs_env, emacs_value};
+use libc;
+use failure;
+
 pub use self::error::{Error, ErrorKind, Result, ResultExt};
 
 #[macro_use]
 mod macros;
-
-pub mod func;
-pub mod error;
-pub mod raw;
 mod convert;
+
+pub mod error;
+
+#[doc(hidden)]
+pub mod func;
+
+// This exposes some raw types for module to use (e.g. in `emacs_module_init`) without having to
+// declare the raw `emacs_module` as a dependency.
+#[doc(hidden)]
+pub mod raw {
+    pub use emacs_module::{emacs_runtime, emacs_env, emacs_value};
+}
+use raw::*;
 
 /// Main point of interaction with the Lisp runtime.
 #[derive(Debug)]

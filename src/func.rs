@@ -1,3 +1,8 @@
+//! This module contains additional methods on [`Env`] that are mainly used by macros. User code
+//! should use these macros instead of this module.
+//!
+//! [`Env`]: struct.Env.html
+
 use std::ops::{Range, Deref};
 use std::panic;
 use std::slice;
