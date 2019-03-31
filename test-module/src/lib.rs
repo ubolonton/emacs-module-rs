@@ -19,13 +19,12 @@ lazy_static! {
 }
 
 #[emacs::module]
-fn init(env: &Env) -> Result<Value<'_>> {
+fn t(env: &Env) -> Result<()> {
     env.message("Hello, Emacs!")?;
 
     test_basics::init(env)?;
     test_error::init(env)?;
     test_transfer::init(env)?;
     test_lifetime::init(env)?;
-
-    env.provide(MODULE)
+    Ok(())
 }

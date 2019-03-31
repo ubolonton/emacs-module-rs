@@ -79,6 +79,7 @@ macro_rules! emacs_plugin_is_GPL_compatible {
     }
 }
 
+// TODO: Deprecate this in favor of #[module].
 /// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
 /// signature must be `fn(&Env) -> Result<Value>`.
 #[macro_export]
