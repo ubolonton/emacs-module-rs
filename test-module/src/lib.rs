@@ -12,13 +12,13 @@ mod test_transfer;
 mod test_lifetime;
 
 emacs::emacs_plugin_is_GPL_compatible!();
-emacs::emacs_module_init!(init);
 
 const MODULE: &str = "t";
 lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
+#[emacs::module]
 fn init(env: &Env) -> Result<Value<'_>> {
     env.message("Hello, Emacs!")?;
 

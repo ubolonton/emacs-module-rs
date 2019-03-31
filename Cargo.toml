@@ -17,6 +17,7 @@ libc = "0.2.34"
 failure = { version = "0.1.1", features = ["std"] }
 failure_derive = "0.1.1"
 emacs_module = { path = "emacs-module", version = "0.4.0" }
+emacs-macros = { path = "emacs-macros", version = "0.1.0" }
 
 [workspace]
 members = [

@@ -5,6 +5,7 @@ use libc;
 use failure;
 
 pub use self::error::{Error, ErrorKind, Result, ResultExt};
+pub use emacs_macros::*;
 
 #[macro_use]
 mod macros;
