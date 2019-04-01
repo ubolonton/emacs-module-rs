@@ -16,3 +16,4 @@ proc-macro = true
 [dependencies]
 syn = { version = "0.15.29", features = ["full", "extra-traits"]}
 quote = "0.6.11"
+darling = "0.9.0"
