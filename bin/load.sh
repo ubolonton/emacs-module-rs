@@ -2,6 +2,8 @@
 
 # (Re)load test-module into a running Emacs instance.
 
+set -euo pipefail
+
 here=`cd $(dirname $BASH_SOURCE); pwd`
 source $here/env.sh
 

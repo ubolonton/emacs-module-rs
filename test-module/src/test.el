@@ -1,5 +1,10 @@
-(require 't)
 (require 'subr-x)
+
+(when-let ((module-path (getenv "MODULE_DIR")))
+  (add-to-list 'load-path module-path))
+
+(require 'rs-module)
+(require 't)
 
 (ert-deftest convert::inc ()
   (should (= (t/inc 3) 4))

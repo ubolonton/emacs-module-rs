@@ -2,6 +2,8 @@
 
 # FIX: Use Rust instead of bash to drive the tests.
 
+set -euo pipefail
+
 here=`cd $(dirname $BASH_SOURCE); pwd`
 source $here/env.sh
 
@@ -12,10 +14,8 @@ source $here/env.sh
 `cd $MODULE_DIR && ln -f -s $MODULE_ORIGINAL $MODULE_RENAMED`
 
 $EMACS --version
-echo "Testing $MODULE_DIR/$MODULE_RENAMED"
+echo "Testing $MODULE_FULL"
 
 $EMACS -batch -l ert \
-       -l "$MODULE_DIR/$MODULE_RENAMED" \
-       -l "$MODULE_DIR/rs-module.so" \
        -l "$PROJECT_ROOT/test-module/src/test.el" \
        -f ert-run-tests-batch-and-exit
