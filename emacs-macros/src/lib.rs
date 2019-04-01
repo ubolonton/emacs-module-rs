@@ -15,7 +15,9 @@ use darling::FromMeta;
 #[derive(Debug, FromMeta)]
 struct ModuleOpts {
     #[darling(default)]
-    provide: Option<String>
+    provide: Option<String>,
+    #[darling(default)]
+    prefix: Option<String>,
 }
 
 /// Registers a function as the initialization hook, to be called when Emacs loads the module.
@@ -42,19 +44,32 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
         // The trimming is a workaround for https://github.com/dtolnay/syn/issues/478.
         None => lisp_name(hook.to_string().trim_start_matches("r#")),
     };
+    let prefix = match module_opts.prefix {
+        Some(v) => v,
+        None => format!("{}-", feature),
+    };
+
     let init = quote!(__emacs_module_rs_auto_init__);
+    let env = quote!(env);
     let register_init = quote! {
         ::emacs::emacs_module_init!(#init);
-
+    };
+    let define_init = quote! {
         #[allow(non_snake_case)]
-        fn #init(env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
-            #hook(env)?;
-            env.provide(#feature)
+        fn #init(#env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
+            #hook(#env)?;
+            #env.provide(#feature)
         }
+    };
+    // TODO: How about defining this in `emacs` crate?
+    let define_prefix = quote! {
+        static __EMACS_MODULE_RS_PREFIX__: &'static str = #prefix;
     };
 
     let tokens = quote! {
         #define_hook
+        #define_prefix
+        #define_init
         #register_init
     };
     tokens.into()
