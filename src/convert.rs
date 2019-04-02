@@ -57,13 +57,13 @@ impl<'e> IntoLisp<'e> for Value<'e> {
     }
 }
 
-impl<'e> IntoLisp<'e> for () {
+impl IntoLisp<'_> for () {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         env.intern("nil")
     }
 }
 
-impl<'e> IntoLisp<'e> for bool {
+impl IntoLisp<'_> for bool {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         if self {
             env.intern("t")
@@ -73,13 +73,13 @@ impl<'e> IntoLisp<'e> for bool {
     }
 }
 
-impl<'e> IntoLisp<'e> for i64 {
+impl IntoLisp<'_> for i64 {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         raw_call_value!(env, make_integer, self)
     }
 }
 
-impl<'e> IntoLisp<'e> for f64 {
+impl IntoLisp<'_> for f64 {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         raw_call_value!(env, make_float, self)
     }
@@ -93,7 +93,7 @@ impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
     }
 }
 
-impl<'e> IntoLisp<'e> for String {
+impl IntoLisp<'_> for String {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         self.as_str().into_lisp(env)
     }
@@ -108,8 +108,8 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
     }
 }
 
-impl<'e, T: Transfer> IntoLisp<'e> for Box<T> {
-    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
+impl<T: Transfer> IntoLisp<'_> for Box<T> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut libc::c_void;
         raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)
