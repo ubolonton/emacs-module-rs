@@ -65,14 +65,19 @@ pub struct Value<'e> {
 
 /// Converting Lisp [`Value`] into a Rust type.
 ///
+/// # Implementation
+///
+/// The lifetime parameter is put on the trait itself, instead of the method. This allows it to be
+/// implemented for [`Value`] itself.
+///
 /// [`Value`]: struct.Value.html
-pub trait FromLisp: Sized {
-    fn from_lisp(value: Value<'_>) -> Result<Self>;
+pub trait FromLisp<'e>: Sized {
+    fn from_lisp(value: Value<'e>) -> Result<Self>;
 }
 
 /// Converting a Rust type into Lisp [`Value`].
 ///
-/// # Implementations
+/// # Implementation
 ///
 /// The lifetime parameter is put on the trait itself, instead of the method. This allows the impl
 /// for [`Value`] to simply return the input, instead of having to create a new [`Value`].
@@ -210,7 +215,7 @@ impl<'e> Value<'e> {
     }
 
     /// Converts this value into a Rust value of the given type.
-    pub fn into_rust<T: FromLisp>(self) -> Result<T> {
+    pub fn into_rust<T: FromLisp<'e>>(self) -> Result<T> {
         FromLisp::from_lisp(self)
     }
 

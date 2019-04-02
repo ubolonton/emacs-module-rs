@@ -12,19 +12,25 @@ use super::error::{Result, ErrorKind};
 #[doc(hidden)]
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
-impl FromLisp for i64 {
+impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
+    fn from_lisp(value: Value<'e>) -> Result<Value<'a>> {
+        Ok(value)
+    }
+}
+
+impl FromLisp<'_> for i64 {
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         raw_call!(value.env, extract_integer, value.raw)
     }
 }
 
-impl FromLisp for f64 {
+impl FromLisp<'_> for f64 {
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         raw_call!(value.env, extract_float, value.raw)
     }
 }
 
-impl FromLisp for String {
+impl FromLisp<'_> for String {
     // TODO: Optimize this.
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.env.string_bytes(value)?;
@@ -33,8 +39,8 @@ impl FromLisp for String {
     }
 }
 
-impl<T: FromLisp> FromLisp for Option<T> {
-    fn from_lisp(value: Value<'_>) -> Result<Self> {
+impl<'e, T: FromLisp<'e>> FromLisp<'e> for Option<T> {
+    fn from_lisp(value: Value<'e>) -> Result<Self> {
         if value.env.is_not_nil(value) {
             Ok(Some(<T as FromLisp>::from_lisp(value)?))
         } else {
@@ -43,8 +49,8 @@ impl<T: FromLisp> FromLisp for Option<T> {
     }
 }
 
-impl<'a, T: Transfer> FromLisp for &'a T {
-    fn from_lisp(value: Value<'_>) -> Result<Self> {
+impl<'a, 'e: 'a, T: Transfer> FromLisp<'e> for &'a T {
+    fn from_lisp(value: Value<'e>) -> Result<Self> {
         value.env.get_raw_pointer(value.raw).map(|r| unsafe {
             &*r
         })
