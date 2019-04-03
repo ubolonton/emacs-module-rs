@@ -58,38 +58,32 @@ fn wrap_string(s: String) -> Result<Box<StringWrapper>> {
     Ok(Box::new(StringWrapper { s }))
 }
 
-fn using_defuns(env: &Env) -> Result<()> {
-    defuns! {
-        env, *MODULE_PREFIX;
+#[emacs::func]
+fn make_dec(env: &Env) -> Result<Value<'_>> {
+    fn dec(env: &CallEnv) -> Result<Value<'_>> {
+        let i: i64 = env.parse_arg(0)?;
+        (i - 1).into_lisp(env)
+    }
+    emacs_lambda!(env, dec, 1..1, "decrement", std::ptr::null_mut())
+}
 
-        "make-dec", "", (env) {
-            fn dec(env: &CallEnv) -> Result<Value<'_>> {
-                let i: i64 = env.parse_arg(0)?;
-                (i - 1).into_lisp(env)
-            }
-            emacs_lambda!(env, dec, 1..1, "decrement", std::ptr::null_mut())
-        }
-
-        "make-inc-and-plus", "", (env) {
-            fn inc(env: &CallEnv) -> Result<Value<'_>> {
-                let i: i64 = env.parse_arg(0)?;
-                (i + 1).into_lisp(env)
-            }
-
-            fn plus(env: &CallEnv) -> Result<Value<'_>> {
-                let x: i64 = env.parse_arg(0)?;
-                let y: i64 = env.parse_arg(1)?;
-                (x + y).into_lisp(env)
-            }
-
-            env.call("cons", &[
-                emacs_lambda!(env, inc, 1..1, "increment")?,
-                emacs_lambda!(env, plus, 2..2)?,
-            ])
-        }
+#[emacs::func]
+fn make_inc_and_plus(env: &Env) -> Result<Value<'_>> {
+    fn inc(env: &CallEnv) -> Result<Value<'_>> {
+        let i: i64 = env.parse_arg(0)?;
+        (i + 1).into_lisp(env)
     }
 
-    Ok(())
+    fn plus(env: &CallEnv) -> Result<Value<'_>> {
+        let x: i64 = env.parse_arg(0)?;
+        let y: i64 = env.parse_arg(1)?;
+        (x + y).into_lisp(env)
+    }
+
+    env.call("cons", &[
+        emacs_lambda!(env, inc, 1..1, "increment")?,
+        emacs_lambda!(env, plus, 2..2)?,
+    ])
 }
 
 fn to_lowercase_or_nil(env: &CallEnv) -> Result<Value<'_>> {
@@ -105,7 +99,6 @@ fn to_lowercase_or_nil(env: &CallEnv) -> Result<Value<'_>> {
 
 pub fn init(env: &Env) -> Result<()> {
     using_fset(env)?;
-    using_defuns(env)?;
 
     fn sum(env: &CallEnv) -> Result<i64> {
         let x: i64 = env.parse_arg(0)?;
