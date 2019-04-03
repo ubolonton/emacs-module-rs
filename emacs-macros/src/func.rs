@@ -1,12 +1,12 @@
-use proc_macro::TokenStream;
 use std::ops::Range;
 
+use darling::FromMeta;
 use quote::{quote, quote_spanned, TokenStreamExt};
 use syn::{
     self, AttributeArgs,
     export::{Span, TokenStream2}, FnArg, FnDecl, Ident, ItemFn,
+    spanned::Spanned,
 };
-use syn::spanned::Spanned;
 
 use crate::util::{concat, lisp_name, report, doc};
 
@@ -77,11 +77,19 @@ fn check_signature(decl: &FnDecl) -> (Vec<Arg>, Range<usize>, Span, TokenStream2
     (args, Range { start: i, end: i }, output_span, err)
 }
 
-pub fn parse(_attr_args: AttributeArgs, fn_item: ItemFn) -> (LispFunc, TokenStream2) {
-    let (args, arities, output_span, errors) = check_signature(&fn_item.decl);
+pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> (LispFunc, TokenStream2) {
+    let (args, arities, output_span, mut errors) = check_signature(&fn_item.decl);
     let doc = doc(&fn_item);
     let ident = fn_item.ident;
-    let name = lisp_name(&ident);
+    let mut name = lisp_name(&ident);
+    match FuncOpts::from_list(&attr_args) {
+        Ok(opts) => {
+            name = opts.name.unwrap_or(name);
+        }
+        Err(e) => {
+            errors.append_all(e.write_errors())
+        }
+    };
     (LispFunc { name, ident, args, arities, doc, output_span }, errors)
 }
 

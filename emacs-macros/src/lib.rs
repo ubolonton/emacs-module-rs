@@ -90,6 +90,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 // This works even if the function is defined inside another function which is never called.
 #[proc_macro_attribute]
 pub fn func(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
+    // TODO: Add lifetime annotations so that input references have the same lifetime as &Env.
     let define_func: TokenStream2 = item_ts.clone().into();
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
     let fn_item: ItemFn = parse_macro_input!(item_ts);
