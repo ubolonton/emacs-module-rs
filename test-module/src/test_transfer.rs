@@ -1,72 +1,77 @@
-use std::cell::RefCell;
-
-use emacs::emacs_export_functions;
-use emacs::{Env, CallEnv, Value, IntoLisp, Result, ResultExt};
-
-use super::MODULE_PREFIX;
-
 // TODO: Add tests for Mutex and RwLock, and more tests for RefCell.
-fn expose_ref_cell(env: &Env) -> Result<()> {
-    fn make(env: &CallEnv) -> Result<RefCell<i64>> {
-        let x: i64 = env.parse_arg(0)?;
+mod ref_cell {
+    use emacs::{Result, IntoLisp};
+    use std::cell::RefCell;
+
+    /// Wrap the given integer in a RefCell.
+    #[emacs::func(name = "ref-cell:make")]
+    fn make(x: i64) -> Result<RefCell<i64>> {
         Ok(RefCell::new(x))
     }
 
-    fn mutate_twice(env: &CallEnv) -> Result<()> {
-        let r = env.get_arg(0);
-        let r: &RefCell<i64> = r.into_rust()?;
-        let mut x = r.try_borrow_mut().context("test-module")?;
-        let mut y = r.try_borrow_mut().context("test-module")?;
+    #[emacs::func(name = "ref-cell:mutate-twice")]
+    fn mutate_twice(r: &RefCell<i64>) -> Result<()> {
+        let mut x = r.try_borrow_mut()?;
+        let mut y = r.try_borrow_mut()?;
         *x = 1;
         *y = 2;
         Ok(())
     }
-
-    emacs_export_functions! {
-        env, format!("{}ref-cell:", *MODULE_PREFIX), {
-            "make"         => (make, 1..1, "Wrap the given integer in a RefCell."),
-            "mutate-twice" => (mutate_twice, 1..1, "This should fail at run time due to double mut borrows."),
-        }
-    }
-
-    Ok(())
 }
 
-fn expose_hash_map(env: &Env) -> Result<()> {
+mod hash_map {
     use std::cell::RefCell;
     use std::collections::HashMap;
+    use emacs::{Result, Value, Env, IntoLisp, CallEnv};
 
     type Map = RefCell<HashMap<String, String>>;
 
-    fn make(_: &CallEnv) -> Result<Map> {
+    #[emacs::func(name = "hash-map:make")]
+    fn make() -> Result<Map> {
         Ok(RefCell::new(HashMap::new()))
     }
 
-    fn get(env: &CallEnv) -> Result<Value<'_>> {
-        let map: &Map = env.parse_arg(0)?;
-        let key: String = env.parse_arg(1)?;
+    // XXX: Bad ergonomics.
+    #[emacs::func(name = "hash-map:get")]
+    fn get<'e>(env: &'e Env, map: &Map, key: String) -> Result<Value<'e>> {
         map.borrow().get(&key).into_lisp(env)
     }
 
-    fn set(env: &CallEnv) -> Result<Option<String>> {
-        let map: &Map = env.parse_arg(0)?;
+    // XXX: Inefficient.
+    #[emacs::func(name = "hash-map:get")]
+    fn get0(map: &Map, key: String) -> Result<Option<String>> {
+        Ok(map.borrow().get(&key).map(|s| s.to_owned()))
+    }
+
+    // TODO: Standardize on wrapping with RefCell, and generate code like below.
+    #[allow(unused)]
+    fn wrapper(env: &CallEnv) -> Result<Value<'_>> {
+        type Map = HashMap<String, String>;
+
+        // User code works with the inner type, instead of RefCell.
+        fn inner(map: &Map, key: String) -> Result<Option<&String>> {
+            Ok(map.get(&key))
+        }
+
+        // Generate additional borrowing code when user func uses reference type.
+        let map = {
+            let ref_cell: &RefCell<Map> = env.parse_arg(0)?;
+            &*ref_cell.try_borrow()?
+        };
         let key: String = env.parse_arg(1)?;
-        let value: String = env.parse_arg(2)?;
+        let output = inner(map, key)?;
+        output.into_lisp(env)
+    }
+
+    #[emacs::func(name = "hash-map:set")]
+    fn set(map: &Map, key: String, value: String) -> Result<Option<String>> {
         Ok(map.borrow_mut().insert(key, value))
     }
-
-    emacs_export_functions! {
-        env, format!("{}hash-map:", *MODULE_PREFIX), {
-            "make"    => (make, 0..0),
-            "get"     => (get, 2..2),
-            "set"     => (set, 3..3),
-        }
-    }
-
-    Ok(())
 }
 
-fn expose_custom_vector(env: &Env) -> Result<()> {
+mod vector {
+    use emacs::{Result, Value, Env, IntoLisp};
+
     struct Vector {
         pub x: i64,
         pub y: i64,
@@ -76,66 +81,40 @@ fn expose_custom_vector(env: &Env) -> Result<()> {
         Vector as "Vector";
     }
 
-    fn swap_components(env: &CallEnv) -> Result<Value<'_>> {
-        let mut v = env.get_arg(0);
-        {
-            let vec: &mut Vector = unsafe { v.get_mut()? };
-            vec.x = vec.x ^ vec.y;
-            vec.y = vec.x ^ vec.y;
-            vec.x = vec.x ^ vec.y;
-        }
+    #[emacs::func(name = "vector:swap-components")]
+    fn swap_components(mut v: Value<'_>) -> Result<Value<'_>> {
+        let vec: &mut Vector = unsafe { v.get_mut()? };
+        vec.x = vec.x ^ vec.y;
+        vec.y = vec.x ^ vec.y;
+        vec.x = vec.x ^ vec.y;
         Ok(v)
     }
 
-    emacs_export_functions! {
-        env, format!("{}vector:", *MODULE_PREFIX), {
-            "swap-components" => (swap_components, 1..1)
-        }
+    #[emacs::func(name = "vector:make")]
+    fn make(x: i64, y: i64) -> Result<Box<Vector>> {
+        Ok(Box::new(Vector { x, y }))
     }
 
-    defuns! {
-        env, format!("{}vector:", *MODULE_PREFIX);
-
-        "make", "", (env, x, y) {
-            let x: i64 = x.into_rust()?;
-            let y: i64 = y.into_rust()?;
-            let b = Box::new(Vector { x, y });
-            b.into_lisp(env)
-        }
-
-        "to-list", "", (env, v) {
-            v.into_rust::<&Vector>()?;
-            let v: &Vector = v.into_rust()?;
-            let x = v.x.into_lisp(env)?;
-            let y = v.y.into_lisp(env)?;
-            env.list(&[x, y])
-        }
-
-        "add", "", (env, a, b) {
-            let a: &Vector = a.into_rust()?;
-            let b: &Vector = b.into_rust()?;
-            let (x, y) = (b.x + a.x, b.y + a.y);
-            Box::new(Vector { x, y }).into_lisp(env)
-        }
-
-        "scale-mutably", "", (env, times, v) {
-            let times: i64 = times.into_rust()?;
-            {
-                let mut v = v;
-                let v = unsafe { v.get_mut::<Vector>()? };
-                v.x *= times;
-                v.y *= times;
-            }
-            env.intern("nil")
-        }
+    #[emacs::func(name = "vector:to-list")]
+    fn to_list<'e>(env: &'e Env, v: Value<'_>) -> Result<Value<'e>> {
+        v.into_rust::<&Vector>()?;
+        let v: &Vector = v.into_rust()?;
+        let x = v.x.into_lisp(env)?;
+        let y = v.y.into_lisp(env)?;
+        env.list(&[x, y])
     }
 
-    Ok(())
-}
+    #[emacs::func(name = "vector:add")]
+    fn add(a: &Vector, b: &Vector) -> Result<Box<Vector>> {
+        let (x, y) = (b.x + a.x, b.y + a.y);
+        Ok(Box::new(Vector { x, y }))
+    }
 
-pub fn init(env: &Env) -> Result<()> {
-    expose_custom_vector(env)?;
-    expose_ref_cell(env)?;
-    expose_hash_map(env)?;
-    Ok(())
+    #[emacs::func(name = "vector:scale-mutably")]
+    fn scale_mutably(times: i64, mut v: Value<'_>) -> Result<()> {
+        let v = unsafe { v.get_mut::<Vector>()? };
+        v.x *= times;
+        v.y *= times;
+        Ok(())
+    }
 }

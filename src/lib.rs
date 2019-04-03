@@ -226,6 +226,9 @@ impl<'e> Value<'e> {
         FromLisp::from_lisp(self)
     }
 
+    // TODO: Rename this to `borrow_mut`? Also, remove FromLisp implementation for &T. On the other
+    // hand, `Value` is similar to `Rc`, so `get_mut` may make sense.
+
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.
     ///
     /// # Safety

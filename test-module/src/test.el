@@ -118,8 +118,12 @@
     (should-error (t/vector:to-list s) :type 'rust-wrong-type-user-ptr)))
 
 (ert-deftest transfer::ref-cell-double-mutation ()
-  ;; TODO: :type
-  (should-error (t/ref-cell:mutate-twice (t/ref-cell:make 5))))
+  (let ((r (t/ref-cell:make 5)))
+    ;; FIX: Don't rely on error's string representation.
+    (should (equal (condition-case err
+                       (t/ref-cell:mutate-twice r)
+                     (rust-error (format "%s" err)))
+                   "(rust-error already borrowed)"))))
 
 (ert-deftest transfer::type-check ()
   ;; TODO: :type
