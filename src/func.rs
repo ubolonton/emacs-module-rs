@@ -7,7 +7,10 @@ use std::ops::{Range, Deref};
 use std::panic;
 use std::slice;
 use std::ffi::CString;
+use std::sync::Mutex;
+use std::collections::HashMap;
 use libc;
+use lazy_static::lazy_static;
 
 use emacs_module::{EmacsSubr, emacs_value};
 use super::{Env, CallEnv, Value};
@@ -136,4 +139,12 @@ impl Deref for CallEnv {
     fn deref(&self) -> &Env {
         &self.env
     }
+}
+
+pub type Exporter = Fn(&Env) -> Result<()> + Send + 'static;
+
+type FuncMap = Mutex<HashMap<String, Box<Exporter>>>;
+
+lazy_static! {
+    pub static ref __EMACS_MODULE_RS_AUTO_FUNCS__: FuncMap = Mutex::new(HashMap::new());
 }

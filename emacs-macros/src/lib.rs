@@ -4,13 +4,15 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use syn::{
-    ItemFn, AttributeArgs,
-    parse_macro_input,
-    export::TokenStream2
-};
-use quote::quote;
+
 use darling::FromMeta;
+use quote::quote;
+use syn::{self, AttributeArgs, export::TokenStream2, ItemFn, parse_macro_input};
+
+use util::lisp_name;
+
+mod util;
+mod func;
 
 #[derive(Debug, FromMeta)]
 struct ModuleOpts {
@@ -42,7 +44,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let feature = match module_opts.provide {
         Some(v) => v,
         // The trimming is a workaround for https://github.com/dtolnay/syn/issues/478.
-        None => lisp_name(hook.to_string().trim_start_matches("r#")),
+        None => lisp_name(&hook),
     };
     let prefix = match module_opts.prefix {
         Some(v) => v,
@@ -54,9 +56,19 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let register_init = quote! {
         ::emacs::emacs_module_init!(#init);
     };
+    // TODO: Consider defining the map in user crate instead of `emacs`?
+    let export_lisp_funcs = quote! {
+        let funcs = ::emacs::func::__EMACS_MODULE_RS_AUTO_FUNCS__.lock()
+            .expect("Fail to acquire a lock on map of initializers");
+        for (name, func) in funcs.iter() {
+            println!("Defining {}", name);
+            func(#env)?
+        }
+    };
     let define_init = quote! {
         #[allow(non_snake_case)]
         fn #init(#env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
+            #export_lisp_funcs
             #hook(#env)?;
             #env.provide(#feature)
         }
@@ -75,7 +87,19 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     tokens.into()
 }
 
-// TODO: Add more extensively checks and transformations to make this more "idiomatic".
-fn lisp_name(name: &str) -> String {
-    name.replace("_", "-")
+// This works even if the function is defined inside another function which is never called.
+#[proc_macro_attribute]
+pub fn func(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
+    let define_func: TokenStream2 = item_ts.clone().into();
+    let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
+    let fn_item: ItemFn = parse_macro_input!(item_ts);
+    let (func, errors) = func::parse(attr_args, fn_item);
+    let (exporter, define_exporter) = func::gen_exporter(&func, errors);
+    let register_exporter = func::gen_registrator(&func, exporter);
+    let tokens = quote! {
+        #define_func
+        #define_exporter
+        #register_exporter
+    };
+    tokens.into()
 }

@@ -24,6 +24,13 @@ pub mod raw {
 }
 use raw::*;
 
+// External dependencies that are mostly used by macros instead of user code.
+#[doc(hidden)]
+pub mod deps {
+    pub use ctor;
+    pub use lazy_static;
+}
+
 /// Main point of interaction with the Lisp runtime.
 #[derive(Debug)]
 pub struct Env {
@@ -229,9 +236,10 @@ impl<'e> Value<'e> {
     /// - Rust code earlier in the call chain may have cloned this value.
     /// - Rust code later in the call chain may receive a clone of this value.
     ///
-    /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
-    /// guards, before moving them to Lisp, and then only access them through these guards
-    /// (which can be obtained back through [`into_rust`].
+    /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock` guards, before
+    /// moving them to Lisp, and then only access them through these guards (which can be obtained
+    /// back through [`into_rust`]). This method is for squeezing out the last bit of performance in
+    /// very rare situations.
     ///
     /// [`into_rust`]: struct.Value.html#method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {

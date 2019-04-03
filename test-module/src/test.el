@@ -18,7 +18,8 @@
 
 (ert-deftest convert::passthrough ()
   (let ((x "x"))
-    (should (eq (t/identity x) x))))
+    (should (eq (t/identity x) x))
+    (should (equal (documentation #'t/identity) "Return the input (not a copy)."))))
 
 (ert-deftest convert::string ()
   (should (equal (t/to-uppercase "abc") "ABC")))

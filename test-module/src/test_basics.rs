@@ -26,31 +26,41 @@ fn using_fset(env: &Env) -> Result<()> {
     Ok(())
 }
 
+// Docstring above, with space.
+/// 1+
+#[emacs::func]
+fn inc(x: i64) -> Result<i64> {
+    Ok(x + 1)
+}
+
+// Docstring below, without space.
+#[emacs::func]
+///Return the input (not a copy).
+fn identity(x: Value) -> Result<Value> {
+    Ok(x)
+}
+
+#[emacs::func]
+fn to_uppercase(s: String) -> Result<String> {
+    Ok(s.to_uppercase())
+}
+
+struct StringWrapper {
+    pub s: String
+}
+
+custom_types! {
+    StringWrapper as "StrWrapper";
+}
+
+#[emacs::func]
+fn wrap_string(s: String) -> Result<Box<StringWrapper>> {
+    Ok(Box::new(StringWrapper { s }))
+}
+
 fn using_defuns(env: &Env) -> Result<()> {
-    struct StringWrapper {
-        pub s: String
-    }
-
-    custom_types! {
-        StringWrapper as "StrWrapper";
-    }
-
     defuns! {
         env, *MODULE_PREFIX;
-
-        inc, "1+", (env, x) {
-            let i: i64 = x.into_rust()?;
-            (i + 1).into_lisp(env)
-        }
-
-        identity, "not even doing any conversion", (_env, x) {
-            Ok(x)
-        }
-
-        "to-uppercase", "", (env, s) {
-            let s: String = s.into_rust()?;
-            s.to_uppercase().into_lisp(env)
-        }
 
         "make-dec", "", (env) {
             fn dec(env: &CallEnv) -> Result<Value<'_>> {
@@ -76,12 +86,6 @@ fn using_defuns(env: &Env) -> Result<()> {
                 emacs_lambda!(env, inc, 1..1, "increment")?,
                 emacs_lambda!(env, plus, 2..2)?,
             ])
-        }
-
-        "wrap-string", "", (env, s) {
-            let s: String = s.into_rust()?;
-            let b = Box::new(StringWrapper { s });
-            b.into_lisp(env)
         }
     }
 
