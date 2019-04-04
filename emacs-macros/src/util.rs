@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use quote::{TokenStreamExt, ToTokens};
+use quote::{quote, TokenStreamExt, ToTokens};
 use syn::{
     export::{Span, TokenStream2},
     Ident, ItemFn
@@ -33,4 +33,12 @@ pub fn doc(fn_item: &ItemFn) -> String {
         }
     }
     doc.join("\n")
+}
+
+pub fn init_fns_path() -> TokenStream2 {
+    quote!(::emacs::globals::__INIT_FNS__)
+}
+
+pub fn prefix_path() -> TokenStream2 {
+    quote!(::emacs::globals::__PREFIX__)
 }

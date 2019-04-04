@@ -1,11 +1,10 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ffi::CString;
-use std::sync::Mutex;
 
 use failure;
 use libc;
 
+#[doc(inline)]
 pub use emacs_macros::*;
 use raw::*;
 
@@ -19,6 +18,9 @@ pub mod error;
 
 #[doc(hidden)]
 pub mod func;
+
+#[doc(hidden)]
+pub mod globals;
 
 // This exposes some raw types for module to use (e.g. in `emacs_module_init`) without having to
 // declare the raw `emacs_module` as a dependency.
@@ -258,20 +260,4 @@ impl<'e> Value<'e> {
             &mut *r
         })
     }
-}
-
-#[doc(hidden)]
-type InitFn = Fn(&Env) -> Result<()> + Send + 'static;
-
-#[doc(hidden)]
-type FnMap = Mutex<HashMap<String, Box<InitFn>>>;
-
-deps::lazy_static::lazy_static! {
-    /// Functions to be called when Emacs loads the dynamic module. These are only called if
-    /// [`#[module]`] attribute macro is used, instead of [emacs_module_init!] macro.
-    ///
-    /// [emacs_module_init!]: macro.emacs_module_init.html
-    /// [`#[module]`]: ../emacs_macros/attr.module.html
-    #[doc(hidden)]
-    pub static ref __INIT_FNS__: FnMap = Mutex::new(HashMap::new());
 }

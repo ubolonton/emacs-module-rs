@@ -8,8 +8,7 @@ use syn::{
     spanned::Spanned,
 };
 
-use crate::module;
-use crate::util::{concat, doc, lisp_name, report};
+use crate::util::{self, report};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Arg {
@@ -36,7 +35,7 @@ impl LispFunc {
     pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
         let (args, arities, output_span, mut errors) = check_signature(&fn_item.decl);
         let def = fn_item;
-        let mut name = lisp_name(&def.ident);
+        let mut name = util::lisp_name(&def.ident);
         match FuncOpts::from_list(&attr_args) {
             Ok(opts) => {
                 name = opts.name.unwrap_or(name);
@@ -93,14 +92,16 @@ impl LispFunc {
         let lisp_name = &self.name;
         let exporter = self.exporter_ident();
         let (min, max) = (self.arities.start, self.arities.end);
-        let doc = doc(&self.def);
-        let prefix = module::prefix_ident();
+        let doc = util::doc(&self.def);
+        let prefix = util::prefix_path();
         // TODO: Consider defining `extern "C" fn` directly instead of using emacs_export_functions!.
         quote! {
             #define_wrapper
             fn #exporter(env: &::emacs::Env) -> ::emacs::Result<()> {
+                let prefix = #prefix.lock()
+                    .expect("Failed to acquire read lock on module prefix");
                 ::emacs::emacs_export_functions! {
-                    env, crate::#prefix, {
+                    env, prefix, {
                         #lisp_name => (#wrapper, #min..#max, #doc),
                     }
                 }
@@ -113,26 +114,27 @@ impl LispFunc {
         let exporter = self.exporter_ident();
         let lisp_name = &self.name;
         let registrator = self.registrator_ident();
+        let init_fns = util::init_fns_path();
         quote! {
             #[::emacs::deps::ctor::ctor]
             fn #registrator() {
-                let mut funcs = ::emacs::__INIT_FNS__.lock()
-                    .expect("Fail to acquire a lock on map of exporters");
+                let mut funcs = #init_fns.lock()
+                    .expect("Failed to acquire a write lock on map of initializers");
                 funcs.insert(#lisp_name.to_owned(), ::std::boxed::Box::new(#exporter));
             }
         }
     }
 
     fn wrapper_ident(&self) -> Ident {
-        concat("__emr_O_", &self.def.ident)
+        util::concat("__emr_O_", &self.def.ident)
     }
 
     fn exporter_ident(&self) -> Ident {
-        concat("__emrs_E_", &self.def.ident)
+        util::concat("__emrs_E_", &self.def.ident)
     }
 
     fn registrator_ident(&self) -> Ident {
-        concat("__emrs_R_", &self.def.ident)
+        util::concat("__emrs_R_", &self.def.ident)
     }
 }
 
