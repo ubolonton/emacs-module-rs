@@ -81,6 +81,7 @@ impl HandleInit for Env {
 
 // TODO: Iterator and Index
 impl CallEnv {
+    #[doc(hidden)]
     pub unsafe fn new(env: Env,
                       nargs: libc::ptrdiff_t,
                       args: *mut emacs_value,
@@ -89,6 +90,7 @@ impl CallEnv {
         Self { env, nargs, args, data }
     }
 
+    #[doc(hidden)]
     pub fn raw_args(&self) -> &[emacs_value] {
         unsafe {
             slice::from_raw_parts(self.args, self.nargs)
@@ -135,6 +137,7 @@ impl HandleCall for CallEnv {
 impl Deref for CallEnv {
     type Target = Env;
 
+    #[doc(hidden)]
     fn deref(&self) -> &Env {
         &self.env
     }

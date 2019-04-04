@@ -127,17 +127,20 @@ pub trait Transfer: Sized {
 
 /// Public APIs.
 impl Env {
+    #[doc(hidden)]
     pub unsafe fn new(raw: *mut emacs_env) -> Self {
         let protected = RefCell::new(vec![]);
         Self { raw, protected }
     }
 
+    #[doc(hidden)]
     pub unsafe fn from_runtime(runtime: *mut emacs_runtime) -> Self {
         let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
         let raw = get_env(runtime);
         Self::new(raw)
     }
 
+    #[doc(hidden)]
     pub fn raw(&self) -> *mut emacs_env {
         self.raw
     }
@@ -204,6 +207,7 @@ impl<'e> Value<'e> {
     /// The raw value must come from the given [`Env`].
     ///
     /// [`Env`]: struct.Env.html
+    #[doc(hidden)]
     pub unsafe fn new(raw: emacs_value, env: &'e Env) -> Self {
         Self { raw, env }
     }
@@ -219,6 +223,7 @@ impl<'e> Value<'e> {
     ///
     /// [`Env`]: struct.Env.html
     #[allow(unused_unsafe)]
+    #[doc(hidden)]
     pub unsafe fn new_protected(raw: emacs_value, env: &'e Env) -> Self {
         env.protected.borrow_mut().push(raw_call_no_exit!(env, make_global_ref, raw));
         Self::new(raw, env)
@@ -247,7 +252,7 @@ impl<'e> Value<'e> {
     /// back through [`into_rust`]). This method is for squeezing out the last bit of performance in
     /// very rare situations.
     ///
-    /// [`into_rust`]: struct.Value.html#method.into_rust
+    /// [`into_rust`]: #method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
         self.env.get_raw_pointer(self.raw).map(|r| {
             &mut *r
