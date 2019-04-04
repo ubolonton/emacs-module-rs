@@ -8,7 +8,8 @@ use syn::{
     spanned::Spanned,
 };
 
-use crate::util::{concat, lisp_name, report, doc};
+use crate::module;
+use crate::util::{concat, doc, lisp_name, report};
 
 #[derive(Copy, Clone, Debug)]
 pub enum Arg {
@@ -19,17 +20,120 @@ pub enum Arg {
 #[derive(Debug)]
 pub struct LispFunc {
     name: String,
-    ident: Ident,
+    def: ItemFn,
     args: Vec<Arg>,
     arities: Range<usize>,
-    doc: String,
     output_span: Span,
 }
 
 #[derive(FromMeta)]
-pub struct FuncOpts {
+struct FuncOpts {
     #[darling(default)]
     name: Option<String>
+}
+
+impl LispFunc {
+    pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
+        let (args, arities, output_span, mut errors) = check_signature(&fn_item.decl);
+        let def = fn_item;
+        let mut name = lisp_name(&def.ident);
+        match FuncOpts::from_list(&attr_args) {
+            Ok(opts) => {
+                name = opts.name.unwrap_or(name);
+            }
+            Err(e) => {
+                errors.append_all(e.write_errors())
+            }
+        };
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        Ok(Self { name, def, args, arities, output_span })
+    }
+
+    pub fn render(&self) -> TokenStream2 {
+        let define_exporter = self.gen_exporter();
+        let register_exporter = self.gen_registrator();
+        let define_func = &self.def;
+        quote! {
+            #define_func
+            #define_exporter
+            #register_exporter
+        }
+    }
+
+    pub fn gen_wrapper(&self) -> TokenStream2 {
+        let mut args = TokenStream2::new();
+        for arg in &self.args {
+            match *arg {
+                Arg::Env { span } => {
+                    // TODO: Find a way not to define inner function, somehow, otherwise the reported
+                    // error is confusing (i.e expecting Env, found &Env).
+                    args.append_all(quote_spanned!(span=> &**env,))
+                }
+                Arg::Val { span, nth } => {
+                    args.append_all(quote_spanned!(span=> env.parse_arg(#nth)?,))
+                }
+            }
+        }
+        let into_lisp = quote_spanned!(self.output_span=> .into_lisp(env));
+        let inner = &self.def.ident;
+        let wrapper = self.wrapper_ident();
+        quote! {
+            fn #wrapper(env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
+                #inner(#args)?
+                #into_lisp
+            }
+        }
+    }
+
+    pub fn gen_exporter(&self) -> TokenStream2 {
+        let define_wrapper = self.gen_wrapper();
+        let wrapper = self.wrapper_ident();
+        let lisp_name = &self.name;
+        let exporter = self.exporter_ident();
+        let (min, max) = (self.arities.start, self.arities.end);
+        let doc = doc(&self.def);
+        let prefix = module::prefix_ident();
+        // TODO: Consider defining `extern "C" fn` directly instead of using emacs_export_functions!.
+        quote! {
+            #define_wrapper
+            fn #exporter(env: &::emacs::Env) -> ::emacs::Result<()> {
+                ::emacs::emacs_export_functions! {
+                    env, crate::#prefix, {
+                        #lisp_name => (#wrapper, #min..#max, #doc),
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
+
+    pub fn gen_registrator(&self) -> TokenStream2 {
+        let exporter = self.exporter_ident();
+        let lisp_name = &self.name;
+        let registrator = self.registrator_ident();
+        quote! {
+            #[::emacs::deps::ctor::ctor]
+            fn #registrator() {
+                let mut funcs = ::emacs::__INIT_FNS__.lock()
+                    .expect("Fail to acquire a lock on map of exporters");
+                funcs.insert(#lisp_name.to_owned(), ::std::boxed::Box::new(#exporter));
+            }
+        }
+    }
+
+    fn wrapper_ident(&self) -> Ident {
+        concat("__emr_O_", &self.def.ident)
+    }
+
+    fn exporter_ident(&self) -> Ident {
+        concat("__emrs_E_", &self.def.ident)
+    }
+
+    fn registrator_ident(&self) -> Ident {
+        concat("__emrs_R_", &self.def.ident)
+    }
 }
 
 fn check_signature(decl: &FnDecl) -> (Vec<Arg>, Range<usize>, Span, TokenStream2) {
@@ -75,83 +179,6 @@ fn check_signature(decl: &FnDecl) -> (Vec<Arg>, Range<usize>, Span, TokenStream2
         }
     };
     (args, Range { start: i, end: i }, output_span, err)
-}
-
-pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> (LispFunc, TokenStream2) {
-    let (args, arities, output_span, mut errors) = check_signature(&fn_item.decl);
-    let doc = doc(&fn_item);
-    let ident = fn_item.ident;
-    let mut name = lisp_name(&ident);
-    match FuncOpts::from_list(&attr_args) {
-        Ok(opts) => {
-            name = opts.name.unwrap_or(name);
-        }
-        Err(e) => {
-            errors.append_all(e.write_errors())
-        }
-    };
-    (LispFunc { name, ident, args, arities, doc, output_span }, errors)
-}
-
-pub fn gen_wrapper(func: &LispFunc, errors: TokenStream2) -> (Ident, TokenStream2) {
-    let mut args = TokenStream2::new();
-    for arg in &func.args {
-        match *arg {
-            Arg::Env { span } => {
-                // TODO: Find a way not to define inner function, somehow, otherwise the reported
-                // error is confusing (i.e expecting Env, found &Env).
-                args.append_all(quote_spanned!(span=> &**env,))
-            }
-            Arg::Val { span, nth } => {
-                args.append_all(quote_spanned!(span=> env.parse_arg(#nth)?,))
-            }
-        }
-    }
-    let into_lisp = quote_spanned!(func.output_span=> .into_lisp(env));
-    let inner = &func.ident;
-    let wrapper = concat("_emrs_O_", inner);
-    let define_wrapper = quote! {
-        #errors
-        fn #wrapper(env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
-            #inner(#args)?
-            #into_lisp
-        }
-    };
-    (wrapper, define_wrapper)
-}
-
-pub fn gen_exporter(func: &LispFunc, errors: TokenStream2) -> (Ident, TokenStream2) {
-    let (wrapper, define_wrapper) = gen_wrapper(&func, errors);
-    let lisp_name = &func.name;
-    let exporter = concat("_emrs_E_", &func.ident);
-    let (min, max) = (func.arities.start, func.arities.end);
-    let doc = &func.doc;
-    // TODO: Consider defining `extern "C" fn` directly instead of using emacs_export_functions!.
-    let defs = quote! {
-        #define_wrapper
-        fn #exporter(env: &::emacs::Env) -> ::emacs::Result<()> {
-            ::emacs::emacs_export_functions! {
-                env, crate::__EMACS_MODULE_RS_PREFIX__, {
-                    #lisp_name => (#wrapper, #min..#max, #doc),
-                }
-            }
-            Ok(())
-        }
-    };
-    (exporter, defs)
-}
-
-pub fn gen_registrator(func: &LispFunc, exporter: Ident) -> TokenStream2 {
-    let lisp_name = &func.name;
-    let registrator = concat("_emrs_R_", &func.ident);
-    quote! {
-        #[::emacs::deps::ctor::ctor]
-        fn #registrator() {
-            let mut funcs = ::emacs::func::__EMACS_MODULE_RS_AUTO_FUNCS__.lock()
-                .expect("Fail to acquire a lock on map of exporters");
-            funcs.insert(#lisp_name.to_owned(), ::std::boxed::Box::new(#exporter));
-        }
-    }
 }
 
 // XXX

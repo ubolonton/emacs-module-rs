@@ -1,11 +1,15 @@
-use std::ffi::CString;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::sync::Mutex;
 
-use libc;
 use failure;
+use libc;
+
+pub use emacs_macros::*;
+use raw::*;
 
 pub use self::error::{Error, ErrorKind, Result, ResultExt};
-pub use emacs_macros::*;
 
 #[macro_use]
 mod macros;
@@ -20,9 +24,8 @@ pub mod func;
 // declare the raw `emacs_module` as a dependency.
 #[doc(hidden)]
 pub mod raw {
-    pub use emacs_module::{emacs_runtime, emacs_env, emacs_value};
+    pub use emacs_module::{emacs_env, emacs_runtime, emacs_value};
 }
-use raw::*;
 
 // External dependencies that are mostly used by macros instead of user code.
 #[doc(hidden)]
@@ -250,4 +253,20 @@ impl<'e> Value<'e> {
             &mut *r
         })
     }
+}
+
+#[doc(hidden)]
+type InitFn = Fn(&Env) -> Result<()> + Send + 'static;
+
+#[doc(hidden)]
+type FnMap = Mutex<HashMap<String, Box<InitFn>>>;
+
+deps::lazy_static::lazy_static! {
+    /// Functions to be called when Emacs loads the dynamic module. These are only called if
+    /// [`#[module]`] attribute macro is used, instead of [emacs_module_init!] macro.
+    ///
+    /// [emacs_module_init!]: macro.emacs_module_init.html
+    /// [`#[module]`]: ../emacs_macros/attr.module.html
+    #[doc(hidden)]
+    pub static ref __INIT_FNS__: FnMap = Mutex::new(HashMap::new());
 }

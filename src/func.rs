@@ -3,23 +3,22 @@
 //!
 //! [`Env`]: struct.Env.html
 
-use std::ops::{Range, Deref};
+use std::ffi::CString;
+use std::ops::{Deref, Range};
 use std::panic;
 use std::slice;
-use std::ffi::CString;
-use std::sync::Mutex;
-use std::collections::HashMap;
-use libc;
-use lazy_static::lazy_static;
 
-use emacs_module::{EmacsSubr, emacs_value};
-use super::{Env, CallEnv, Value};
+use libc;
+
+use emacs_module::{emacs_value, EmacsSubr};
+
+use super::{CallEnv, Env, Value};
 use super::{FromLisp, IntoLisp};
 use super::error::Result;
 
 pub trait Manage {
     fn make_function<T: Into<Vec<u8>>>(
-        &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void
+        &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void,
     ) -> Result<Value<'_>>;
 
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>>;
@@ -27,19 +26,19 @@ pub trait Manage {
 
 pub trait HandleInit {
     fn handle_init<F>(self, f: F) -> libc::c_int
-    where F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe;
+        where F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe;
 }
 
 pub trait HandleCall {
     fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
-    where
-        F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
-        T: IntoLisp<'e>;
+        where
+            F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
+            T: IntoLisp<'e>;
 }
 
 impl Manage for Env {
     fn make_function<T: Into<Vec<u8>>>(
-        &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void
+        &self, function: EmacsSubr, arities: Range<usize>, doc: T, data: *mut libc::c_void,
     ) -> Result<Value<'_>> {
         raw_call_value!(
             self, make_function,
@@ -56,7 +55,7 @@ impl Manage for Env {
 
 impl HandleInit for Env {
     fn handle_init<F>(self, f: F) -> libc::c_int
-    where F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe
+        where F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe
     {
         let env = panic::AssertUnwindSafe(self);
         let result = panic::catch_unwind(|| {
@@ -66,7 +65,7 @@ impl HandleInit for Env {
                     env.message(&format!("Error during initialization: {:#?}", e))
                         .expect("Fail to message Emacs about error");
                     1
-                },
+                }
             }
         });
         match result {
@@ -75,7 +74,7 @@ impl HandleInit for Env {
                 env.message(&format!("Panic during initialization: {:#?}", e))
                     .expect("Fail to message Emacs about panic");
                 2
-            },
+            }
         }
     }
 }
@@ -116,9 +115,9 @@ impl CallEnv {
 
 impl HandleCall for CallEnv {
     fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
-    where
-        F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
-        T: IntoLisp<'e>,
+        where
+            F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
+            T: IntoLisp<'e>,
     {
         let env = panic::AssertUnwindSafe(self);
         let result = panic::catch_unwind(|| {
@@ -139,12 +138,4 @@ impl Deref for CallEnv {
     fn deref(&self) -> &Env {
         &self.env
     }
-}
-
-pub type Exporter = Fn(&Env) -> Result<()> + Send + 'static;
-
-type FuncMap = Mutex<HashMap<String, Box<Exporter>>>;
-
-lazy_static! {
-    pub static ref __EMACS_MODULE_RS_AUTO_FUNCS__: FuncMap = Mutex::new(HashMap::new());
 }
