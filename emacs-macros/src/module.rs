@@ -12,13 +12,13 @@ struct ModuleOpts {
     #[darling(default)]
     provide: Option<String>,
     #[darling(default)]
-    prefix: Option<String>,
+    separator: Option<String>,
 }
 
 #[derive(Debug)]
 pub struct Module {
     feature: String,
-    prefix: String,
+    separator: String,
     def: ItemFn,
 }
 
@@ -31,8 +31,8 @@ impl Module {
         // TODO: Type-check this.
         let def = fn_item;
         let feature = opts.provide.unwrap_or_else(|| util::lisp_name(&def.ident));
-        let prefix = opts.prefix.unwrap_or_else(|| format!("{}-", feature));
-        Ok(Self { feature, prefix, def })
+        let separator = opts.separator.unwrap_or_else(|| "-".to_owned());
+        Ok(Self { feature, separator, def })
     }
 
     pub fn render(&self) -> TokenStream2 {
@@ -57,15 +57,15 @@ impl Module {
         let env = quote!(env);
         let init = Self::init_ident();
         let feature = &self.feature;
+        let separator = &self.separator;
         let hook = &self.def.ident;
         let init_fns = util::init_fns_path();
         let prefix = util::prefix_path();
-        let prefix_value = &self.prefix;
         let set_prefix = quote! {
             {
                 let mut prefix = #prefix.lock()
                     .expect("Failed to acquire write lock on module prefix");
-                *prefix = #prefix_value;
+                *prefix = [#feature, #separator];
             }
         };
         let export_lisp_funcs = quote! {

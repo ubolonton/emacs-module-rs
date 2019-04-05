@@ -26,7 +26,7 @@ lazy_static! {
     /// attribute macro [`#[func]`].
     ///
     /// [`#[func]`]: ../emacs_macros/attr.func.html
-    pub static ref __PREFIX__: Mutex<&'static str> = Mutex::new("");
+    pub static ref __PREFIX__: Mutex<[&'static str; 2]> = Mutex::new(["", "-"]);
 }
 
 fn lisp_name(s: &str) -> String {
@@ -37,7 +37,7 @@ pub fn lisp_path(module_path: &str) -> String {
     let split = module_path.split("::");
     let mut path = __PREFIX__.lock()
         .expect("Failed to acquire read lock of module prefix")
-        .to_owned();
+        .join("");
     for segment in split.skip(1) {
         path.push_str(segment);
         path.push('-');

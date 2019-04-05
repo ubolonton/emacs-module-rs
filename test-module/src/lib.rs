@@ -21,7 +21,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
-#[emacs::module(prefix = "t/")]
+#[emacs::module(separator = "/")]
 fn t(env: &Env) -> Result<()> {
     env.message("Hello, Emacs!")?;
 
