@@ -93,13 +93,11 @@ impl LispFunc {
         let exporter = self.exporter_ident();
         let (min, max) = (self.arities.start, self.arities.end);
         let doc = util::doc(&self.def);
-        let prefix = util::prefix_path();
         // TODO: Consider defining `extern "C" fn` directly instead of using emacs_export_functions!.
         quote! {
             #define_wrapper
             fn #exporter(env: &::emacs::Env) -> ::emacs::Result<()> {
-                let prefix = #prefix.lock()
-                    .expect("Failed to acquire read lock on module prefix");
+                let prefix = ::emacs::globals::lisp_path(module_path!());
                 ::emacs::emacs_export_functions! {
                     env, prefix, {
                         #lisp_name => (#wrapper, #min..#max, #doc),

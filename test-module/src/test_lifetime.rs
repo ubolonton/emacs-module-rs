@@ -72,11 +72,11 @@ fn gc_after_uninterning(env: &CallEnv) -> Result<Value<'_>> {
 // - Linux: wrong-type-argument (maybe the runtime is a bit different in Linux?)
 fn gc_after_retrieving(env: &CallEnv) -> Result<Value<'_>> {
     create_collect_use(env, 2, || {
-        // XXX: These come from `test_transfer` module.
-        env.call(&format!("{}hash-map:make", *MODULE_PREFIX), &[])
+        // XXX: These come from `hash_map` module.
+        env.call(&format!("{}hash-map-make", *MODULE_PREFIX), &[])
     }, |env, v| {
         print(env, v)?; // Used: #<user-ptr ptr=... finalizer=...>. Free: #<misc free cell>.
-        env.call(&format!("{}hash-map:set", *MODULE_PREFIX), &[
+        env.call(&format!("{}hash-map-set", *MODULE_PREFIX), &[
             v,
             "x".into_lisp(env)?,
             "y".into_lisp(env)?,

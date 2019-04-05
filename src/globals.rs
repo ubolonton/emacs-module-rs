@@ -13,6 +13,8 @@ type FnMap = HashMap<String, Box<InitFn>>;
 
 // TODO: How about defining these in user crate, and requiring #[module] to be at the crate's root?
 lazy_static! {
+    // Keep these names in-sync with those declared in emacs_macros::util.
+
     /// Functions to be called when Emacs loads the dynamic module. These are only called if
     /// [`#[module]`] attribute macro is used, instead of [emacs_module_init!] macro.
     ///
@@ -25,4 +27,20 @@ lazy_static! {
     ///
     /// [`#[func]`]: ../emacs_macros/attr.func.html
     pub static ref __PREFIX__: Mutex<&'static str> = Mutex::new("");
+}
+
+fn lisp_name(s: &str) -> String {
+    s.replace("_", "-")
+}
+
+pub fn lisp_path(module_path: &str) -> String {
+    let split = module_path.split("::");
+    let mut path = __PREFIX__.lock()
+        .expect("Failed to acquire read lock of module prefix")
+        .to_owned();
+    for segment in split.skip(1) {
+        path.push_str(segment);
+        path.push('-');
+    }
+    lisp_name(&path)
 }
