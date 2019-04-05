@@ -112,15 +112,18 @@ impl LispFunc {
 
     pub fn gen_registrator(&self) -> TokenStream2 {
         let exporter = self.exporter_ident();
-        let lisp_name = &self.name;
         let registrator = self.registrator_ident();
         let init_fns = util::init_fns_path();
+        let name = format!("{}", self.def.ident);
         quote! {
             #[::emacs::deps::ctor::ctor]
             fn #registrator() {
+                let mut full_path = module_path!().to_owned();
+                full_path.push_str("::");
+                full_path.push_str(#name);
                 let mut funcs = #init_fns.lock()
                     .expect("Failed to acquire a write lock on map of initializers");
-                funcs.insert(#lisp_name.to_owned(), ::std::boxed::Box::new(#exporter));
+                funcs.insert(full_path, ::std::boxed::Box::new(#exporter));
             }
         }
     }
