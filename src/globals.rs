@@ -26,11 +26,16 @@ lazy_static! {
     /// attribute macro [`#[func]`].
     ///
     /// [`#[func]`]: ../emacs_macros/attr.func.html
-    pub static ref __PREFIX__: Mutex<[&'static str; 2]> = Mutex::new(["", "-"]);
+    pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
 }
 
 fn lisp_name(s: &str) -> String {
     s.replace("_", "-")
+}
+
+pub fn lisp_pkg(module_path: &str) -> String {
+    let crate_name = module_path.split("::").nth(0).expect("module_path is empty!");
+    lisp_name(&crate_name)
 }
 
 pub fn lisp_path(module_path: &str) -> String {

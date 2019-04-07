@@ -16,7 +16,7 @@ mod func;
 /// - Each dynamic module must have one and only one such function.
 /// - The function name will become name of the feature provided by the module. There is no need
 /// to explicitly call `provide` inside the initialization hook. The feature name can be overridden
-/// by the `provide` option, e.g. `#[module(provide = "feature-name")]`.
+/// by the `name` option, e.g. `#[module(name = "feature-name")]`.
 #[proc_macro_attribute]
 pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
