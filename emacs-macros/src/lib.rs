@@ -14,9 +14,9 @@ mod func;
 /// Registers a function as the initialization hook, to be called when Emacs loads the module.
 ///
 /// - Each dynamic module must have one and only one such function.
-/// - The function name will become name of the feature provided by the module. There is no need
-/// to explicitly call `provide` inside the initialization hook. The feature name can be overridden
-/// by the `name` option, e.g. `#[module(name = "feature-name")]`.
+/// - The crate name will become name of the feature provided by the module. There is no need to
+/// explicitly call `provide` inside the initialization hook. The feature name can be overridden
+/// by the `name` option, e.g. `#[module(name = "feature-name")]`, or `#[module(name(fn))]`.
 #[proc_macro_attribute]
 pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);

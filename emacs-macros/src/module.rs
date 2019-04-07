@@ -24,7 +24,7 @@ impl Module {
     // See https://github.com/TedDriggs/darling/issues/74.
     pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
         let mut module = Self {
-            feature: Name::Str(util::lisp_name(&fn_item.ident)),
+            feature: Name::Crate,
             separator: "-".to_owned(),
             def: fn_item,
         };
