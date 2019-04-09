@@ -33,20 +33,13 @@ struct FuncOpts {
 
 impl LispFunc {
     pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
-        let (args, arities, output_span, mut errors) = check_signature(&fn_item.decl);
-        let def = fn_item;
-        let mut name = util::lisp_name(&def.ident);
-        match FuncOpts::from_list(&attr_args) {
-            Ok(opts) => {
-                name = opts.name.unwrap_or(name);
-            }
-            Err(e) => {
-                errors.append_all(e.write_errors())
-            }
+        let opts: FuncOpts = match FuncOpts::from_list(&attr_args) {
+            Ok(v) => v,
+            Err(e) => return Err(e.write_errors()),
         };
-        if !errors.is_empty() {
-            return Err(errors);
-        }
+        let (args, arities, output_span) = check_signature(&fn_item.decl)?;
+        let def = fn_item;
+        let name = opts.name.unwrap_or_else(|| util::lisp_name(&def.ident));
         Ok(Self { name, def, args, arities, output_span })
     }
 
@@ -139,7 +132,7 @@ impl LispFunc {
     }
 }
 
-fn check_signature(decl: &FnDecl) -> (Vec<Arg>, Range<usize>, Span, TokenStream2) {
+fn check_signature(decl: &FnDecl) -> Result<(Vec<Arg>, Range<usize>, Span), TokenStream2> {
     let mut i: usize = 0;
     let mut err = TokenStream2::new();
     let mut has_env = false;
@@ -181,7 +174,11 @@ fn check_signature(decl: &FnDecl) -> (Vec<Arg>, Range<usize>, Span, TokenStream2
             decl.fn_token.span()
         }
     };
-    (args, Range { start: i, end: i }, output_span, err)
+    if err.is_empty() {
+        Ok((args, Range { start: i, end: i }, output_span))
+    } else {
+        Err(err)
+    }
 }
 
 // XXX
