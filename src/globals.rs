@@ -43,7 +43,7 @@ pub fn lisp_pkg(module_path: &str) -> String {
 
 pub fn lisp_path(module_path: &str) -> String {
     let split = module_path.split("::");
-    let mut path = __PREFIX__.lock()
+    let mut path = __PREFIX__.try_lock()
         .expect("Failed to acquire read lock of module prefix")
         .join("");
     for segment in split.skip(1) {
