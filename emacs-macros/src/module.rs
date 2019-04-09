@@ -17,12 +17,15 @@ struct ModuleOpts {
     name: Option<Name>,
     #[darling(default)]
     separator: Option<String>,
+    #[darling(default)]
+    mod_in_name: Option<bool>,
 }
 
 #[derive(Debug)]
 pub struct Module {
     feature: Name,
     separator: String,
+    mod_in_name: bool,
     def: ItemFn,
 }
 
@@ -66,6 +69,7 @@ impl Module {
         Ok(Self {
             feature: opts.name.unwrap_or(Name::Crate),
             separator: opts.separator.unwrap_or_else(|| "-".to_owned()),
+            mod_in_name: opts.mod_in_name.unwrap_or(true),
             def: fn_item,
         })
     }
@@ -96,6 +100,8 @@ impl Module {
         let hook = &self.def.ident;
         let init_fns = util::init_fns_path();
         let prefix = util::prefix_path();
+        let mod_in_name = util::mod_in_name_path();
+        let crate_mod_in_name = &self.mod_in_name;
         let set_feature = match &self.feature {
             Name::Crate => quote! {
                 let #feature = ::emacs::globals::lisp_pkg(module_path!());
@@ -117,6 +123,13 @@ impl Module {
                 *prefix = [#feature.clone(), #separator.to_owned()];
             }
         };
+        let configure_mod_in_name = quote! {
+            {
+                let mut mod_in_name = #mod_in_name.try_lock()
+                    .expect("Failed to acquire write lock for crate-wide mod_in_name");
+                *mod_in_name = #crate_mod_in_name;
+            }
+        };
         let export_lisp_funcs = quote! {
             {
                 let funcs = #init_fns.lock()
@@ -131,6 +144,7 @@ impl Module {
             fn #init(#env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
                 #set_feature
                 #set_prefix
+                #configure_mod_in_name
                 #export_lisp_funcs
                 #hook(#env)?;
                 #env.provide(&#feature)

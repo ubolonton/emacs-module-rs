@@ -42,3 +42,7 @@ pub fn init_fns_path() -> TokenStream2 {
 pub fn prefix_path() -> TokenStream2 {
     quote!(::emacs::globals::__PREFIX__)
 }
+
+pub fn mod_in_name_path() -> TokenStream2 {
+    quote!(::emacs::globals::__MOD_IN_NAME__)
+}

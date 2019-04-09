@@ -12,6 +12,7 @@ type InitFn = Fn(&Env) -> Result<()> + Send + 'static;
 type FnMap = HashMap<String, Box<InitFn>>;
 
 // TODO: How about defining these in user crate, and requiring #[module] to be at the crate's root?
+// TODO: We probably don't need the mutexes.
 lazy_static! {
     // Keep these names in-sync with those declared in emacs_macros::util.
 
@@ -27,6 +28,8 @@ lazy_static! {
     ///
     /// [`#[func]`]: ../emacs_macros/attr.func.html
     pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
+
+    pub static ref __MOD_IN_NAME__: Mutex<bool> = Mutex::new(true);
 }
 
 fn lisp_name(s: &str) -> String {

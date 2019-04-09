@@ -11,9 +11,17 @@ use syn::{
 use crate::util::{self, report};
 
 #[derive(Copy, Clone, Debug)]
-pub enum Arg {
+enum Arg {
     Env { span: Span },
     Val { span: Span, nth: usize },
+}
+
+#[derive(FromMeta)]
+struct FuncOpts {
+    #[darling(default)]
+    name: Option<String>,
+    #[darling(default)]
+    mod_in_name: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -23,12 +31,7 @@ pub struct LispFunc {
     args: Vec<Arg>,
     arities: Range<usize>,
     output_span: Span,
-}
-
-#[derive(FromMeta)]
-struct FuncOpts {
-    #[darling(default)]
-    name: Option<String>
+    mod_in_name: Option<bool>,
 }
 
 impl LispFunc {
@@ -40,7 +43,8 @@ impl LispFunc {
         let (args, arities, output_span) = check_signature(&fn_item.decl)?;
         let def = fn_item;
         let name = opts.name.unwrap_or_else(|| util::lisp_name(&def.ident));
-        Ok(Self { name, def, args, arities, output_span })
+        let mod_in_name = opts.mod_in_name;
+        Ok(Self { name, def, args, arities, output_span, mod_in_name })
     }
 
     pub fn render(&self) -> TokenStream2 {
@@ -86,11 +90,27 @@ impl LispFunc {
         let exporter = self.exporter_ident();
         let (min, max) = (self.arities.start, self.arities.end);
         let doc = util::doc(&self.def);
+        let path = match &self.mod_in_name {
+            None => {
+                let crate_mod_in_name = util::mod_in_name_path();
+                quote!({
+                    let crate_mod_in_name = #crate_mod_in_name.try_lock()
+                        .expect("Failed to acquire a read lock on crate-wide mod_in_name");
+                    if *crate_mod_in_name {
+                        module_path!()
+                    } else {
+                        ""
+                    }
+                })
+            },
+            Some(true) => quote!(module_path!()),
+            Some(false) => quote!(""),
+        };
         // TODO: Consider defining `extern "C" fn` directly instead of using emacs_export_functions!.
         quote! {
             #define_wrapper
             fn #exporter(env: &::emacs::Env) -> ::emacs::Result<()> {
-                let prefix = ::emacs::globals::lisp_path(module_path!());
+                let prefix = ::emacs::globals::lisp_path(#path);
                 ::emacs::emacs_export_functions! {
                     env, prefix, {
                         #lisp_name => (#wrapper, #min..#max, #doc),
