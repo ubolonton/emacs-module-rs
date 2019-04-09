@@ -1,15 +1,22 @@
+use darling::{self, FromMeta};
 use quote::quote;
-use syn::{
-    AttributeArgs, export::TokenStream2,
-    ItemFn,
-};
+use syn::{export::TokenStream2, AttributeArgs, ItemFn};
 
-use crate::util::{self, report};
+use crate::util;
 
 #[derive(Debug)]
-pub enum Name {
+enum Name {
     Crate,
-    Str(String)
+    Fn,
+    Str(String),
+}
+
+#[derive(Debug, FromMeta)]
+struct ModuleOpts {
+    #[darling(default)]
+    name: Option<Name>,
+    #[darling(default)]
+    separator: Option<String>,
 }
 
 #[derive(Debug)]
@@ -19,106 +26,48 @@ pub struct Module {
     def: ItemFn,
 }
 
-impl Module {
-    // TODO XXX FIX: Figure out how to do this with `darling`. It must already have a way, right?
-    // See https://github.com/TedDriggs/darling/issues/74.
-    pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
-        let mut module = Self {
-            feature: Name::Crate,
-            separator: "-".to_owned(),
-            def: fn_item,
-        };
-        let mut err = TokenStream2::new();
-        let errors = &mut err;
-        let mut name_configured = false;
-        for attr_arg in &attr_args {
-            match attr_arg {
-                syn::NestedMeta::Literal(l) => {
-                    report(errors, l, "Literal options are not supported")
-                }
-                syn::NestedMeta::Meta(m) => {
-                    match m {
-                        syn::Meta::Word(i) => {
-                            report(errors, i, "Unknown option")
+/// We don't use the derived impl provided by darling, since we want a different syntax.
+/// See https://github.com/TedDriggs/darling/issues/74.
+impl FromMeta for Name {
+    fn from_list(outer: &[syn::NestedMeta]) -> darling::Result<Name> {
+        match outer.len() {
+            0 => Err(darling::Error::too_few_items(1)),
+            1 => {
+                let elem = &outer[0];
+                match elem {
+                    syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) => {
+                        match ident.to_string().as_ref() {
+                            "fn" => Ok(Name::Fn),
+                            "crate" => Ok(Name::Crate),
+                            _ => Err(darling::Error::custom("Expected crate/fn").with_span(ident)),
                         }
-                        syn::Meta::NameValue(syn::MetaNameValue { ident, lit, .. }) => {
-                            match format!("{}", ident).as_str() {
-                                "name" => {
-                                    match lit {
-                                        syn::Lit::Str(name) => {
-                                            if name_configured {
-                                                report(errors, m, "Name was already specified");
-                                            } else {
-                                                name_configured = true;
-                                                module.feature = Name::Str(name.value());
-                                            }
-                                        }
-                                        _ => report(errors, lit, "Expected string")
-                                    }
-                                }
-                                "separator" => {
-                                    match lit {
-                                        syn::Lit::Str(separator) => {
-                                            module.separator = separator.value();
-                                        }
-                                        _ => report(errors, lit, "Expected string")
-                                    }
-                                }
-                                _ => report(errors, ident, "Unknown option")
-                            }
-                        }
-                        syn::Meta::List(syn::MetaList { ident , nested, .. }) => {
-                            match format!("{}", ident).as_str() {
-                                "name" => {
-                                    let mut i =  0;
-                                    for m in nested {
-                                        i += 1;
-                                        if i > 1 {
-                                            report(errors, m, "Too many args");
-                                            continue;
-                                        }
-                                        match m {
-                                            syn::NestedMeta::Meta(syn::Meta::Word(source)) => {
-                                                match format!("{}", source).as_str() {
-                                                    "fn" => {
-                                                        if name_configured {
-                                                            report(errors, m, "Name was already specified");
-                                                        } else {
-                                                            name_configured = true;
-                                                            module.feature = Name::Str(util::lisp_name(&module.def.ident));
-                                                        }
-                                                    }
-                                                    "crate" => {
-                                                        if name_configured {
-                                                            report(errors, m, "Name was already specified");
-                                                        } else {
-                                                            name_configured = true;
-                                                            module.feature = Name::Crate;
-                                                        }
-                                                    }
-                                                    _ => report(errors, source, "Expected crate/fn")
-                                                }
-                                            }
-                                            _ => {
-                                                report(errors, nested, "Expected crate/fn")
-                                            }
-                                        }
-                                    }
-                                    if i == 0 {
-                                        report(errors, m, "Expected name(crate) or name(fn)");
-                                    }
-                                }
-                                _ => report(errors, ident, "Unknown option")
-                            }
-                        }
+                    }
+                    syn::NestedMeta::Literal(syn::Lit::Str(ref lit)) => Ok(Name::Str(lit.value())),
+                    _ => {
+                        Err(darling::Error::custom("Expected crate/fn or a string").with_span(elem))
                     }
                 }
             }
+            _ => Err(darling::Error::too_many_items(1)),
         }
-        if !err.is_empty() {
-            return Err(err);
-        }
-        Ok(module)
+    }
+
+    fn from_string(lit: &str) -> darling::Result<Name> {
+        Ok(Name::Str(lit.to_owned()))
+    }
+}
+
+impl Module {
+    pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
+        let opts: ModuleOpts = match ModuleOpts::from_list(&attr_args) {
+            Ok(v) => v,
+            Err(e) => return Err(e.write_errors()),
+        };
+        Ok(Self {
+            feature: opts.name.unwrap_or(Name::Crate),
+            separator: opts.separator.unwrap_or_else(|| "-".to_owned()),
+            def: fn_item,
+        })
     }
 
     pub fn render(&self) -> TokenStream2 {
@@ -148,11 +97,17 @@ impl Module {
         let init_fns = util::init_fns_path();
         let prefix = util::prefix_path();
         let set_feature = match &self.feature {
-            Name::Str(name) => quote! {
-                let #feature = #name.to_owned();
-            },
             Name::Crate => quote! {
                 let #feature = ::emacs::globals::lisp_pkg(module_path!());
+            },
+            Name::Fn => {
+                let name = util::lisp_name(hook);
+                quote! {
+                    let #feature = #name.to_owned();
+                }
+            }
+            Name::Str(name) => quote! {
+                let #feature = #name.to_owned();
             },
         };
         let set_prefix = quote! {
