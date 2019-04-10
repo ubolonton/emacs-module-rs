@@ -25,6 +25,7 @@ macro_rules! custom_types {
 
 macro_rules! call {
     ($env:ident, $name:expr $(, $arg:expr)*) => {{
+        use emacs::IntoLisp;
         let args = &[$($arg.into_lisp($env)?,)*];
         $env.call($name, args)
     }}

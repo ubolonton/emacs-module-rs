@@ -1,5 +1,5 @@
 use emacs::{emacs_export_functions, func};
-use emacs::{CallEnv, Env, IntoLisp, Result, Value};
+use emacs::{CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
 
 use super::MODULE_PREFIX;

@@ -72,12 +72,12 @@ impl LispFunc {
                 }
             }
         }
-        let into_lisp = quote_spanned!(self.output_span=> .into_lisp(env));
+        let into_lisp = quote_spanned! {self.output_span=> ::emacs::IntoLisp::into_lisp(result, env)};
         let inner = &self.def.ident;
         let wrapper = self.wrapper_ident();
         quote! {
             fn #wrapper(env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
-                #inner(#args)?
+                let result = #inner(#args)?;
                 #into_lisp
             }
         }
@@ -102,7 +102,7 @@ impl LispFunc {
                         ""
                     }
                 })
-            },
+            }
             Some(true) => quote!(module_path!()),
             Some(false) => quote!(""),
         };
