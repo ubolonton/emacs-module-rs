@@ -1,6 +1,7 @@
-use emacs::{emacs_lambda, emacs_export_functions};
+use emacs::{emacs_export_functions, emacs_lambda};
+use emacs::{CallEnv, Env, IntoLisp, Result, Value};
+use emacs::func;
 use emacs::func::Manage;
-use emacs::{Env, CallEnv, Value, IntoLisp, Result};
 
 use super::MODULE_PREFIX;
 
@@ -18,14 +19,14 @@ fn using_fset(env: &Env) -> Result<()> {
 
     env.fset(
         prefix!("sum-and-diff"),
-        emacs_lambda!(env, sum_and_diff, 2..2)?
+        emacs_lambda!(env, sum_and_diff, 2..2)?,
     )?;
 
     Ok(())
 }
 
-fn to_lowercase_or_nil(env: &CallEnv) -> Result<Value<'_>> {
-    let input: Option<String> = env.parse_arg(0)?;
+#[func(mod_in_name = false)]
+fn to_lowercase_or_nil(env: &Env, input: Option<String>) -> Result<Value<'_>> {
     let output = input.map(|s| s.to_lowercase());
     // This tests IntoLisp for Option<&str>. It looks a bit convoluted. TODO: Improve it.
     let r: Option<&str> = match &output {
@@ -47,7 +48,6 @@ pub fn init(env: &Env) -> Result<()> {
     emacs_export_functions! {
         env, *MODULE_PREFIX, {
             "sum" => (sum, 2..2),
-            "to-lowercase-or-nil" => (to_lowercase_or_nil, 1..1),
         }
     }
 

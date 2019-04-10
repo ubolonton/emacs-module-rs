@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 
 use emacs;
-use emacs::{Env, CallEnv, Value, Result, IntoLisp, emacs_lambda};
+use emacs::{CallEnv, emacs_lambda, Env, IntoLisp, Result, Value};
 
 #[macro_use]
 mod macros;
@@ -27,7 +27,6 @@ fn t(env: &Env) -> Result<()> {
 
     test_basics::init(env)?;
     test_error::init(env)?;
-    test_lifetime::init(env)?;
     Ok(())
 }
 
