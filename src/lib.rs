@@ -72,7 +72,7 @@ pub struct CallEnv {
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
-    pub(crate) env: &'e Env,
+    pub env: &'e Env,
 }
 
 /// Converting Lisp [`Value`] into a Rust type.
