@@ -106,12 +106,12 @@ impl LispFunc {
             Some(true) => quote!(module_path!()),
             Some(false) => quote!(""),
         };
-        // TODO: Consider defining `extern "C" fn` directly instead of using emacs_export_functions!.
+        // TODO: Consider defining `extern "C" fn` directly instead of using export_functions!.
         quote! {
             #define_wrapper
             fn #exporter(env: &::emacs::Env) -> ::emacs::Result<()> {
                 let prefix = ::emacs::globals::lisp_path(#path);
-                ::emacs::emacs_export_functions! {
+                ::emacs::export_functions! {
                     env, prefix, {
                         #lisp_name => (#wrapper, #min..#max, #doc),
                     }

@@ -69,7 +69,8 @@ macro_rules! enable_transfers {
 
 /// Declares that this module is GPL-compatible. Emacs will not load it otherwise.
 #[macro_export]
-macro_rules! emacs_plugin_is_GPL_compatible {
+#[allow(non_snake_case)]
+macro_rules! plugin_is_GPL_compatible {
     () => {
         /// This states that the module is GPL-compliant.
         /// Emacs won't load the module if this symbol is undefined.
@@ -83,7 +84,7 @@ macro_rules! emacs_plugin_is_GPL_compatible {
 /// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
 /// signature must be `fn(&Env) -> Result<Value>`.
 #[macro_export]
-macro_rules! emacs_module_init {
+macro_rules! module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
         #[no_mangle]
@@ -100,26 +101,18 @@ macro_rules! emacs_module_init {
     };
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! _emacs_format {
-    ($($inner:tt)*) => {
-        format!($($inner)*)
-    }
-}
-
 // TODO: Consider making this a function, using `data` to do the actual routing, like in
 // https://github.com/Wilfred/remacs/pull/516.
 #[macro_export(local_inner_macros)]
-macro_rules! emacs_lambda {
+macro_rules! lambda {
     // Default function-specific data is (unused) null pointer.
     ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
-        emacs_lambda!($env, $func, $arities, $doc, ::std::ptr::null_mut())
+        lambda!($env, $func, $arities, $doc, ::std::ptr::null_mut())
     };
 
     // Default doc string is empty.
     ($env:expr, $func:path, $arities:expr $(,)*) => {
-        emacs_lambda!($env, $func, $arities, "")
+        lambda!($env, $func, $arities, "")
     };
 
     // Declare a wrapper function.
@@ -146,16 +139,16 @@ macro_rules! emacs_lambda {
 // See https://doc.rust-lang.org/nightly/edition-guide/rust-2018/macros/macro-changes.html#macros-using-local_inner_macros.
 /// Export Rust functions so that Lisp code can call them by name.
 #[macro_export(local_inner_macros)]
-macro_rules! emacs_export_functions {
+macro_rules! export_functions {
     // Cut trailing comma in top-level.
     ($env:expr, $prefix:expr, $mappings:tt,) => {
-        emacs_export_functions!($env, $prefix, $mappings)
+        export_functions!($env, $prefix, $mappings)
     };
     // Cut trailing comma in mappings.
     ($env:expr, $prefix:expr, {
         $( $name:expr => $declaration:tt ),+,
     }) => {
-        emacs_export_functions!($env, $prefix, {
+        export_functions!($env, $prefix, {
             $( $name => $declaration ),*
         })
     };
@@ -165,19 +158,60 @@ macro_rules! emacs_export_functions {
     }) => {
         {
             use $crate::func::Manage;
-            $( emacs_export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+            $( export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
         }
     };
 
     // Cut trailing comma in declaration.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
-        $crate::emacs_export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
+        export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
     };
     // Create a function and set a symbol to it.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
         $env.fset(
             &_emacs_format!("{}{}", $prefix, $name),
-            emacs_lambda!($env, $func, $($opt),*)?
+            lambda!($env, $func, $($opt),*)?
         )
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! _emacs_format {
+    ($($inner:tt)*) => {
+        format!($($inner)*)
+    }
+}
+
+#[deprecated(since="0.6.0", note="Please use `emacs::plugin_is_GPL_compatible!` instead")]
+#[macro_export(local_inner_macros)]
+#[allow(non_snake_case)]
+macro_rules! emacs_plugin_is_GPL_compatible {
+    ($($inner:tt)*) => {
+        plugin_is_GPL_compatible!($($inner)*);
+    };
+}
+
+#[deprecated(since="0.6.0", note="Please use `emacs::module_init!` instead")]
+#[macro_export(local_inner_macros)]
+macro_rules! emacs_module_init {
+    ($($inner:tt)*) => {
+        module_init!($($inner)*);
+    };
+}
+
+#[deprecated(since="0.6.0", note="Please use `emacs::export_functions!` instead")]
+#[macro_export(local_inner_macros)]
+macro_rules! emacs_export_functions {
+    ($($inner:tt)*) => {
+        export_functions!($($inner)*)
+    };
+}
+
+#[deprecated(since="0.6.0", note="Please use `emacs::lambda!` instead")]
+#[macro_export(local_inner_macros)]
+macro_rules! emacs_lambda {
+    ($($inner:tt)*) => {
+        lambda!($($inner)*)
     };
 }

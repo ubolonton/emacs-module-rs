@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use emacs::{Env, Value, Result};
 use emacs::raw::emacs_env;
 
-emacs::emacs_plugin_is_GPL_compatible!();
+emacs::plugin_is_GPL_compatible!();
 
 lazy_static! {
     static ref LIBRARIES: Mutex<HashMap<String, lib::Library>> = Mutex::new(HashMap::new());

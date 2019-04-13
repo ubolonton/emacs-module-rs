@@ -1,4 +1,4 @@
-use emacs::{emacs_export_functions, func};
+use emacs::func;
 use emacs::{CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
 
@@ -62,7 +62,7 @@ fn parse_arg(env: &CallEnv) -> Result<String> {
 }
 
 pub fn init(env: &Env) -> Result<()> {
-    emacs_export_functions! {
+    emacs::export_functions! {
         env, format!("{}error:", *MODULE_PREFIX), {
             "parse-arg"   => (parse_arg   , 2..5),
         }

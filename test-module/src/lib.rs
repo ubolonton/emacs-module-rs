@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 
 use emacs;
-use emacs::{CallEnv, emacs_lambda, Env, IntoLisp, Result, Value};
+use emacs::{CallEnv, Env, IntoLisp, Result, Value};
 
 #[macro_use]
 mod macros;
@@ -14,7 +14,7 @@ mod ref_cell;
 mod vector;
 mod hash_map;
 
-emacs::emacs_plugin_is_GPL_compatible!();
+emacs::plugin_is_GPL_compatible!();
 
 const MODULE: &str = "t";
 lazy_static! {
@@ -71,7 +71,7 @@ fn make_dec(env: &Env) -> Result<Value<'_>> {
         let i: i64 = env.parse_arg(0)?;
         (i - 1).into_lisp(env)
     }
-    emacs_lambda!(env, dec, 1..1, "decrement", std::ptr::null_mut())
+    emacs::lambda!(env, dec, 1..1, "decrement", std::ptr::null_mut())
 }
 
 #[emacs::func]
@@ -88,7 +88,7 @@ fn make_inc_and_plus(env: &Env) -> Result<Value<'_>> {
     }
 
     env.call("cons", &[
-        emacs_lambda!(env, inc, 1..1, "increment")?,
-        emacs_lambda!(env, plus, 2..2)?,
+        emacs::lambda!(env, inc, 1..1, "increment")?,
+        emacs::lambda!(env, plus, 2..2)?,
     ])
 }

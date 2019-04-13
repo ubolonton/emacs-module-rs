@@ -1,4 +1,3 @@
-use emacs::{emacs_export_functions, emacs_lambda};
 use emacs::{CallEnv, Env, IntoLisp, Result, Value};
 use emacs::func;
 use emacs::func::Manage;
@@ -19,7 +18,7 @@ fn using_fset(env: &Env) -> Result<()> {
 
     env.fset(
         prefix!("sum-and-diff"),
-        emacs_lambda!(env, sum_and_diff, 2..2)?,
+        emacs::lambda!(env, sum_and_diff, 2..2)?,
     )?;
 
     Ok(())
@@ -45,7 +44,7 @@ pub fn init(env: &Env) -> Result<()> {
         Ok(x + y)
     }
 
-    emacs_export_functions! {
+    emacs::export_functions! {
         env, *MODULE_PREFIX, {
             "sum" => (sum, 2..2),
         }

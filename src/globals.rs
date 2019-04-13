@@ -17,9 +17,9 @@ lazy_static! {
     // Keep these names in-sync with those declared in emacs_macros::util.
 
     /// Functions to be called when Emacs loads the dynamic module. These are only called if
-    /// [`#[module]`] attribute macro is used, instead of [emacs_module_init!] macro.
+    /// [`#[module]`] attribute macro is used, instead of [module_init!] macro.
     ///
-    /// [emacs_module_init!]: macro.emacs_module_init.html
+    /// [module_init!]: macro.module_init.html
     /// [`#[module]`]: ../emacs_macros/attr.module.html
     pub static ref __INIT_FNS__: Mutex<FnMap> = Mutex::new(HashMap::new());
 

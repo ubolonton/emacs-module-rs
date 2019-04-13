@@ -33,7 +33,7 @@ fn init(env: &Env) -> Result<Value<'_>> {
         Ok(map.borrow_mut().insert(key,value))
     }
 
-    emacs::emacs_export_functions! {
+    emacs::export_functions! {
         env, "rs-hash-map/", {
             "make" => (make, 0..0),
             "get"  => (get,  2..2),

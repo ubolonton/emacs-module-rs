@@ -25,10 +25,10 @@ use emacs;
 use emacs::{Env, Result, Value};
 
 // Emacs won't load the module without this.
-emacs::emacs_plugin_is_GPL_compatible!();
+emacs::plugin_is_GPL_compatible!();
 
 // Declare and define the init function, which Emacs will call when it loads the module.
-emacs::emacs_module_init!(init);
+emacs::module_init!(init);
 fn init(env: &Env) -> Result<Value<'_>> {
     env.message("Hello, Emacs!")?;
     env.provide("greeting")

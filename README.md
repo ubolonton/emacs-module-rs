@@ -11,8 +11,8 @@ extern crate libc;
 use emacs;
 use emacs::{Env, CallEnv, Result, Value};
 
-emacs::emacs_plugin_is_GPL_compatible!();
-emacs::emacs_module_init!(init);
+emacs::plugin_is_GPL_compatible!();
+emacs::module_init!(init);
 
 fn init(env: &Env) -> Result<Value> {
     fn hello(env: &CallEnv) -> Result<Value> {
@@ -20,7 +20,7 @@ fn init(env: &Env) -> Result<Value> {
         env.message(&format!("Hello, {}!", name))
     }
 
-    emacs::emacs_export_functions! {
+    emacs::export_functions! {
         env, "greeting-", {
             "say-hello" => (hello, 1..1)
         }
