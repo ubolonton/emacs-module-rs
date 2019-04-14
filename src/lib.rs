@@ -37,6 +37,7 @@ pub mod raw {
 // External dependencies that are mostly used by macros instead of user code.
 #[doc(hidden)]
 pub mod deps {
+    pub use libc;
     pub use ctor;
     pub use lazy_static;
 }

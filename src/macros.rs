@@ -48,7 +48,7 @@ macro_rules! call_lisp {
             // println!("call_lisp {:?}", $name);
             let symbol: $crate::Value<'_> = $env.intern($name)?;
             let args = &mut [$($arg.raw,)*];
-            raw_call_value!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
+            raw_call_value!($env, funcall, symbol.raw, args.len() as $crate::deps::libc::ptrdiff_t, args.as_mut_ptr())
         }
     };
 }
@@ -76,7 +76,7 @@ macro_rules! plugin_is_GPL_compatible {
         /// Emacs won't load the module if this symbol is undefined.
         #[no_mangle]
         #[allow(non_upper_case_globals)]
-        pub static plugin_is_GPL_compatible: ::libc::c_int = 0;
+        pub static plugin_is_GPL_compatible: $crate::deps::libc::c_int = 0;
     };
 }
 
@@ -96,7 +96,7 @@ macro_rules! module_init {
         #[no_mangle]
         pub unsafe extern "C" fn emacs_module_init(
             runtime: *mut $crate::raw::emacs_runtime,
-        ) -> ::libc::c_int {
+        ) -> $crate::deps::libc::c_int {
             $crate::func::HandleInit::handle_init($crate::Env::from_runtime(runtime), $init)
         }
 
@@ -105,7 +105,7 @@ macro_rules! module_init {
         #[no_mangle]
         pub unsafe extern "C" fn emacs_rs_module_init(
             raw: *mut $crate::raw::emacs_env,
-        ) -> ::libc::c_int {
+        ) -> $crate::deps::libc::c_int {
             $crate::func::HandleInit::handle_init($crate::Env::new(raw), $init)
         }
     };
@@ -133,9 +133,9 @@ macro_rules! lambda {
         // TODO: Generate identifier from $func.
         unsafe extern "C" fn extern_lambda(
             env: *mut $crate::raw::emacs_env,
-            nargs: ::libc::ptrdiff_t,
+            nargs: $crate::deps::libc::ptrdiff_t,
             args: *mut $crate::raw::emacs_value,
-            data: *mut ::libc::c_void,
+            data: *mut $crate::deps::libc::c_void,
         ) -> $crate::raw::emacs_value {
             let env = $crate::Env::new(env);
             let env = $crate::CallEnv::new(env, nargs, args, data);
