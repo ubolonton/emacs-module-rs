@@ -81,8 +81,14 @@ macro_rules! plugin_is_GPL_compatible {
 }
 
 // TODO: Deprecate this in favor of #[module].
-/// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
-/// signature must be `fn(&Env) -> Result<Value>`.
+
+/// Registers a function as the initialization hook. [`#[module]`] is preferred over this low-level
+/// interface.
+///
+/// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
+/// whose signature must be `fn(&Env) -> Result<Value>`.
+///
+/// [`#[module]`]: ../emacs_macros/attr.module.html
 #[macro_export]
 macro_rules! module_init {
     ($init:ident) => {
@@ -103,6 +109,7 @@ macro_rules! module_init {
 
 // TODO: Consider making this a function, using `data` to do the actual routing, like in
 // https://github.com/Wilfred/remacs/pull/516.
+#[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! lambda {
     // Default function-specific data is (unused) null pointer.
@@ -137,7 +144,10 @@ macro_rules! lambda {
 
 // TODO: Use `$crate::` instead of `local_inner_macros` once everyone is on 1.30.
 // See https://doc.rust-lang.org/nightly/edition-guide/rust-2018/macros/macro-changes.html#macros-using-local_inner_macros.
-/// Export Rust functions so that Lisp code can call them by name.
+/// Exports Rust functions to the Lisp runtime. [`#[func]`] is preferred over this low-level
+/// interface.
+///
+/// [`#[func]`]: ../emacs_macros/attr.func.html
 #[macro_export(local_inner_macros)]
 macro_rules! export_functions {
     // Cut trailing comma in top-level.
@@ -184,6 +194,7 @@ macro_rules! _emacs_format {
 }
 
 #[deprecated(since="0.6.0", note="Please use `emacs::plugin_is_GPL_compatible!` instead")]
+#[doc(hidden)]
 #[macro_export(local_inner_macros)]
 #[allow(non_snake_case)]
 macro_rules! emacs_plugin_is_GPL_compatible {
@@ -193,6 +204,7 @@ macro_rules! emacs_plugin_is_GPL_compatible {
 }
 
 #[deprecated(since="0.6.0", note="Please use `emacs::module_init!` instead")]
+#[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_module_init {
     ($($inner:tt)*) => {
@@ -201,6 +213,7 @@ macro_rules! emacs_module_init {
 }
 
 #[deprecated(since="0.6.0", note="Please use `emacs::export_functions!` instead")]
+#[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_export_functions {
     ($($inner:tt)*) => {
@@ -209,6 +222,7 @@ macro_rules! emacs_export_functions {
 }
 
 #[deprecated(since="0.6.0", note="Please use `emacs::lambda!` instead")]
+#[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_lambda {
     ($($inner:tt)*) => {

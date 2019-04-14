@@ -2,6 +2,7 @@ use std::mem;
 use std::result;
 use std::thread;
 use failure_derive::Fail;
+#[doc(no_inline)]
 pub use failure::{Error, ResultExt};
 
 use emacs_module::*;
@@ -24,18 +25,59 @@ const WRONG_TYPE_USER_PTR: &str = "rust-wrong-type-user-ptr";
 const ERROR: &str = "rust-error";
 const PANIC: &str = "rust-panic";
 
+/// Error types generic to all Rust dynamic modules.
+///
+/// This list is intended to grow over time and it is not recommended to exhaustively match against
+/// it.
 #[derive(Debug, Fail)]
 pub enum ErrorKind {
+    /// An [error] signaled by Lisp code.
+    ///
+    /// [error]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Signaling-Errors.html
     #[fail(display = "Non-local signal: symbol={:?} data={:?}", symbol, data)]
     Signal { symbol: TempValue, data: TempValue },
 
+    /// A [non-local exit] thrown by Lisp code.
+    ///
+    /// [non-local exit]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Catch-and-Throw.html
     #[fail(display = "Non-local throw: tag={:?} value={:?}", tag, value)]
     Throw { tag: TempValue, value: TempValue },
 
-    #[fail(display = "Wrong type user-ptr, expected: {}", expected)]
+    /// An error indicating that the given value is not a `user-ptr` of the expected type.
+    ///
+    /// # Examples:
+    ///
+    /// ```no_run
+    /// # use emacs::*;
+    /// # use std::cell::RefCell;
+    /// #[func]
+    /// fn wrap(x: i64) -> Result<RefCell<i64>> {
+    ///     Ok(RefCell::new(x))
+    /// }
+    ///
+    /// #[func]
+    /// fn wrap_f(x: f64) -> Result<RefCell<f64>> {
+    ///     Ok(RefCell::new(x))
+    /// }
+    ///
+    /// #[func]
+    /// fn unwrap(r: &RefCell<i64>) -> Result<i64> {
+    ///     Ok(*r.try_borrow()?)
+    /// }
+    /// ```
+    ///
+    /// ```emacs-lisp
+    /// (unwrap 7)          ; *** Eval error ***  Wrong type argument: user-ptrp, 7
+    /// (unwrap (wrap 7))   ; 7
+    /// (unwrap (wrap-f 7)) ; *** Eval error ***  Wrong type user-ptr: "expected: RefCell"
+    /// ```
+    #[fail(display = "expected: {}", expected)]
     WrongTypeUserPtr { expected: &'static str },
 }
 
+/// A specialized [`Result`] type for Emacs's dynamic modules.
+///
+/// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
 pub type Result<T> = result::Result<T, Error>;
 
 // FIX: Make this into RootedValue (or ProtectedValue), and make it safe. XXX: The problem is that
@@ -57,8 +99,8 @@ impl TempValue {
     }
 }
 
-/// Technically these are unsound, but they are necessary to use the `Fail` trait. We ensure safety
-/// by marking TempValue methods as unsafe.
+// XXX: Technically these are unsound, but they are necessary to use the `Fail` trait. We ensure
+// safety by marking TempValue methods as unsafe.
 unsafe impl Send for TempValue {}
 unsafe impl Sync for TempValue {}
 

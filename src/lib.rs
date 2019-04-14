@@ -5,15 +5,20 @@ use failure;
 use libc;
 
 #[doc(inline)]
-pub use emacs_macros::*;
+pub use emacs_macros::{module, func};
 use raw::*;
 
-pub use self::error::{Error, ErrorKind, Result, ResultExt};
+#[doc(no_inline)]
+pub use failure::{Error, ResultExt};
+
+#[doc(inline)]
+pub use self::error::{ErrorKind, Result};
 
 #[macro_use]
 mod macros;
 mod convert;
 
+#[doc(hidden)]
 pub mod error;
 
 #[doc(hidden)]
@@ -48,6 +53,7 @@ pub struct Env {
 /// arguments passed from Lisp code.
 ///
 /// [`Env`]: struct.Env.html
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct CallEnv {
     env: Env,
@@ -61,12 +67,6 @@ pub struct CallEnv {
 ///
 /// They are also "proxy values" that are only useful when converted to Rust values, or used as
 /// arguments when calling back into the Lisp runtime.
-///
-/// # Implementations
-///
-/// We don't need a custom `Clone` implementation that does ref counting. TODO: Explain
-/// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
-/// unsafe...)
 ///
 /// [`Env`]: struct.Env.html
 #[derive(Debug, Clone, Copy)]
@@ -246,8 +246,8 @@ impl<'e> Value<'e> {
     /// There are several ways this can go wrong:
     ///
     /// - Lisp code can pass the same object through 2 different values in an argument list.
-    /// - Rust code earlier in the call chain may have cloned this value.
-    /// - Rust code later in the call chain may receive a clone of this value.
+    /// - Rust code earlier in the call chain may have copied this value.
+    /// - Rust code later in the call chain may receive a copy of this value.
     ///
     /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock` guards, before
     /// moving them to Lisp, and then only access them through these guards (which can be obtained
