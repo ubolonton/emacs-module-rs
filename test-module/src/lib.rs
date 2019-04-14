@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 
-use emacs;
-use emacs::{CallEnv, Env, IntoLisp, Result, Value};
+use emacs::{defun, CallEnv, Env, IntoLisp, Result, Value};
 
 #[macro_use]
 mod macros;
@@ -35,19 +34,19 @@ fn t(env: &Env) -> Result<()> {
 
 // Docstring above, with space.
 /// 1+
-#[emacs::func]
+#[defun]
 fn inc(x: i64) -> Result<i64> {
     Ok(x + 1)
 }
 
 // Docstring below, without space.
-#[emacs::func]
+#[defun]
 ///Return the input (not a copy).
 fn identity(x: Value) -> Result<Value> {
     Ok(x)
 }
 
-#[emacs::func]
+#[defun]
 fn to_uppercase(s: String) -> Result<String> {
     Ok(s.to_uppercase())
 }
@@ -60,12 +59,12 @@ custom_types! {
     StringWrapper as "StrWrapper";
 }
 
-#[emacs::func]
+#[defun]
 fn wrap_string(s: String) -> Result<Box<StringWrapper>> {
     Ok(Box::new(StringWrapper { s }))
 }
 
-#[emacs::func]
+#[defun]
 fn make_dec(env: &Env) -> Result<Value<'_>> {
     fn dec(env: &CallEnv) -> Result<Value<'_>> {
         let i: i64 = env.parse_arg(0)?;
@@ -74,7 +73,7 @@ fn make_dec(env: &Env) -> Result<Value<'_>> {
     emacs::lambda!(env, dec, 1..1, "decrement", std::ptr::null_mut())
 }
 
-#[emacs::func]
+#[defun]
 fn make_inc_and_plus(env: &Env) -> Result<Value<'_>> {
     fn inc(env: &CallEnv) -> Result<Value<'_>> {
         let i: i64 = env.parse_arg(0)?;

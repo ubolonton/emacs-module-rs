@@ -1,22 +1,22 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use emacs::{Result, Value, Env, IntoLisp, CallEnv};
+use emacs::{defun, Result, Value, Env, IntoLisp, CallEnv};
 
 type Map = RefCell<HashMap<String, String>>;
 
-#[emacs::func]
+#[defun]
 fn make() -> Result<Map> {
     Ok(RefCell::new(HashMap::new()))
 }
 
 // XXX: Bad ergonomics.
-#[emacs::func]
+#[defun]
 fn get<'e>(env: &'e Env, map: &Map, key: String) -> Result<Value<'e>> {
     map.borrow().get(&key).into_lisp(env)
 }
 
 // XXX: Inefficient.
-#[emacs::func]
+#[defun]
 fn get0(map: &Map, key: String) -> Result<Option<String>> {
     Ok(map.borrow().get(&key).map(|s| s.to_owned()))
 }
@@ -41,7 +41,7 @@ fn wrapper(env: &CallEnv) -> Result<Value<'_>> {
     output.into_lisp(env)
 }
 
-#[emacs::func]
+#[defun]
 fn set(map: &Map, key: String, value: String) -> Result<Option<String>> {
     Ok(map.borrow_mut().insert(key, value))
 }

@@ -24,9 +24,9 @@ mod func;
 /// followed by `-`, this option allows a different separator to be used. For example:
 /// `#[module(separator = "/")]`.
 /// - `mod_in_name`: Whether to put module path in function names. Default to `true`. This can also
-/// be overridden for each individual function, by an option of the same name in [`#[func]`].
+/// be overridden for each individual function, by an option of the same name in [`#[defun]`].
 ///
-/// [`#[func]`]: attr.func.html
+/// [`#[defun]`]: attr.defun.html
 #[proc_macro_attribute]
 pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
@@ -47,7 +47,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// - `mod-prefix` is constructed from the function's Rust module path (with `_` replaced by `-`).
 /// This can be turned off crate-wide, or for individual function, using the option `mod_in_name`.
 /// - `base-name` is the function's Rust name (with `_` replaced by `-`). This can be overridden
-/// with the option `name`, e.g. `#[func(name = "foo:bar")]`.
+/// with the option `name`, e.g. `#[defun(name = "foo:bar")]`.
 ///
 /// # Signature
 ///
@@ -66,7 +66,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// [`&Env`]: ../emacs/struct.Env.html
 /// [`Value`]: ../emacs/struct.Value.html
 #[proc_macro_attribute]
-pub fn func(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
+pub fn defun(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
     let fn_item: ItemFn = parse_macro_input!(item_ts);
     match func::LispFunc::parse(attr_args, fn_item) {

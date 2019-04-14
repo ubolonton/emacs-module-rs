@@ -5,7 +5,7 @@ use failure;
 use libc;
 
 #[doc(inline)]
-pub use emacs_macros::{module, func};
+pub use emacs_macros::{defun, module};
 use raw::*;
 
 #[doc(no_inline)]
@@ -256,8 +256,6 @@ impl<'e> Value<'e> {
     ///
     /// [`into_rust`]: #method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
-        self.env.get_raw_pointer(self.raw).map(|r| {
-            &mut *r
-        })
+        self.env.get_raw_pointer(self.raw).map(|r| &mut *r)
     }
 }

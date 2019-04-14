@@ -1,6 +1,5 @@
-use emacs::{Env, IntoLisp, Result, Value};
+use emacs::{defun, Env, IntoLisp, Result, Value};
 use emacs::ErrorKind::{self, Signal};
-use emacs::func;
 
 use super::MODULE_PREFIX;
 
@@ -49,7 +48,7 @@ fn create_collect_use<'e, CF, UF>(
 // Before fixing:
 // - macOS: Segmentation fault
 // - Linux: Segmentation fault
-#[func(mod_in_name = false)]
+#[defun(mod_in_name = false)]
 fn gc_after_new_string(env: &Env) -> Result<Value<'_>> {
     create_collect_use(env, 2, || {
         "0".into_lisp(env)
@@ -59,7 +58,7 @@ fn gc_after_new_string(env: &Env) -> Result<Value<'_>> {
 // Before fixing:
 // - macOS: Segmentation fault
 // - Linux: Segmentation fault
-#[func(mod_in_name = false)]
+#[defun(mod_in_name = false)]
 fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
     // Wouldn't fail if count is 1 or 2.
     create_collect_use(env, 3, || {
@@ -72,7 +71,7 @@ fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
 // Before fixing:
 // - macOS: Abort trap (since the violation happens in Rust)
 // - Linux: wrong-type-argument (maybe the runtime is a bit different in Linux?)
-#[func(mod_in_name = false)]
+#[defun(mod_in_name = false)]
 fn gc_after_retrieving(env: &Env) -> Result<Value<'_>> {
     create_collect_use(env, 2, || {
         // XXX: These come from `hash_map` module.
@@ -87,7 +86,7 @@ fn gc_after_retrieving(env: &Env) -> Result<Value<'_>> {
     })
 }
 
-#[func(mod_in_name = false)]
+#[defun(mod_in_name = false)]
 fn gc_after_catching_1<'e>(env: &'e Env, f: Value<'_>) -> Result<Value<'e>> {
     create_collect_use(env, 2, || {
         match env.call("funcall", &[f]) {

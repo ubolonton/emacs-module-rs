@@ -77,7 +77,7 @@ macro_rules! plugin_is_GPL_compatible {
         #[no_mangle]
         #[allow(non_upper_case_globals)]
         pub static plugin_is_GPL_compatible: ::libc::c_int = 0;
-    }
+    };
 }
 
 // TODO: Deprecate this in favor of #[module].
@@ -94,14 +94,18 @@ macro_rules! module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
         #[no_mangle]
-        pub unsafe extern "C" fn emacs_module_init(runtime: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
+        pub unsafe extern "C" fn emacs_module_init(
+            runtime: *mut $crate::raw::emacs_runtime,
+        ) -> ::libc::c_int {
             $crate::func::HandleInit::handle_init($crate::Env::from_runtime(runtime), $init)
         }
 
         // TODO: Exclude this in release build.
         /// Entry point for live-reloading (by `rs-module`) during development.
         #[no_mangle]
-        pub unsafe extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
+        pub unsafe extern "C" fn emacs_rs_module_init(
+            raw: *mut $crate::raw::emacs_env,
+        ) -> ::libc::c_int {
             $crate::func::HandleInit::handle_init($crate::Env::new(raw), $init)
         }
     };
@@ -123,31 +127,31 @@ macro_rules! lambda {
     };
 
     // Declare a wrapper function.
-    ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {
-        {
-            use $crate::func::HandleCall;
-            use $crate::func::Manage;
-            // TODO: Generate identifier from $func.
-            unsafe extern "C" fn extern_lambda(env: *mut $crate::raw::emacs_env,
-                                               nargs: ::libc::ptrdiff_t,
-                                               args: *mut $crate::raw::emacs_value,
-                                               data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
-                let env = $crate::Env::new(env);
-                let env = $crate::CallEnv::new(env, nargs, args, data);
-                env.handle_call($func)
-            }
-
-            $env.make_function(extern_lambda, $arities, $doc, $data)
+    ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {{
+        use $crate::func::HandleCall;
+        use $crate::func::Manage;
+        // TODO: Generate identifier from $func.
+        unsafe extern "C" fn extern_lambda(
+            env: *mut $crate::raw::emacs_env,
+            nargs: ::libc::ptrdiff_t,
+            args: *mut $crate::raw::emacs_value,
+            data: *mut ::libc::c_void,
+        ) -> $crate::raw::emacs_value {
+            let env = $crate::Env::new(env);
+            let env = $crate::CallEnv::new(env, nargs, args, data);
+            env.handle_call($func)
         }
-    };
+
+        $env.make_function(extern_lambda, $arities, $doc, $data)
+    }};
 }
 
 // TODO: Use `$crate::` instead of `local_inner_macros` once everyone is on 1.30.
 // See https://doc.rust-lang.org/nightly/edition-guide/rust-2018/macros/macro-changes.html#macros-using-local_inner_macros.
-/// Exports Rust functions to the Lisp runtime. [`#[func]`] is preferred over this low-level
+/// Exports Rust functions to the Lisp runtime. [`#[defun]`] is preferred over this low-level
 /// interface.
 ///
-/// [`#[func]`]: ../emacs_macros/attr.func.html
+/// [`#[defun]`]: ../emacs_macros/attr.defun.html
 #[macro_export(local_inner_macros)]
 macro_rules! export_functions {
     // Cut trailing comma in top-level.
@@ -193,7 +197,7 @@ macro_rules! _emacs_format {
     }
 }
 
-#[deprecated(since="0.6.0", note="Please use `emacs::plugin_is_GPL_compatible!` instead")]
+#[deprecated(since = "0.6.0", note = "Please use `emacs::plugin_is_GPL_compatible!` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 #[allow(non_snake_case)]
@@ -203,7 +207,7 @@ macro_rules! emacs_plugin_is_GPL_compatible {
     };
 }
 
-#[deprecated(since="0.6.0", note="Please use `emacs::module_init!` instead")]
+#[deprecated(since = "0.6.0", note = "Please use `emacs::module_init!` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_module_init {
@@ -212,7 +216,7 @@ macro_rules! emacs_module_init {
     };
 }
 
-#[deprecated(since="0.6.0", note="Please use `emacs::export_functions!` instead")]
+#[deprecated(since = "0.6.0", note = "Please use `emacs::export_functions!` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_export_functions {
@@ -221,7 +225,7 @@ macro_rules! emacs_export_functions {
     };
 }
 
-#[deprecated(since="0.6.0", note="Please use `emacs::lambda!` instead")]
+#[deprecated(since = "0.6.0", note = "Please use `emacs::lambda!` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_lambda {

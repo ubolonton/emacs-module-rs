@@ -1,13 +1,13 @@
-use std::ptr;
-use std::cell::RefCell;
-use std::sync::{Mutex, RwLock};
-use std::ffi::CString;
 use libc;
+use std::cell::RefCell;
+use std::ffi::CString;
+use std::ptr;
+use std::sync::{Mutex, RwLock};
 
-use emacs_module::emacs_value;
+use super::error::{ErrorKind, Result};
 use super::{Env, Value};
 use super::{FromLisp, IntoLisp, Transfer};
-use super::error::{Result, ErrorKind};
+use emacs_module::emacs_value;
 
 #[doc(hidden)]
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
@@ -51,9 +51,7 @@ impl<'e, T: FromLisp<'e>> FromLisp<'e> for Option<T> {
 
 impl<'a, 'e: 'a, T: Transfer> FromLisp<'e> for &'a T {
     fn from_lisp(value: Value<'e>) -> Result<Self> {
-        value.env.get_raw_pointer(value.raw).map(|r| unsafe {
-            &*r
-        })
+        value.env.get_raw_pointer(value.raw).map(|r| unsafe { &*r })
     }
 }
 
@@ -143,7 +141,11 @@ impl Env {
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);
             let ok: bool = self.handle_exit(copy_string_contents(
-                self.raw, value.raw, ptr::null_mut(), &mut len))?;
+                self.raw,
+                value.raw,
+                ptr::null_mut(),
+                &mut len,
+            ))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
             // should be void, not bool.
             if !ok {
@@ -152,7 +154,11 @@ impl Env {
 
             let mut bytes = vec![0u8; len as usize];
             let ok: bool = self.handle_exit(copy_string_contents(
-                self.raw, value.raw, bytes.as_mut_ptr() as *mut i8, &mut len))?;
+                self.raw,
+                value.raw,
+                bytes.as_mut_ptr() as *mut i8,
+                &mut len,
+            ))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
             // should be void, not bool.
             if !ok {
@@ -169,11 +175,11 @@ impl Env {
             Some::<Finalizer>(fin) if fin == T::finalizer => {
                 let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
                 Ok(ptr as *mut T)
-            },
+            }
             _ => {
                 let expected = T::type_name();
                 Err(ErrorKind::WrongTypeUserPtr { expected }.into())
-            },
+            }
         }
     }
 }

@@ -1,15 +1,15 @@
-use emacs::Result;
+use emacs::{defun, Result};
 use std::cell::RefCell;
 
 // TODO: Add tests for Mutex and RwLock, and more tests for RefCell.
 
 /// Wrap the given integer in a RefCell.
-#[emacs::func]
+#[defun]
 fn make(x: i64) -> Result<RefCell<i64>> {
     Ok(RefCell::new(x))
 }
 
-#[emacs::func]
+#[defun]
 fn mutate_twice(r: &RefCell<i64>) -> Result<()> {
     let mut x = r.try_borrow_mut()?;
     let mut y = r.try_borrow_mut()?;

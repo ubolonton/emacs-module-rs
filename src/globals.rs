@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use lazy_static::lazy_static;
 
@@ -24,9 +21,9 @@ lazy_static! {
     pub static ref __INIT_FNS__: Mutex<FnMap> = Mutex::new(HashMap::new());
 
     /// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
-    /// attribute macro [`#[func]`].
+    /// attribute macro [`#[defun]`].
     ///
-    /// [`#[func]`]: ../emacs_macros/attr.func.html
+    /// [`#[defun]`]: ../emacs_macros/attr.defun.html
     pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
 
     pub static ref __MOD_IN_NAME__: Mutex<bool> = Mutex::new(true);
@@ -43,9 +40,8 @@ pub fn lisp_pkg(module_path: &str) -> String {
 
 pub fn lisp_path(module_path: &str) -> String {
     let split = module_path.split("::");
-    let mut path = __PREFIX__.try_lock()
-        .expect("Failed to acquire read lock of module prefix")
-        .join("");
+    let mut path =
+        __PREFIX__.try_lock().expect("Failed to acquire read lock of module prefix").join("");
     for segment in split.skip(1) {
         path.push_str(segment);
         path.push('-');

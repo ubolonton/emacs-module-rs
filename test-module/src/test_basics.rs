@@ -1,5 +1,4 @@
-use emacs::{CallEnv, Env, IntoLisp, Result, Value};
-use emacs::func;
+use emacs::{defun, CallEnv, Env, IntoLisp, Result, Value};
 use emacs::func::Manage;
 
 use super::MODULE_PREFIX;
@@ -24,7 +23,7 @@ fn using_fset(env: &Env) -> Result<()> {
     Ok(())
 }
 
-#[func(mod_in_name = false)]
+#[defun(mod_in_name = false)]
 fn to_lowercase_or_nil(env: &Env, input: Option<String>) -> Result<Value<'_>> {
     let output = input.map(|s| s.to_lowercase());
     // This tests IntoLisp for Option<&str>. It looks a bit convoluted. TODO: Improve it.

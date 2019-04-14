@@ -1,10 +1,9 @@
-use emacs::func;
-use emacs::{CallEnv, Env, Result, Value};
+use emacs::{defun, CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
 
 use super::MODULE_PREFIX;
 
-#[func(mod_in_name = false, name = "error:lisp-divide")]
+#[defun(mod_in_name = false, name = "error:lisp-divide")]
 fn lisp_divide(x: Value<'_>, y: Value<'_>) -> Result<i64> {
     fn inner(env: &Env, x: i64, y: i64) -> Result<Value<'_>> {
         call!(env, "/", x, y)
@@ -21,7 +20,7 @@ fn lisp_divide(x: Value<'_>, y: Value<'_>) -> Result<i64> {
     foo(x.env, x, y)?.into_rust()
 }
 
-#[func(mod_in_name = false, name = "error:get-type")]
+#[defun(mod_in_name = false, name = "error:get-type")]
 fn get_type(f: Value<'_>) -> Result<Value<'_>> {
     let env = f.env;
     match env.call("funcall", &[f]) {
@@ -37,7 +36,7 @@ fn get_type(f: Value<'_>) -> Result<Value<'_>> {
     }
 }
 
-#[func(mod_in_name = false, name = "error:catch")]
+#[defun(mod_in_name = false, name = "error:catch")]
 fn catch<'e>(expected_tag: Value<'e>, f: Value<'e>) -> Result<Value<'e>> {
     let env = expected_tag.env;
     match env.call("funcall", &[f]) {
