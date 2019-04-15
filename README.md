@@ -1,6 +1,6 @@
 # Emacs Module in Rust [![crates.io](https://meritbadge.herokuapp.com/emacs)](https://crates.io/crates/emacs) [![doc.rs](https://docs.rs/emacs/badge.svg)](https://docs.rs/emacs/) [![Build Status](https://travis-ci.org/ubolonton/emacs-module-rs.svg?branch=master)](https://travis-ci.org/ubolonton/emacs-module-rs)
 
-[User Guide](https://ubolonton.github.io/emacs-module-rs/) | [Example](https://github.com/ubolonton/magit-libgit2)
+[User Guide](https://ubolonton.github.io/emacs-module-rs/) | [Examples](https://github.com/ubolonton/emacs-rs-examples/)
 
 This provides a high-level binding to `emacs-module`, Emacs's support for dynamic modules.
 

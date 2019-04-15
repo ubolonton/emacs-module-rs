@@ -21,10 +21,10 @@
 //! (greeting-say-hello "Emacs")
 //! ```
 //!
-//! See [User Guide] and [example].
+//! See [User Guide] and [examples].
 //!
 //! [User Guide]: https://ubolonton.github.io/emacs-module-rs/
-//! [Example]: https://github.com/ubolonton/magit-libgit2
+//! [Examples]: https://github.com/ubolonton/emacs-rs-examples/
 
 use std::cell::RefCell;
 use std::ffi::CString;
