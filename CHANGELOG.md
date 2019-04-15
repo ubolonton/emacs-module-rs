@@ -1,3 +1,10 @@
+# 0.7.0 (Apr 15, 2019)
+- Greatly improved ergonomics with attribute macros `#[emacs::module]` and `#[defun]`.
+- Deprecated macros with `emacs_` prefix.
+- Made `Value.env` public.
+- Removed the need for user crate to depend directly on `libc`.
+- Added lifetime parameter to `FromLisp`.
+
 # 0.6.0 (Mar 26, 2019)
 - Upgraded to Rust 2018 edition.
 

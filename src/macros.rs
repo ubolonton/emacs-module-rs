@@ -197,7 +197,7 @@ macro_rules! _emacs_format {
     }
 }
 
-#[deprecated(since = "0.6.0", note = "Please use `emacs::plugin_is_GPL_compatible!` instead")]
+#[deprecated(since = "0.7.0", note = "Please use `emacs::plugin_is_GPL_compatible!` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 #[allow(non_snake_case)]
@@ -207,7 +207,7 @@ macro_rules! emacs_plugin_is_GPL_compatible {
     };
 }
 
-#[deprecated(since = "0.6.0", note = "Please use `emacs::module_init!` instead")]
+#[deprecated(since = "0.7.0", note = "Please use `#[emacs::module]` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_module_init {
@@ -216,7 +216,7 @@ macro_rules! emacs_module_init {
     };
 }
 
-#[deprecated(since = "0.6.0", note = "Please use `emacs::export_functions!` instead")]
+#[deprecated(since = "0.7.0", note = "Please use `#[defun]` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_export_functions {
@@ -225,7 +225,7 @@ macro_rules! emacs_export_functions {
     };
 }
 
-#[deprecated(since = "0.6.0", note = "Please use `emacs::lambda!` instead")]
+#[deprecated(since = "0.7.0", note = "Please use `emacs::lambda!` instead")]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_lambda {
