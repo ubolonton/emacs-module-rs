@@ -1,0 +1,19 @@
+[package]
+name = "emacs-macros"
+version = "0.1.0"
+edition = "2018"
+description = "Proc macros for emacs modules"
+authors = [
+    "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
+]
+license = "BSD-3-Clause"
+readme = "README.md"
+keywords = ["emacs", "emacs-module"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "0.15.29", features = ["full", "extra-traits"]}
+quote = "0.6.11"
+darling = "0.9.0"

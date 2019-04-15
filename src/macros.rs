@@ -48,7 +48,7 @@ macro_rules! call_lisp {
             // println!("call_lisp {:?}", $name);
             let symbol: $crate::Value<'_> = $env.intern($name)?;
             let args = &mut [$($arg.raw,)*];
-            raw_call_value!($env, funcall, symbol.raw, args.len() as ::libc::ptrdiff_t, args.as_mut_ptr())
+            raw_call_value!($env, funcall, symbol.raw, args.len() as $crate::deps::libc::ptrdiff_t, args.as_mut_ptr())
         }
     };
 }
@@ -69,33 +69,123 @@ macro_rules! enable_transfers {
 
 /// Declares that this module is GPL-compatible. Emacs will not load it otherwise.
 #[macro_export]
-macro_rules! emacs_plugin_is_GPL_compatible {
+#[allow(non_snake_case)]
+macro_rules! plugin_is_GPL_compatible {
     () => {
         /// This states that the module is GPL-compliant.
         /// Emacs won't load the module if this symbol is undefined.
         #[no_mangle]
         #[allow(non_upper_case_globals)]
-        pub static plugin_is_GPL_compatible: ::libc::c_int = 0;
-    }
+        pub static plugin_is_GPL_compatible: $crate::deps::libc::c_int = 0;
+    };
 }
 
-/// Declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function, whose
-/// signature must be `fn(&Env) -> Result<Value>`.
+// TODO: Deprecate this in favor of #[module].
+
+/// Registers a function as the initialization hook. [`#[module]`] is preferred over this low-level
+/// interface.
+///
+/// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
+/// whose signature must be `fn(&Env) -> Result<Value>`.
+///
+/// [`#[module]`]: ../emacs_macros/attr.module.html
 #[macro_export]
-macro_rules! emacs_module_init {
+macro_rules! module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
         #[no_mangle]
-        pub unsafe extern "C" fn emacs_module_init(runtime: *mut $crate::raw::emacs_runtime) -> ::libc::c_int {
+        pub unsafe extern "C" fn emacs_module_init(
+            runtime: *mut $crate::raw::emacs_runtime,
+        ) -> $crate::deps::libc::c_int {
             $crate::func::HandleInit::handle_init($crate::Env::from_runtime(runtime), $init)
         }
 
         // TODO: Exclude this in release build.
         /// Entry point for live-reloading (by `rs-module`) during development.
         #[no_mangle]
-        pub unsafe extern "C" fn emacs_rs_module_init(raw: *mut $crate::raw::emacs_env) -> ::libc::c_int {
+        pub unsafe extern "C" fn emacs_rs_module_init(
+            raw: *mut $crate::raw::emacs_env,
+        ) -> $crate::deps::libc::c_int {
             $crate::func::HandleInit::handle_init($crate::Env::new(raw), $init)
         }
+    };
+}
+
+// TODO: Consider making this a function, using `data` to do the actual routing, like in
+// https://github.com/Wilfred/remacs/pull/516.
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! lambda {
+    // Default function-specific data is (unused) null pointer.
+    ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
+        lambda!($env, $func, $arities, $doc, ::std::ptr::null_mut())
+    };
+
+    // Default doc string is empty.
+    ($env:expr, $func:path, $arities:expr $(,)*) => {
+        lambda!($env, $func, $arities, "")
+    };
+
+    // Declare a wrapper function.
+    ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {{
+        use $crate::func::HandleCall;
+        use $crate::func::Manage;
+        // TODO: Generate identifier from $func.
+        unsafe extern "C" fn extern_lambda(
+            env: *mut $crate::raw::emacs_env,
+            nargs: $crate::deps::libc::ptrdiff_t,
+            args: *mut $crate::raw::emacs_value,
+            data: *mut $crate::deps::libc::c_void,
+        ) -> $crate::raw::emacs_value {
+            let env = $crate::Env::new(env);
+            let env = $crate::CallEnv::new(env, nargs, args, data);
+            env.handle_call($func)
+        }
+
+        $env.make_function(extern_lambda, $arities, $doc, $data)
+    }};
+}
+
+// TODO: Use `$crate::` instead of `local_inner_macros` once everyone is on 1.30.
+// See https://doc.rust-lang.org/nightly/edition-guide/rust-2018/macros/macro-changes.html#macros-using-local_inner_macros.
+/// Exports Rust functions to the Lisp runtime. [`#[defun]`] is preferred over this low-level
+/// interface.
+///
+/// [`#[defun]`]: ../emacs_macros/attr.defun.html
+#[macro_export(local_inner_macros)]
+macro_rules! export_functions {
+    // Cut trailing comma in top-level.
+    ($env:expr, $prefix:expr, $mappings:tt,) => {
+        export_functions!($env, $prefix, $mappings)
+    };
+    // Cut trailing comma in mappings.
+    ($env:expr, $prefix:expr, {
+        $( $name:expr => $declaration:tt ),+,
+    }) => {
+        export_functions!($env, $prefix, {
+            $( $name => $declaration ),*
+        })
+    };
+    // Expand each mapping.
+    ($env:expr, $prefix:expr, {
+        $( $name:expr => $declaration:tt ),*
+    }) => {
+        {
+            use $crate::func::Manage;
+            $( export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+        }
+    };
+
+    // Cut trailing comma in declaration.
+    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
+        export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
+    };
+    // Create a function and set a symbol to it.
+    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
+        $env.fset(
+            &_emacs_format!("{}{}", $prefix, $name),
+            lambda!($env, $func, $($opt),*)?
+        )
     };
 }
 
@@ -107,76 +197,39 @@ macro_rules! _emacs_format {
     }
 }
 
-// TODO: Consider making this a function, using `data` to do the actual routing, like in
-// https://github.com/Wilfred/remacs/pull/516.
+#[deprecated(since = "0.6.0", note = "Please use `emacs::plugin_is_GPL_compatible!` instead")]
+#[doc(hidden)]
 #[macro_export(local_inner_macros)]
-macro_rules! emacs_lambda {
-    // Default function-specific data is (unused) null pointer.
-    ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
-        emacs_lambda!($env, $func, $arities, $doc, ::std::ptr::null_mut())
-    };
-
-    // Default doc string is empty.
-    ($env:expr, $func:path, $arities:expr $(,)*) => {
-        emacs_lambda!($env, $func, $arities, "")
-    };
-
-    // Declare a wrapper function.
-    ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {
-        {
-            use $crate::func::HandleCall;
-            use $crate::func::Manage;
-            // TODO: Generate identifier from $func.
-            unsafe extern "C" fn extern_lambda(env: *mut $crate::raw::emacs_env,
-                                               nargs: ::libc::ptrdiff_t,
-                                               args: *mut $crate::raw::emacs_value,
-                                               data: *mut ::libc::c_void) -> $crate::raw::emacs_value {
-                let env = $crate::Env::new(env);
-                let env = $crate::CallEnv::new(env, nargs, args, data);
-                env.handle_call($func)
-            }
-
-            $env.make_function(extern_lambda, $arities, $doc, $data)
-        }
+#[allow(non_snake_case)]
+macro_rules! emacs_plugin_is_GPL_compatible {
+    ($($inner:tt)*) => {
+        plugin_is_GPL_compatible!($($inner)*);
     };
 }
 
-// TODO: Use `$crate::` instead of `local_inner_macros` once everyone is on 1.30.
-// See https://doc.rust-lang.org/nightly/edition-guide/rust-2018/macros/macro-changes.html#macros-using-local_inner_macros.
-/// Export Rust functions so that Lisp code can call them by name.
+#[deprecated(since = "0.6.0", note = "Please use `emacs::module_init!` instead")]
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! emacs_module_init {
+    ($($inner:tt)*) => {
+        module_init!($($inner)*);
+    };
+}
+
+#[deprecated(since = "0.6.0", note = "Please use `emacs::export_functions!` instead")]
+#[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! emacs_export_functions {
-    // Cut trailing comma in top-level.
-    ($env:expr, $prefix:expr, $mappings:tt,) => {
-        emacs_export_functions!($env, $prefix, $mappings)
+    ($($inner:tt)*) => {
+        export_functions!($($inner)*)
     };
-    // Cut trailing comma in mappings.
-    ($env:expr, $prefix:expr, {
-        $( $name:expr => $declaration:tt ),+,
-    }) => {
-        emacs_export_functions!($env, $prefix, {
-            $( $name => $declaration ),*
-        })
-    };
-    // Expand each mapping.
-    ($env:expr, $prefix:expr, {
-        $( $name:expr => $declaration:tt ),*
-    }) => {
-        {
-            use $crate::func::Manage;
-            $( emacs_export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
-        }
-    };
+}
 
-    // Cut trailing comma in declaration.
-    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
-        $crate::emacs_export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
-    };
-    // Create a function and set a symbol to it.
-    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
-        $env.fset(
-            &_emacs_format!("{}{}", $prefix, $name),
-            emacs_lambda!($env, $func, $($opt),*)?
-        )
+#[deprecated(since = "0.6.0", note = "Please use `emacs::lambda!` instead")]
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! emacs_lambda {
+    ($($inner:tt)*) => {
+        lambda!($($inner)*)
     };
 }

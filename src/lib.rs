@@ -1,20 +1,46 @@
-use libc;
+use std::cell::RefCell;
+use std::ffi::CString;
 
 use failure;
+use libc;
 
-use std::ffi::CString;
-use std::cell::RefCell;
+#[doc(inline)]
+pub use emacs_macros::{defun, module};
+use raw::*;
 
-use emacs_module::{emacs_runtime, emacs_env, emacs_value};
-pub use self::error::{Error, ErrorKind, Result, ResultExt};
+#[doc(no_inline)]
+pub use failure::{Error, ResultExt};
+
+#[doc(inline)]
+pub use self::error::{ErrorKind, Result};
 
 #[macro_use]
 mod macros;
-
-pub mod func;
-pub mod error;
-pub mod raw;
 mod convert;
+
+#[doc(hidden)]
+pub mod error;
+
+#[doc(hidden)]
+pub mod func;
+
+#[doc(hidden)]
+pub mod globals;
+
+// This exposes some raw types for module to use (e.g. in `emacs_module_init`) without having to
+// declare the raw `emacs_module` as a dependency.
+#[doc(hidden)]
+pub mod raw {
+    pub use emacs_module::{emacs_env, emacs_runtime, emacs_value};
+}
+
+// External dependencies that are mostly used by macros instead of user code.
+#[doc(hidden)]
+pub mod deps {
+    pub use libc;
+    pub use ctor;
+    pub use lazy_static;
+}
 
 /// Main point of interaction with the Lisp runtime.
 #[derive(Debug)]
@@ -28,6 +54,7 @@ pub struct Env {
 /// arguments passed from Lisp code.
 ///
 /// [`Env`]: struct.Env.html
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct CallEnv {
     env: Env,
@@ -42,29 +69,28 @@ pub struct CallEnv {
 /// They are also "proxy values" that are only useful when converted to Rust values, or used as
 /// arguments when calling back into the Lisp runtime.
 ///
-/// # Implementations
-///
-/// We don't need a custom `Clone` implementation that does ref counting. TODO: Explain
-/// why (e.g. GC still keeps a ref during value's lifetime (does it?), get_mut() is always
-/// unsafe...)
-///
 /// [`Env`]: struct.Env.html
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'e> {
     pub(crate) raw: emacs_value,
-    pub(crate) env: &'e Env,
+    pub env: &'e Env,
 }
 
 /// Converting Lisp [`Value`] into a Rust type.
 ///
+/// # Implementation
+///
+/// The lifetime parameter is put on the trait itself, instead of the method. This allows it to be
+/// implemented for [`Value`] itself.
+///
 /// [`Value`]: struct.Value.html
-pub trait FromLisp: Sized {
-    fn from_lisp(value: Value<'_>) -> Result<Self>;
+pub trait FromLisp<'e>: Sized {
+    fn from_lisp(value: Value<'e>) -> Result<Self>;
 }
 
 /// Converting a Rust type into Lisp [`Value`].
 ///
-/// # Implementations
+/// # Implementation
 ///
 /// The lifetime parameter is put on the trait itself, instead of the method. This allows the impl
 /// for [`Value`] to simply return the input, instead of having to create a new [`Value`].
@@ -104,17 +130,20 @@ pub trait Transfer: Sized {
 
 /// Public APIs.
 impl Env {
+    #[doc(hidden)]
     pub unsafe fn new(raw: *mut emacs_env) -> Self {
         let protected = RefCell::new(vec![]);
         Self { raw, protected }
     }
 
+    #[doc(hidden)]
     pub unsafe fn from_runtime(runtime: *mut emacs_runtime) -> Self {
         let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
         let raw = get_env(runtime);
         Self::new(raw)
     }
 
+    #[doc(hidden)]
     pub fn raw(&self) -> *mut emacs_env {
         self.raw
     }
@@ -181,6 +210,7 @@ impl<'e> Value<'e> {
     /// The raw value must come from the given [`Env`].
     ///
     /// [`Env`]: struct.Env.html
+    #[doc(hidden)]
     pub unsafe fn new(raw: emacs_value, env: &'e Env) -> Self {
         Self { raw, env }
     }
@@ -196,15 +226,19 @@ impl<'e> Value<'e> {
     ///
     /// [`Env`]: struct.Env.html
     #[allow(unused_unsafe)]
+    #[doc(hidden)]
     pub unsafe fn new_protected(raw: emacs_value, env: &'e Env) -> Self {
         env.protected.borrow_mut().push(raw_call_no_exit!(env, make_global_ref, raw));
         Self::new(raw, env)
     }
 
     /// Converts this value into a Rust value of the given type.
-    pub fn into_rust<T: FromLisp>(self) -> Result<T> {
+    pub fn into_rust<T: FromLisp<'e>>(self) -> Result<T> {
         FromLisp::from_lisp(self)
     }
+
+    // TODO: Rename this to `borrow_mut`? Also, remove FromLisp implementation for &T. On the other
+    // hand, `Value` is similar to `Rc`, so `get_mut` may make sense.
 
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.
     ///
@@ -213,17 +247,16 @@ impl<'e> Value<'e> {
     /// There are several ways this can go wrong:
     ///
     /// - Lisp code can pass the same object through 2 different values in an argument list.
-    /// - Rust code earlier in the call chain may have cloned this value.
-    /// - Rust code later in the call chain may receive a clone of this value.
+    /// - Rust code earlier in the call chain may have copied this value.
+    /// - Rust code later in the call chain may receive a copy of this value.
     ///
-    /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock`
-    /// guards, before moving them to Lisp, and then only access them through these guards
-    /// (which can be obtained back through [`into_rust`].
+    /// In general, it is better to wrap Rust data in `RefCell`, `Mutex`, or `RwLock` guards, before
+    /// moving them to Lisp, and then only access them through these guards (which can be obtained
+    /// back through [`into_rust`]). This method is for squeezing out the last bit of performance in
+    /// very rare situations.
     ///
-    /// [`into_rust`]: struct.Value.html#method.into_rust
+    /// [`into_rust`]: #method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
-        self.env.get_raw_pointer(self.raw).map(|r| {
-            &mut *r
-        })
+        self.env.get_raw_pointer(self.raw).map(|r| &mut *r)
     }
 }

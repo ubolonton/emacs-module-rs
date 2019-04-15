@@ -6,28 +6,19 @@ This provides a high-level binding to `emacs-module`.
 Code for a minimal module looks like this:
 
 ```rust
-extern crate libc;
+use emacs::{defun, Env, Result, Value};
 
-use emacs;
-use emacs::{Env, CallEnv, Result, Value};
+emacs::plugin_is_GPL_compatible!();
 
-emacs::emacs_plugin_is_GPL_compatible!();
-emacs::emacs_module_init!(init);
+#[emacs::module(name = "greeting")]
+fn init(_: &Env) -> Result<()> { Ok(()) }
 
-fn init(env: &Env) -> Result<Value> {
-    fn hello(env: &CallEnv) -> Result<Value> {
-        let name: String = env.parse_arg(0)?;
-        env.message(&format!("Hello, {}!", name))
-    }
-
-    emacs::emacs_export_functions! {
-        env, "greeting-", {
-            "say-hello" => (hello, 1..1)
-        }
-    }
-
-    env.provide("greeting")
+#[defun]
+fn say_hello(env: &Env, name: String) -> Result<Value<'_>> {
+    env.message(&format!("Hello, {}!", name))
 }
+
+
 ```
 
 ``` emacs-lisp
@@ -39,6 +30,8 @@ fn init(env: &Env) -> Result<Value> {
 ## Live Reloading
 
 Emacs does not support unloading modules. Live reloading thus requires a custom module loader. [rs-module](rs-module) is one such loader (which itself is a module that must be loaded by Emacs's normal loading mechanism). See [load.sh](bin/load.sh).
+
+**Note**: This doesn't work on macOS 10.13+ (High Sierra and up). See [this issue](https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049).
 
 ## Sample Modules
 

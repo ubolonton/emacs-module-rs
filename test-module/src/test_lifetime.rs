@@ -1,25 +1,24 @@
-use emacs::emacs_export_functions;
-use emacs::{Env, CallEnv, Value, IntoLisp, Result};
+use emacs::{defun, Env, IntoLisp, Result, Value};
 use emacs::ErrorKind::{self, Signal};
 
 use super::MODULE_PREFIX;
 
-fn gc(env: &CallEnv) -> Result<Value<'_>> {
+fn gc(env: &Env) -> Result<Value<'_>> {
     env.call("garbage-collect", &[])
 }
 
-fn print<'e>(env: &'e CallEnv, v: Value<'_>) -> Result<Value<'e>> {
+fn print<'e>(env: &'e Env, v: Value<'_>) -> Result<Value<'e>> {
     env.call("print", &[v])
 }
 
 fn create_collect_use<'e, CF, UF>(
-    env: &'e CallEnv,
+    env: &'e Env,
     count: usize,
     creating: CF,
     using: UF,
 ) -> Result<Value<'_>>
     where CF: Fn() -> Result<Value<'e>>,
-          UF: Fn(&'e CallEnv, Value<'_>) -> Result<Value<'e>>,
+          UF: Fn(&'e Env, Value<'_>) -> Result<Value<'e>>,
 {
     // - It's interesting that it wouldn't crash if the loop is unrolled.
     // - Even more interesting is it'd crash when manual malloc+free is used in raw C
@@ -49,7 +48,8 @@ fn create_collect_use<'e, CF, UF>(
 // Before fixing:
 // - macOS: Segmentation fault
 // - Linux: Segmentation fault
-fn gc_after_new_string(env: &CallEnv) -> Result<Value<'_>> {
+#[defun(mod_in_name = false)]
+fn gc_after_new_string(env: &Env) -> Result<Value<'_>> {
     create_collect_use(env, 2, || {
         "0".into_lisp(env)
     }, print)
@@ -58,7 +58,8 @@ fn gc_after_new_string(env: &CallEnv) -> Result<Value<'_>> {
 // Before fixing:
 // - macOS: Segmentation fault
 // - Linux: Segmentation fault
-fn gc_after_uninterning(env: &CallEnv) -> Result<Value<'_>> {
+#[defun(mod_in_name = false)]
+fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
     // Wouldn't fail if count is 1 or 2.
     create_collect_use(env, 3, || {
         let x = env.intern("xyz")?;
@@ -70,13 +71,14 @@ fn gc_after_uninterning(env: &CallEnv) -> Result<Value<'_>> {
 // Before fixing:
 // - macOS: Abort trap (since the violation happens in Rust)
 // - Linux: wrong-type-argument (maybe the runtime is a bit different in Linux?)
-fn gc_after_retrieving(env: &CallEnv) -> Result<Value<'_>> {
+#[defun(mod_in_name = false)]
+fn gc_after_retrieving(env: &Env) -> Result<Value<'_>> {
     create_collect_use(env, 2, || {
-        // XXX: These come from `test_transfer` module.
-        env.call(&format!("{}hash-map:make", *MODULE_PREFIX), &[])
+        // XXX: These come from `hash_map` module.
+        env.call(&format!("{}hash-map-make", *MODULE_PREFIX), &[])
     }, |env, v| {
         print(env, v)?; // Used: #<user-ptr ptr=... finalizer=...>. Free: #<misc free cell>.
-        env.call(&format!("{}hash-map:set", *MODULE_PREFIX), &[
+        env.call(&format!("{}hash-map-set", *MODULE_PREFIX), &[
             v,
             "x".into_lisp(env)?,
             "y".into_lisp(env)?,
@@ -84,32 +86,19 @@ fn gc_after_retrieving(env: &CallEnv) -> Result<Value<'_>> {
     })
 }
 
-fn gc_after_catching_1(env: &CallEnv) -> Result<Value<'_>> {
-    let f = env.get_arg(0);
+#[defun(mod_in_name = false)]
+fn gc_after_catching_1<'e>(env: &'e Env, f: Value<'_>) -> Result<Value<'e>> {
     create_collect_use(env, 2, || {
-        match env.call("funcall", &[f] ) {
+        match env.call("funcall", &[f]) {
             Err(error) => {
                 if let Some(&Signal { ref data, .. }) = error.downcast_ref::<ErrorKind>() {
                     unsafe {
-                        return Ok(data.value(env))
+                        return Ok(data.value(env));
                     }
                 }
                 Err(error)
-            },
+            }
             v => v,
         }
     }, print)
-}
-
-pub fn init(env: &Env) -> Result<()> {
-    emacs_export_functions! {
-        env, *MODULE_PREFIX, {
-            "gc-after-new-string" => (gc_after_new_string, 0..0),
-            "gc-after-uninterning" => (gc_after_uninterning, 0..0),
-            "gc-after-retrieving" => (gc_after_retrieving, 0..0),
-            "gc-after-catching-1" => (gc_after_catching_1, 1..1),
-        }
-    }
-
-    Ok(())
 }

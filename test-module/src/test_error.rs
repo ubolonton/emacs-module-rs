@@ -1,13 +1,10 @@
-use emacs::emacs_export_functions;
-use emacs::{Env, CallEnv, Value, IntoLisp, Result};
+use emacs::{defun, CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
 
 use super::MODULE_PREFIX;
 
-fn lisp_divide(env: &CallEnv) -> Result<i64> {
-    let x = env.get_arg(0);
-    let y = env.get_arg(1);
-
+#[defun(mod_in_name = false, name = "error:lisp-divide")]
+fn lisp_divide(x: Value<'_>, y: Value<'_>) -> Result<i64> {
     fn inner(env: &Env, x: i64, y: i64) -> Result<Value<'_>> {
         call!(env, "/", x, y)
     }
@@ -20,38 +17,39 @@ fn lisp_divide(env: &CallEnv) -> Result<i64> {
         )
     }
 
-    foo(env, x, y)?.into_rust()
+    foo(x.env, x, y)?.into_rust()
 }
 
-fn get_type(env: &CallEnv) -> Result<Value<'_>> {
-    let f = env.get_arg(0);
+#[defun(mod_in_name = false, name = "error:get-type")]
+fn get_type(f: Value<'_>) -> Result<Value<'_>> {
+    let env = f.env;
     match env.call("funcall", &[f]) {
         Err(error) => {
             if let Some(&Signal { ref symbol, .. }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
-                    return Ok(symbol.value(env))
+                    return Ok(symbol.value(env));
                 }
             }
             Err(error)
-        },
+        }
         v => v,
     }
 }
 
-fn catch(env: &CallEnv) -> Result<Value<'_>> {
-    let expected_tag = env.get_arg(0);
-    let f = env.get_arg(1);
+#[defun(mod_in_name = false, name = "error:catch")]
+fn catch<'e>(expected_tag: Value<'e>, f: Value<'e>) -> Result<Value<'e>> {
+    let env = expected_tag.env;
     match env.call("funcall", &[f]) {
         Err(error) => {
             if let Some(&Throw { ref tag, ref value }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
                     if env.eq(tag.value(env), expected_tag) {
-                        return Ok(value.value(env))
+                        return Ok(value.value(env));
                     }
                 }
             }
             Err(error)
-        },
+        }
         v => v,
     }
 }
@@ -63,11 +61,8 @@ fn parse_arg(env: &CallEnv) -> Result<String> {
 }
 
 pub fn init(env: &Env) -> Result<()> {
-    emacs_export_functions! {
+    emacs::export_functions! {
         env, format!("{}error:", *MODULE_PREFIX), {
-            "lisp-divide" => (lisp_divide , 2..2),
-            "get-type"    => (get_type    , 1..1),
-            "catch"       => (catch       , 2..2),
             "parse-arg"   => (parse_arg   , 2..5),
         }
     }

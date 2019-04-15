@@ -1,30 +1,36 @@
-use std::ptr;
-use std::cell::RefCell;
-use std::sync::{Mutex, RwLock};
-use std::ffi::CString;
 use libc;
+use std::cell::RefCell;
+use std::ffi::CString;
+use std::ptr;
+use std::sync::{Mutex, RwLock};
 
-use emacs_module::emacs_value;
+use super::error::{ErrorKind, Result};
 use super::{Env, Value};
 use super::{FromLisp, IntoLisp, Transfer};
-use super::error::{Result, ErrorKind};
+use emacs_module::emacs_value;
 
 #[doc(hidden)]
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
-impl FromLisp for i64 {
+impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
+    fn from_lisp(value: Value<'e>) -> Result<Value<'a>> {
+        Ok(value)
+    }
+}
+
+impl FromLisp<'_> for i64 {
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         raw_call!(value.env, extract_integer, value.raw)
     }
 }
 
-impl FromLisp for f64 {
+impl FromLisp<'_> for f64 {
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         raw_call!(value.env, extract_float, value.raw)
     }
 }
 
-impl FromLisp for String {
+impl FromLisp<'_> for String {
     // TODO: Optimize this.
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.env.string_bytes(value)?;
@@ -33,8 +39,8 @@ impl FromLisp for String {
     }
 }
 
-impl<T: FromLisp> FromLisp for Option<T> {
-    fn from_lisp(value: Value<'_>) -> Result<Self> {
+impl<'e, T: FromLisp<'e>> FromLisp<'e> for Option<T> {
+    fn from_lisp(value: Value<'e>) -> Result<Self> {
         if value.env.is_not_nil(value) {
             Ok(Some(<T as FromLisp>::from_lisp(value)?))
         } else {
@@ -43,11 +49,9 @@ impl<T: FromLisp> FromLisp for Option<T> {
     }
 }
 
-impl<'a, T: Transfer> FromLisp for &'a T {
-    fn from_lisp(value: Value<'_>) -> Result<Self> {
-        value.env.get_raw_pointer(value.raw).map(|r| unsafe {
-            &*r
-        })
+impl<'a, 'e: 'a, T: Transfer> FromLisp<'e> for &'a T {
+    fn from_lisp(value: Value<'e>) -> Result<Self> {
+        value.env.get_raw_pointer(value.raw).map(|r| unsafe { &*r })
     }
 }
 
@@ -57,13 +61,13 @@ impl<'e> IntoLisp<'e> for Value<'e> {
     }
 }
 
-impl<'e> IntoLisp<'e> for () {
+impl IntoLisp<'_> for () {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         env.intern("nil")
     }
 }
 
-impl<'e> IntoLisp<'e> for bool {
+impl IntoLisp<'_> for bool {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         if self {
             env.intern("t")
@@ -73,13 +77,13 @@ impl<'e> IntoLisp<'e> for bool {
     }
 }
 
-impl<'e> IntoLisp<'e> for i64 {
+impl IntoLisp<'_> for i64 {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         raw_call_value!(env, make_integer, self)
     }
 }
 
-impl<'e> IntoLisp<'e> for f64 {
+impl IntoLisp<'_> for f64 {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         raw_call_value!(env, make_float, self)
     }
@@ -93,7 +97,7 @@ impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
     }
 }
 
-impl<'e> IntoLisp<'e> for String {
+impl IntoLisp<'_> for String {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         self.as_str().into_lisp(env)
     }
@@ -108,8 +112,8 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
     }
 }
 
-impl<'e, T: Transfer> IntoLisp<'e> for Box<T> {
-    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
+impl<T: Transfer> IntoLisp<'_> for Box<T> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut libc::c_void;
         raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)
@@ -137,7 +141,11 @@ impl Env {
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);
             let ok: bool = self.handle_exit(copy_string_contents(
-                self.raw, value.raw, ptr::null_mut(), &mut len))?;
+                self.raw,
+                value.raw,
+                ptr::null_mut(),
+                &mut len,
+            ))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
             // should be void, not bool.
             if !ok {
@@ -146,7 +154,11 @@ impl Env {
 
             let mut bytes = vec![0u8; len as usize];
             let ok: bool = self.handle_exit(copy_string_contents(
-                self.raw, value.raw, bytes.as_mut_ptr() as *mut i8, &mut len))?;
+                self.raw,
+                value.raw,
+                bytes.as_mut_ptr() as *mut i8,
+                &mut len,
+            ))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
             // should be void, not bool.
             if !ok {
@@ -163,11 +175,11 @@ impl Env {
             Some::<Finalizer>(fin) if fin == T::finalizer => {
                 let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
                 Ok(ptr as *mut T)
-            },
+            }
             _ => {
                 let expected = T::type_name();
                 Err(ErrorKind::WrongTypeUserPtr { expected }.into())
-            },
+            }
         }
     }
 }
