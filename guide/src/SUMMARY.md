@@ -3,6 +3,7 @@
 [Overview](./overview.md)
 
 - [Hello, Emacs!](./hello.md)
+- [Declaring a Module](./module.md)
 - [Writing Functions](./functions.md)
 - [Calling Lisp Functions](./calling-lisp.md)
 - [Type Conversions](./type-conversions.md)

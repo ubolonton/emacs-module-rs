@@ -14,24 +14,27 @@ Modify `Cargo.toml`:
 crate-type = ["cdylib"]
 
 [dependencies]
-libc = "0.2.34"
-emacs = "0.6.0"
+emacs = "0.7.0"
 ```
 
 Write code in `src/lib.rs`:
 
 ```rust
-use emacs;
-use emacs::{Env, Result, Value};
+use emacs::{defun, Env, Result, Value};
 
 // Emacs won't load the module without this.
 emacs::plugin_is_GPL_compatible!();
 
-// Declare and define the init function, which Emacs will call when it loads the module.
-emacs::module_init!(init);
+// Register the initialization hook that Emacs will call when it loads the module.
+#[emacs::module]
 fn init(env: &Env) -> Result<Value<'_>> {
-    env.message("Hello, Emacs!")?;
-    env.provide("greeting")
+    env.message("Done loading!")
+}
+
+// Define a function callable by Lisp code.
+#[defun]
+fn say_hello(env: &Env, name: String) -> Result<Value<'_>> {
+    env.message(&format!("Hello, {}!", name))
 }
 ```
 
@@ -44,7 +47,7 @@ cd target/debug
 # If you are on Linux
 ln -s libgreeting.so greeting.so
 
-# If you are on OS X
+# If you are on macOS
 ln -s libgreeting.dylib greeting.so
 ```
 
@@ -52,6 +55,7 @@ Add `target/debug` to your Emacs's `load-path`, then load the module:
 ```emacs-lisp
 (add-to-list 'load-path "/path/to/target/debug")
 (require 'greeting)
+(greeting-say-hello "Emacs")
 ```
 
-The minibuffer should display the message "Hello, Emacs!".
+The minibuffer should display the message `Hello, Emacs!`.

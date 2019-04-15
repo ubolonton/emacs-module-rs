@@ -11,37 +11,26 @@ For example, a module that allows Emacs to use Rust's `HashMap` may look like th
 ```rust
 use std::cell::RefCell;
 use std::collections::HashMap;
-use emacs;
+use emacs::{defun, Env, Result, Value};
 
+#[emacs::module(name = "rs-hash-map", separator = "/")]
 fn init(env: &Env) -> Result<Value<'_>> {
     type Map = RefCell<HashMap<String, String>>;
 
-    fn make(_: &CallEnv) -> Result<Map> {
+    #[defun]
+    fn make() -> Result<Map> {
         Ok(RefCell::new(HashMap::new()))
     }
 
-    fn get(env: &CallEnv) -> Result<Value<'_>> {
-        let map: &Map = env.parse_arg(0)?;
-        let key: String = env.parse_arg(1)?;
+    #[defun]
+    fn get<'e>(env: &'e Env, map: &Map, key: String) -> Result<Value<'e>> {
         map.borrow().get(&key).into_lisp(env)
     }
 
-    fn set(env: &CallEnv) -> Result<Option<String>> {
-        let map: &Map = env.parse_arg(0)?;
-        let key: String = env.parse_arg(1)?;
-        let value: String = env.parse_arg(2)?;
+    #[defun]
+    fn set(map: &Map, key: String, value: String) -> Result<Option<String>> {
         Ok(map.borrow_mut().insert(key,value))
     }
-
-    emacs::export_functions! {
-        env, "rs-hash-map/", {
-            "make" => (make, 0..0),
-            "get"  => (get,  2..2),
-            "set"  => (set,  3..3),
-        }
-    }
-
-    env.provide("rs-hash-map")
 }
 ```
 

@@ -11,14 +11,14 @@ mod util;
 mod module;
 mod func;
 
-/// Registers a function as the initialization hook, to be called when Emacs loads the module. Each
-/// dynamic module must have one and only one such function.
+/// Registers a function as the initializer, to be called when Emacs loads the module. Each dynamic
+/// module must have one and only one such function.
 ///
 /// # Options
 ///
 /// - `name`: By default, name of the feature provided by the module is the crate's name (with `_`
-/// replaced by `-`). There is no need to explicitly call `provide` inside the initialization hook.
-/// This option allows the hook's name, or a string, to be used instead. For examples:
+/// replaced by `-`). There is no need to explicitly call `provide` inside the initializer. This
+/// option allows the initializer's name, or a string, to be used instead. For examples:
 /// `#[module(name(fn))]`, or `#[module(name = "feature-name")]`.
 /// - `separator`: Function names in Emacs are conventionally prefixed with the feature name,
 /// followed by `-`, this option allows a different separator to be used. For example:
@@ -42,8 +42,9 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 ///
 /// # Naming
 ///
-/// By default, the function's Lisp name has the form `<crate-prefix>[mod-prefix]<base-name>`.
-/// - `crate-prefix` can be customized by the `name` and `separator` options on [`#[module]`].
+/// By default, the function's Lisp name has the form `<feature-prefix>[mod-prefix]<base-name>`.
+/// - `feature-prefix` is the feature's name, followed by `-`. This can be customized by the `name`
+/// and `separator` options on [`#[module]`].
 /// - `mod-prefix` is constructed from the function's Rust module path (with `_` replaced by `-`).
 /// This can be turned off crate-wide, or for individual function, using the option `mod_in_name`.
 /// - `base-name` is the function's Rust name (with `_` replaced by `-`). This can be overridden
