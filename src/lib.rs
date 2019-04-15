@@ -1,3 +1,31 @@
+//! This provides a high-level binding to `emacs-module`, Emacs's support for dynamic modules.
+//!
+//! Code for a minimal module looks like this:
+//!
+//! ```no_run
+//! use emacs::{defun, Env, Result, Value};
+//!
+//! emacs::plugin_is_GPL_compatible!();
+//!
+//! #[emacs::module(name = "greeting")]
+//! fn init(_: &Env) -> Result<()> { Ok(()) }
+//!
+//! #[defun]
+//! fn say_hello(env: &Env, name: String) -> Result<Value<'_>> {
+//!     env.message(&format!("Hello, {}!", name))
+//! }
+//! ```
+//!
+//! ``` emacs-lisp
+//! (require 'greeting)
+//! (greeting-say-hello "Emacs")
+//! ```
+//!
+//! See [User Guide] and [example].
+//!
+//! [User Guide]: https://ubolonton.github.io/emacs-module-rs/
+//! [Example]: https://github.com/ubolonton/magit-libgit2
+
 use std::cell::RefCell;
 use std::ffi::CString;
 
