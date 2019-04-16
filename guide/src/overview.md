@@ -2,9 +2,13 @@
 
 `emacs-module-rs` provides high-level Rust binding and tools to write Emacs's dynamic modules. It is easy to use if you know either Rust or Emacs.
 
-It currently supports stable Rust, Emacs 25/26, macOS, and Linux.
+It currently supports stable Rust, Emacs 25/26, macOS/Linux.
 
-**Note**: There seems to be a bug with Emacs 26 on Ubuntu 16.04 (Xenial) that prevents it from loading any dynamic modules (even those written in C). See [issue #2](https://github.com/ubolonton/emacs-module-rs/issues/1).
+## Known issues
+
+There is a bug (see [issue #1](https://github.com/ubolonton/emacs-module-rs/issues/1)) with Emacs 26 on Linux that prevents it from loading any dynamic modules (even those written in C), if:
+- Emacs is built without thread support.
+- The OS is Ubuntu 16.04 (Xenial).
 
 ## Setting up
 
