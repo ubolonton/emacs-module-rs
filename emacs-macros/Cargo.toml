@@ -3,6 +3,7 @@ name = "emacs-macros"
 version = "0.1.0"
 edition = "2018"
 description = "Proc macros for emacs modules"
+homepage = "https://github.com/ubolonton/emacs-module-rs"
 authors = [
     "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
 ]

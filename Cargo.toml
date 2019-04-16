@@ -2,7 +2,9 @@
 name = "emacs"
 version = "0.7.0"
 edition = "2018"
-description = "Rust library for creating emacs modules"
+description = "Rust library for creating Emacs's dynamic modules"
+homepage = "https://github.com/ubolonton/emacs-module-rs"
+documentation = "https://ubolonton.github.io/emacs-module-rs/"
 authors = [
     "Aaron France <aaron.l.france@gmail.com>",
     "Joey Ezechiëls <joey.ezechiels@gmail.com>",
@@ -10,7 +12,15 @@ authors = [
 ]
 license = "BSD-3-Clause"
 readme = "README.md"
-keywords = ["emacs", "emacs-module"]
+keywords = ["emacs", "emacs-module", "ffi"]
+categories = ["api-bindings", "development-tools::ffi"]
+include = [
+    "Cargo.toml",
+    ".rustfmt.toml",
+    "CHANGELOG.md",
+    "README.md",
+    "src/**/*"
+]
 
 [dependencies]
 libc = "0.2.34"
