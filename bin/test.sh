@@ -17,5 +17,5 @@ $EMACS --version
 echo "Testing $MODULE_FULL"
 
 $EMACS -batch -l ert \
-       -l "$PROJECT_ROOT/test-module/src/test.el" \
+       -l "$PROJECT_ROOT/test-module/tests/main.el" \
        -f ert-run-tests-batch-and-exit
