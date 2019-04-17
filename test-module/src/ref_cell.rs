@@ -17,19 +17,14 @@ fn unwrap(r: Value<'_>) -> Result<i64> {
 
 /// Mutably increment the wrapped integer, returning the new value.
 #[defun]
-fn inc(r: Value<'_>) -> Result<i64> {
-    let r: &RefCell<i64> = r.into_rust()?;
-    let mut x = r.try_borrow_mut()?;
+fn inc(x: &mut i64) -> Result<i64> {
     *x += 1;
     Ok(*x)
 }
 
 /// Unwrap the integer, call the given function while still holding the reference.
 #[defun]
-fn unwrap_and_call(r: Value<'_>, lambda: Value<'_>) -> Result<()> {
-    let env = r.env;
-    let r: &RefCell<i64> = r.into_rust()?;
-    let x = r.try_borrow()?;
-    env.call("funcall", &[lambda])?;
+fn unwrap_and_call(_: &i64, lambda: Value<'_>) -> Result<()> {
+    lambda.env.call("funcall", &[lambda])?;
     Ok(())
 }

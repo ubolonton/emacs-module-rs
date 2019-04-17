@@ -1,4 +1,4 @@
-use emacs::{defun, Result, Value, Env, IntoLisp};
+use emacs::{defun, Env, IntoLisp, Result, Value};
 
 struct Vector {
     pub x: i64,
@@ -6,8 +6,8 @@ struct Vector {
 }
 
 custom_types! {
-        Vector as "Vector";
-    }
+    Vector as "Vector";
+}
 
 #[defun]
 fn swap_components(mut v: Value<'_>) -> Result<Value<'_>> {
@@ -33,7 +33,9 @@ fn to_list<'e>(env: &'e Env, v: Value<'_>) -> Result<Value<'e>> {
 }
 
 #[defun]
-fn add(a: &Vector, b: &Vector) -> Result<Box<Vector>> {
+fn add(a: Value<'_>, b: Value<'_>) -> Result<Box<Vector>> {
+    let a: &Vector = a.into_rust()?;
+    let b: &Vector = b.into_rust()?;
     let (x, y) = (b.x + a.x, b.y + a.y);
     Ok(Box::new(Vector { x, y }))
 }
