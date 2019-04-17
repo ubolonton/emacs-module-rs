@@ -106,6 +106,7 @@ unsafe impl Sync for TempValue {}
 
 impl Env {
     /// Handles possible non-local exit after calling Lisp code.
+    #[inline]
     pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
         let mut symbol = unsafe { mem::uninitialized() };
         let mut data = unsafe { mem::uninitialized() };
@@ -133,6 +134,7 @@ impl Env {
     }
 
     /// Converts a Rust's `Result` to either a normal value, or a non-local exit in Lisp.
+    #[inline]
     pub(crate) unsafe fn maybe_exit(&self, result: Result<Value<'_>>) -> emacs_value {
         match result {
             Ok(v) => v.raw,
@@ -151,6 +153,7 @@ impl Env {
         }
     }
 
+    #[inline]
     pub(crate) fn handle_panic(&self, result: thread::Result<emacs_value>) -> emacs_value {
         match result {
             Ok(v) => v,

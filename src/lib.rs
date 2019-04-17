@@ -260,18 +260,18 @@ impl<'e> Value<'e> {
     }
 
     /// Converts this value into a Rust value of the given type.
-    #[inline(always)]
+    #[inline]
     pub fn into_rust<T: FromLisp<'e>>(self) -> Result<T> {
         FromLisp::from_lisp(self)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn into_ref<T>(self) -> Result<Ref<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
         Ok(container.try_borrow()?)
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn into_ref_mut<T>(self) -> Result<RefMut<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
         Ok(container.try_borrow_mut()?)

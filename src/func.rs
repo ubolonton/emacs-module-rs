@@ -8,8 +8,6 @@ use std::ops::{Deref, Range};
 use std::panic;
 use std::slice;
 
-use libc;
-
 use emacs_module::{emacs_value, EmacsSubr};
 
 use super::error::Result;
@@ -94,6 +92,7 @@ impl HandleInit for Env {
 // TODO: Iterator and Index
 impl CallEnv {
     #[doc(hidden)]
+    #[inline]
     pub unsafe fn new(
         env: Env,
         nargs: libc::ptrdiff_t,
@@ -105,25 +104,32 @@ impl CallEnv {
     }
 
     #[doc(hidden)]
+    #[inline]
     pub fn raw_args(&self) -> &[emacs_value] {
+        // Safety: Emacs assures *args is valid for the duration of the call, with length nargs.
         unsafe { slice::from_raw_parts(self.args, self.nargs) }
     }
 
     pub fn args(&self) -> Vec<Value<'_>> {
+        // Safety: Emacs assures *args are on the stack for the duration of the call.
         self.raw_args().iter().map(|v| unsafe { Value::new(*v, &self.env) }).collect()
     }
 
+    #[inline]
     pub fn get_arg(&self, i: usize) -> Value<'_> {
         let args: &[emacs_value] = self.raw_args();
+        // Safety: Emacs assures *args are on the stack for the duration of the call.
         unsafe { Value::new(args[i], &self) }
     }
 
+    #[inline]
     pub fn parse_arg<'e, T: FromLisp<'e>>(&'e self, i: usize) -> Result<T> {
         self.get_arg(i).into_rust()
     }
 }
 
 impl HandleCall for CallEnv {
+    #[inline]
     fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
     where
         F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
@@ -144,6 +150,7 @@ impl Deref for CallEnv {
     type Target = Env;
 
     #[doc(hidden)]
+    #[inline(always)]
     fn deref(&self) -> &Env {
         &self.env
     }
