@@ -143,10 +143,10 @@ impl Env {
                 Some(&ErrorKind::Throw { ref tag, ref value }) => self.throw(tag.raw, value.raw),
                 Some(&ErrorKind::WrongTypeUserPtr { .. }) => self
                     .signal_str(WRONG_TYPE_USER_PTR, &format!("{}", error))
-                    .expect(&format!("Failed to signal {}", error)),
+                    .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
                 _ => self
                     .signal_str(ERROR, &format!("{}", error))
-                    .expect(&format!("Failed to signal {}", error)),
+                    .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
             },
         }
     }
@@ -157,7 +157,7 @@ impl Env {
             Err(error) => {
                 // TODO: Try to check for some common types to display?
                 self.signal_str(PANIC, &format!("{:#?}", error))
-                    .expect(&format!("Fail to signal panic {:#?}", error))
+                    .unwrap_or_else(|_| panic!("Fail to signal panic {:#?}", error))
             }
         }
     }

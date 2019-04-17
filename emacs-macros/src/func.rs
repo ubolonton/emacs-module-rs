@@ -94,9 +94,7 @@ impl LispFunc {
             None => {
                 let crate_mod_in_name = util::mod_in_name_path();
                 quote!({
-                    let crate_mod_in_name = #crate_mod_in_name.try_lock()
-                        .expect("Failed to acquire a read lock on crate-wide mod_in_name");
-                    if *crate_mod_in_name {
+                    if #crate_mod_in_name.load(::std::sync::atomic::Ordering::Relaxed) {
                         module_path!()
                     } else {
                         ""

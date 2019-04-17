@@ -124,11 +124,7 @@ impl Module {
             }
         };
         let configure_mod_in_name = quote! {
-            {
-                let mut mod_in_name = #mod_in_name.try_lock()
-                    .expect("Failed to acquire write lock for crate-wide mod_in_name");
-                *mod_in_name = #crate_mod_in_name;
-            }
+            #mod_in_name.store(#crate_mod_in_name, ::std::sync::atomic::Ordering::Relaxed);
         };
         let export_lisp_funcs = quote! {
             {

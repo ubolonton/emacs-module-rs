@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, sync::{Mutex, atomic::AtomicBool}};
 
 use lazy_static::lazy_static;
 
@@ -26,7 +26,7 @@ lazy_static! {
     /// [`#[defun]`]: ../emacs_macros/attr.defun.html
     pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
 
-    pub static ref __MOD_IN_NAME__: Mutex<bool> = Mutex::new(true);
+    pub static ref __MOD_IN_NAME__: AtomicBool = AtomicBool::new(true);
 }
 
 fn lisp_name(s: &str) -> String {

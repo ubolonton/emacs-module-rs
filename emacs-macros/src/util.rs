@@ -27,7 +27,7 @@ pub fn doc(fn_item: &ItemFn) -> String {
         if let Ok(syn::Meta::NameValue(mnv)) = attr.parse_meta() {
             if mnv.ident == "doc" {
                 if let syn::Lit::Str(ls) = mnv.lit {
-                    doc.push(ls.value().trim_start_matches(" ").to_owned());
+                    doc.push(ls.value().trim_start_matches(' ').to_owned());
                 }
             }
         }
