@@ -18,8 +18,14 @@ fn swap_components(mut v: Value<'_>) -> Result<Value<'_>> {
     Ok(v)
 }
 
+#[defun(user_ptr(direct))]
+fn make(x: i64, y: i64) -> Result<Vector> {
+    Ok(Vector { x, y })
+}
+
+// Same with the above, but manually.
 #[defun]
-fn make(x: i64, y: i64) -> Result<Box<Vector>> {
+fn make1(x: i64, y: i64) -> Result<Box<Vector>> {
     Ok(Box::new(Vector { x, y }))
 }
 
@@ -32,12 +38,12 @@ fn to_list<'e>(env: &'e Env, v: Value<'_>) -> Result<Value<'e>> {
     env.list(&[x, y])
 }
 
-#[defun]
-fn add(a: Value<'_>, b: Value<'_>) -> Result<Box<Vector>> {
+#[defun(user_ptr(direct))]
+fn add(a: Value<'_>, b: Value<'_>) -> Result<Vector> {
     let a: &Vector = a.into_rust()?;
     let b: &Vector = b.into_rust()?;
     let (x, y) = (b.x + a.x, b.y + a.y);
-    Ok(Box::new(Vector { x, y }))
+    Ok(Vector { x, y })
 }
 
 #[defun]

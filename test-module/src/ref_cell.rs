@@ -4,9 +4,9 @@ use std::cell::RefCell;
 // TODO: Add tests for Mutex and RwLock, and more tests for RefCell.
 
 /// Wrap the given integer in a RefCell.
-#[defun]
-fn wrap(x: i64) -> Result<RefCell<i64>> {
-    Ok(RefCell::new(x))
+#[defun(user_ptr)]
+fn wrap(x: i64) -> Result<i64> {
+    Ok(x)
 }
 
 #[defun]

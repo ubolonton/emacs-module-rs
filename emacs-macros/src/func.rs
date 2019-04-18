@@ -11,17 +11,48 @@ use syn::{
 
 use crate::util::{self, report};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 enum Arg {
     Env { span: Span },
     Val { span: Span, access: Access, nth: usize },
 }
 
+/// Kinds of argument.
 #[derive(Copy, Clone, Debug)]
 enum Access {
     Owned,
     Ref,
     RefMut,
+}
+
+/// Kinds of `user-ptr` embedding.
+#[derive(Debug)]
+enum UserPtr {
+    /// Embedding through a [`RefCell`]. This is suitable for common use cases, where module
+    /// functions can borrow the underlying data back for read/write. It is safe because Lisp
+    /// threads are subjected to the GIL. [`BorrowError`]/[`BorrowMutError`] may be signaled at
+    /// runtime, depending on how module functions call back into the Lisp runtime.
+    ///
+    /// [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+    /// [`BorrowError`]: https://doc.rust-lang.org/std/cell/struct.BorrowError.html
+    /// [`BorrowMutError`]: https://doc.rust-lang.org/std/cell/struct.BorrowMutError.html
+    RefCell,
+    /// Embedding through a [`RwLock`]. Suitable for sharing data between module functions (on Lisp
+    /// threads, with [`Env`] access) and pure Rust code (on background threads, without [`Env`]
+    /// access).
+    ///
+    /// [`RwLock`]: https://doc.rust-lang.org/std/sync/struct.RwLock.html
+    RwLock,
+    /// Embedding through a [`Mutex`]. Suitable for sharing data between module functions (on Lisp
+    /// threads, with [`Env`] access) and pure Rust code (on background threads, without [`Env`]
+    /// access).
+    ///
+    /// [`Mutex`]: https://doc.rust-lang.org/std/sync/struct.Mutex.html
+    Mutex,
+    /// Embedding a `Transfer` value directly. Suitable for immutable data that will only be read
+    /// back (not written to) by module functions (writing requires `unsafe` access, and is
+    /// discouraged).
+    Direct,
 }
 
 #[derive(Debug, FromMeta)]
@@ -33,6 +64,9 @@ struct FuncOpts {
     /// crate-wide config.
     #[darling(default)]
     mod_in_name: Option<bool>,
+    /// How the return value should be embedded in Lisp as a `user-ptr`. `None` means no embedding.
+    #[darling(default)]
+    user_ptr: Option<UserPtr>,
 }
 
 #[derive(Debug)]
@@ -46,6 +80,37 @@ pub struct LispFunc {
     /// Span of the return type. This helps with error reporting.
     output_span: Span,
     opts: FuncOpts,
+}
+
+/// We don't use the derived impl provided by darling, since we want a different syntax.
+/// See https://github.com/TedDriggs/darling/issues/74.
+impl FromMeta for UserPtr {
+    fn from_word() -> darling::Result<UserPtr> {
+        Ok(UserPtr::RefCell)
+    }
+
+    fn from_list(outer: &[syn::NestedMeta]) -> darling::Result<UserPtr> {
+        match outer.len() {
+            0 => Err(darling::Error::too_few_items(1)),
+            1 => {
+                let elem = &outer[0];
+                match elem {
+                    syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) => {
+                        match ident.to_string().as_ref() {
+                            "refcell" => Ok(UserPtr::RefCell),
+                            "mutex" => Ok(UserPtr::Mutex),
+                            "rwlock" => Ok(UserPtr::RwLock),
+                            "direct" => Ok(UserPtr::Direct),
+                            _ => Err(darling::Error::custom("Unknown kind of embedding")
+                                .with_span(ident)),
+                        }
+                    }
+                    _ => Err(darling::Error::custom("Expected an identifier").with_span(elem)),
+                }
+            }
+            _ => Err(darling::Error::too_many_items(1)),
+        }
+    }
 }
 
 impl LispFunc {
@@ -104,6 +169,23 @@ impl LispFunc {
                 }
             }
         }
+        let maybe_embed = match &self.opts.user_ptr {
+            None => TokenStream2::new(),
+            Some(user_ptr) => match user_ptr {
+                UserPtr::RefCell => quote_spanned! {self.output_span=>
+                    let result = ::std::boxed::Box::new(::std::cell::RefCell::new(result));
+                },
+                UserPtr::RwLock => quote_spanned! {self.output_span=>
+                    let result = ::std::boxed::Box::new(::std::sync::RwLock::new(result));
+                },
+                UserPtr::Mutex => quote_spanned! {self.output_span=>
+                    let result = ::std::boxed::Box::new(::std::sync::Mutex::new(result));
+                },
+                UserPtr::Direct => quote_spanned! {self.output_span=>
+                    let result = ::std::boxed::Box::new(result);
+                },
+            },
+        };
         // XXX: result can be (), but we can't easily know when.
         let into_lisp = quote_spanned! {self.output_span=>
             #[allow(clippy::unit_arg)]
@@ -115,6 +197,7 @@ impl LispFunc {
             fn #wrapper(env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
                 #bindings
                 let result = #inner(#args)?;
+                #maybe_embed
                 #into_lisp
             }
         }
