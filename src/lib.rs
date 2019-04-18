@@ -85,7 +85,6 @@ pub struct CallEnv {
     env: Env,
     nargs: usize,
     args: *mut emacs_value,
-    data: *mut libc::c_void,
 }
 
 /// A type that represents Lisp values.

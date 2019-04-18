@@ -101,10 +101,9 @@ impl CallEnv {
         env: Env,
         nargs: libc::ptrdiff_t,
         args: *mut emacs_value,
-        data: *mut libc::c_void,
     ) -> Self {
         let nargs = nargs as usize;
-        Self { env, nargs, args, data }
+        Self { env, nargs, args }
     }
 
     #[doc(hidden)]

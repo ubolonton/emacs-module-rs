@@ -135,10 +135,10 @@ macro_rules! lambda {
             env: *mut $crate::raw::emacs_env,
             nargs: $crate::deps::libc::ptrdiff_t,
             args: *mut $crate::raw::emacs_value,
-            data: *mut $crate::deps::libc::c_void,
+            _data: *mut $crate::deps::libc::c_void,
         ) -> $crate::raw::emacs_value {
             let env = $crate::Env::new(env);
-            let env = $crate::CallEnv::new(env, nargs, args, data);
+            let env = $crate::CallEnv::new(env, nargs, args);
             env.handle_call($func)
         }
 
