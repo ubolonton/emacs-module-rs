@@ -107,7 +107,9 @@ impl LispFunc {
                 }
             }
         }
+        // XXX: result can be (), but we can't easily know when.
         let into_lisp = quote_spanned! {self.output_span=>
+            #[allow(clippy::unit_arg)]
             ::emacs::IntoLisp::into_lisp(result, env)
         };
         let inner = &self.def.ident;
