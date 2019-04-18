@@ -12,9 +12,9 @@ custom_types! {
 #[defun]
 fn swap_components(mut v: Value<'_>) -> Result<Value<'_>> {
     let vec: &mut Vector = unsafe { v.get_mut()? };
-    vec.x = vec.x ^ vec.y;
-    vec.y = vec.x ^ vec.y;
-    vec.x = vec.x ^ vec.y;
+    vec.x ^= vec.y;
+    vec.y ^= vec.x;
+    vec.x ^= vec.y;
     Ok(v)
 }
 

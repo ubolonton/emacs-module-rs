@@ -24,6 +24,7 @@ fn inc(x: &mut i64) -> Result<i64> {
 
 /// Unwrap the integer, call the given function while still holding the reference.
 #[defun]
+#[allow(clippy::trivially_copy_pass_by_ref)] // TODO: Test with sth else not i64.
 fn unwrap_and_call(_: &i64, lambda: Value<'_>) -> Result<()> {
     lambda.env.call("funcall", &[lambda])?;
     Ok(())
