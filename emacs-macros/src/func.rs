@@ -24,18 +24,19 @@ enum Access {
     RefMut,
 }
 
-#[derive(FromMeta)]
+#[derive(Debug, FromMeta)]
 struct FuncOpts {
+    /// Name of the function in Lisp, excluding prefix. `None` means sanitized Rust name is used.
     #[darling(default)]
     name: Option<String>,
+    /// Whether module path should be used to construct the full Lisp name. `None` means using
+    /// crate-wide config.
     #[darling(default)]
     mod_in_name: Option<bool>,
 }
 
 #[derive(Debug)]
 pub struct LispFunc {
-    /// Name of the function in Lisp, excluding prefix.
-    name: String,
     /// The original Rust definition.
     def: ItemFn,
     /// Relevant info about the arguments in Rust.
@@ -44,9 +45,7 @@ pub struct LispFunc {
     arities: Range<usize>,
     /// Span of the return type. This helps with error reporting.
     output_span: Span,
-    /// Whether module path should be used to construct the full Lisp name. None means using
-    /// crate-wide config.
-    mod_in_name: Option<bool>,
+    opts: FuncOpts,
 }
 
 impl LispFunc {
@@ -57,9 +56,7 @@ impl LispFunc {
         };
         let (args, arities, output_span) = check_signature(&fn_item.decl)?;
         let def = fn_item;
-        let name = opts.name.unwrap_or_else(|| util::lisp_name(&def.ident));
-        let mod_in_name = opts.mod_in_name;
-        Ok(Self { name, def, args, arities, output_span, mod_in_name })
+        Ok(Self { def, args, arities, output_span, opts })
     }
 
     pub fn render(&self) -> TokenStream2 {
@@ -128,11 +125,10 @@ impl LispFunc {
     pub fn gen_exporter(&self) -> TokenStream2 {
         let define_wrapper = self.gen_wrapper();
         let wrapper = self.wrapper_ident();
-        let lisp_name = &self.name;
         let exporter = self.exporter_ident();
         let (min, max) = (self.arities.start, self.arities.end);
         let doc = util::doc(&self.def);
-        let path = match &self.mod_in_name {
+        let path = match &self.opts.mod_in_name {
             None => {
                 let crate_mod_in_name = util::mod_in_name_path();
                 quote!({
@@ -145,6 +141,10 @@ impl LispFunc {
             }
             Some(true) => quote!(module_path!()),
             Some(false) => quote!(""),
+        };
+        let lisp_name = match &self.opts.name {
+            Some(name) => name.clone(),
+            None => util::lisp_name(&self.def.ident),
         };
         // TODO: Consider defining `extern "C" fn` directly instead of using export_functions! and
         // CallEnv wrapper.
