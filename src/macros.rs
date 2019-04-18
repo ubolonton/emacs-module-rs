@@ -142,7 +142,8 @@ macro_rules! lambda {
             env.handle_call($func)
         }
 
-        $env.make_function(extern_lambda, $arities, $doc, $data)
+        // Safety: The raw pointer $data is simply ignored.
+        unsafe { $env.make_function(extern_lambda, $arities, $doc, $data) }
     }};
 }
 

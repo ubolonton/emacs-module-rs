@@ -15,7 +15,7 @@ use super::{CallEnv, Env, Value};
 use super::{FromLisp, IntoLisp};
 
 pub trait Manage {
-    fn make_function<T: Into<Vec<u8>>>(
+    unsafe fn make_function<T: Into<Vec<u8>>>(
         &self,
         function: EmacsSubr,
         arities: Range<usize>,
@@ -40,7 +40,11 @@ pub trait HandleCall {
 }
 
 impl Manage for Env {
-    fn make_function<T: Into<Vec<u8>>>(
+    /// # Safety
+    ///
+    /// The `function` must use `data` pointer in safe ways.
+    #[allow(unused_unsafe)]
+    unsafe fn make_function<T: Into<Vec<u8>>>(
         &self,
         function: EmacsSubr,
         arities: Range<usize>,
