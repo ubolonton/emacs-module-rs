@@ -16,7 +16,7 @@
 //! }
 //! ```
 //!
-//! ``` emacs-lisp
+//! ```emacs-lisp
 //! (require 'greeting)
 //! (greeting-say-hello "Emacs")
 //! ```

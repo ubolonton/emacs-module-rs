@@ -88,7 +88,7 @@ macro_rules! plugin_is_GPL_compatible {
 /// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
 /// whose signature must be `fn(&Env) -> Result<Value>`.
 ///
-/// [`#[module]`]: ../emacs_macros/attr.module.html
+/// [`#[module]`]: /emacs-macros/*/emacs_macros/attr.module.html
 #[macro_export]
 macro_rules! module_init {
     ($init:ident) => {
@@ -149,7 +149,7 @@ macro_rules! lambda {
 /// Exports Rust functions to the Lisp runtime. [`#[defun]`] is preferred over this low-level
 /// interface.
 ///
-/// [`#[defun]`]: ../emacs_macros/attr.defun.html
+/// [`#[defun]`]: /emacs-macros/*/emacs_macros/attr.defun.html
 #[macro_export(local_inner_macros)]
 macro_rules! export_functions {
     // Cut trailing comma in top-level.

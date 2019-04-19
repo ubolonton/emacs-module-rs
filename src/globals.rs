@@ -17,13 +17,13 @@ lazy_static! {
     /// [`#[module]`] attribute macro is used, instead of [module_init!] macro.
     ///
     /// [module_init!]: macro.module_init.html
-    /// [`#[module]`]: ../emacs_macros/attr.module.html
+    /// [`#[module]`]: /emacs-macros/*/emacs_macros/attr.module.html
     pub static ref __INIT_FNS__: Mutex<FnMap> = Mutex::new(HashMap::new());
 
     /// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
     /// attribute macro [`#[defun]`].
     ///
-    /// [`#[defun]`]: ../emacs_macros/attr.defun.html
+    /// [`#[defun]`]: /emacs-macros/*/emacs_macros/attr.defun.html
     pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
 
     pub static ref __MOD_IN_NAME__: AtomicBool = AtomicBool::new(true);

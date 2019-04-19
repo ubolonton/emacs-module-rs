@@ -88,12 +88,12 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// with the option `name`, e.g. `#[defun(name = "foo:bar")]`.
 ///
 /// [`#[module]`]: attr.module.html
-/// [`Result<T>`]: ../emacs/type.Result.html
-/// [`FromLisp`]: ../emacs/trait.FromLisp.html
-/// [`IntoLisp`]: ../emacs/trait.IntoLisp.html
-/// [`Transfer`]: ../emacs/trait.Transfer.html
-/// [`&Env`]: ../emacs/struct.Env.html
-/// [`Value`]: ../emacs/struct.Value.html
+/// [`Result<T>`]: /emacs/*/emacs/type.Result.html
+/// [`FromLisp`]: /emacs/*/emacs/trait.FromLisp.html
+/// [`IntoLisp`]: /emacs/*/emacs/trait.IntoLisp.html
+/// [`Transfer`]: /emacs/*/emacs/trait.Transfer.html
+/// [`&Env`]: /emacs/*/emacs/struct.Env.html
+/// [`Value`]: /emacs/*/emacs/struct.Value.html
 #[proc_macro_attribute]
 pub fn defun(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
