@@ -37,33 +37,61 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     }
 }
 
-/// Exports a function to the Lisp runtime. The function is bound at initialization, even if it is
-/// defined inside another function which is never called.
+/// Exports a function to the Lisp runtime. The function is bound when the module is loaded, even if
+/// it is defined inside another function which is never called.
+///
+/// # Input Parameters
+///
+/// Each parameter must be one of the following:
+///
+/// - An owned value of a type that implements [`FromLisp`]. This is for simple data types that have
+/// an equivalent in Lisp. Examples: `i64`, `String`, `bool`.
+///
+/// - A shared/mutable reference. This gives access to data structures that other module functions
+/// have created and embedded in the Lisp runtime (through `user-ptr` objects).
+///
+/// - A Lisp [`Value`]. This allows holding off the conversion to Rust data structures until
+/// necessary, or working with values that don't have a meaningful representation in Rust, like Lisp
+/// lambdas.
+///
+/// - An [`&Env`]. This enables interaction with the Lisp runtime. It does not appear in the
+/// function's Lisp signature. This is unnecessary if there is already another parameter with type
+/// [`Value`], which allows accessing the runtime through `Value.env`.
+///
+/// # Return Value
+///
+/// The return type must be [`Result<T>`], where `T` is one of the following:
+///
+/// - A type that implements [`IntoLisp`]. This is for simple data types that have an equivalent in
+/// Lisp. Example: `i64`, `String`, `bool`.
+///
+/// - A type that implements `Transfer`. This allows embedding a native data structure in a
+/// `user-ptr` object, for read-only use cases. It requires `user_ptr(direct)` option to be
+/// specified.
+///
+/// - An arbitrary type. This allows embedding a native data structure in a `user-ptr` object, for
+/// read-write use cases. It requires `user_ptr` option to be specified. If the data is to be shared
+/// with background Rust threads, `user_ptr(rwlock)` or `user_ptr(mutex)` must be used instead.
+///
+/// - [`Value`]. This is mostly useful for returning an input parameter unchanged.
 ///
 /// # Naming
 ///
 /// By default, the function's Lisp name has the form `<feature-prefix>[mod-prefix]<base-name>`.
 /// - `feature-prefix` is the feature's name, followed by `-`. This can be customized by the `name`
 /// and `separator` options on [`#[module]`].
+///
 /// - `mod-prefix` is constructed from the function's Rust module path (with `_` replaced by `-`).
 /// This can be turned off crate-wide, or for individual function, using the option `mod_in_name`.
+///
 /// - `base-name` is the function's Rust name (with `_` replaced by `-`). This can be overridden
 /// with the option `name`, e.g. `#[defun(name = "foo:bar")]`.
-///
-/// # Signature
-///
-/// - Each argument's type must be either:
-///   + A type that implements [`FromLisp`]. Examples: `i64`, `String`, [`Value`].
-///   + [`&Env`]. This is used to interact with the Lisp runtime. It does not appear in the
-///   function's Lisp signature. This is unnecessary if there's already another argument with type
-///   [`Value`].
-/// - The return type must be [`Result<T>`], where `T` is a type that implements [`IntoLisp`].
-/// Examples: `i64`, `String`, [`Value`], `impl IntoLisp`.
 ///
 /// [`#[module]`]: attr.module.html
 /// [`Result<T>`]: ../emacs/type.Result.html
 /// [`FromLisp`]: ../emacs/trait.FromLisp.html
 /// [`IntoLisp`]: ../emacs/trait.IntoLisp.html
+/// [`Transfer`]: ../emacs/trait.Transfer.html
 /// [`&Env`]: ../emacs/struct.Env.html
 /// [`Value`]: ../emacs/struct.Value.html
 #[proc_macro_attribute]

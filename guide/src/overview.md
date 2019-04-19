@@ -4,7 +4,7 @@
 
 It currently supports stable Rust, Emacs 25/26, macOS/Linux.
 
-## Known issues
+## Known Issues
 
 There is a bug (see [issue #1](https://github.com/ubolonton/emacs-module-rs/issues/1)) with Emacs 26 on Linux that prevents it from loading any dynamic modules (even those written in C), if:
 - Emacs is built without thread support.
