@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
 ## [0.8.0] - 2019-04-20
 - Input parameters with reference types are now interpreted as Rust data structures embedded in `user-ptr` objects.
 - Return values are now embedded in `user-ptr` objects if `user_ptr` option is specified.
@@ -55,3 +57,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.2.0] - 2018-01-04
 New reworked version
+
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.0.8...HEAD
+[0.8.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.7.0...0.8.0
+[0.7.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.6.0...0.7.0
+[0.6.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.5.2...0.6.0
+[0.5.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.5.1...0.5.2
+[0.5.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.5.0...0.5.1
+[0.5.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.4.0...0.5.0
+[0.4.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.3.0...0.4.0
+[0.3.0]: https://github.com/ubolonton/emacs-module-rs/compare/bcf0546...0.3.0
+[0.2.0]: https://github.com/ubolonton/emacs-module-rs/compare/772bc3b...bcf0546
