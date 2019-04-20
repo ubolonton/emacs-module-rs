@@ -1,4 +1,3 @@
-use libc;
 use std::cell::RefCell;
 use std::ffi::CString;
 use std::ptr;
@@ -13,6 +12,7 @@ use emacs_module::emacs_value;
 pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
 
 impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
+    #[inline(always)]
     fn from_lisp(value: Value<'e>) -> Result<Value<'a>> {
         Ok(value)
     }
@@ -56,7 +56,8 @@ impl<'a, 'e: 'a, T: Transfer> FromLisp<'e> for &'a T {
 }
 
 impl<'e> IntoLisp<'e> for Value<'e> {
-    fn into_lisp(self, _env: &'e Env) -> Result<Value<'_>> {
+    #[inline(always)]
+    fn into_lisp(self, _: &'e Env) -> Result<Value<'_>> {
         Ok(self)
     }
 }

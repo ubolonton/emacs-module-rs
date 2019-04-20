@@ -1,4 +1,4 @@
-use emacs::{defun, Result, Value, Env, IntoLisp};
+use emacs::{defun, Env, IntoLisp, Result, Value};
 
 struct Vector {
     pub x: i64,
@@ -6,20 +6,26 @@ struct Vector {
 }
 
 custom_types! {
-        Vector as "Vector";
-    }
+    Vector as "Vector";
+}
 
 #[defun]
 fn swap_components(mut v: Value<'_>) -> Result<Value<'_>> {
     let vec: &mut Vector = unsafe { v.get_mut()? };
-    vec.x = vec.x ^ vec.y;
-    vec.y = vec.x ^ vec.y;
-    vec.x = vec.x ^ vec.y;
+    vec.x ^= vec.y;
+    vec.y ^= vec.x;
+    vec.x ^= vec.y;
     Ok(v)
 }
 
+#[defun(user_ptr(direct))]
+fn make(x: i64, y: i64) -> Result<Vector> {
+    Ok(Vector { x, y })
+}
+
+// Same with the above, but manually.
 #[defun]
-fn make(x: i64, y: i64) -> Result<Box<Vector>> {
+fn make1(x: i64, y: i64) -> Result<Box<Vector>> {
     Ok(Box::new(Vector { x, y }))
 }
 
@@ -32,10 +38,12 @@ fn to_list<'e>(env: &'e Env, v: Value<'_>) -> Result<Value<'e>> {
     env.list(&[x, y])
 }
 
-#[defun]
-fn add(a: &Vector, b: &Vector) -> Result<Box<Vector>> {
+#[defun(user_ptr(direct))]
+fn add(a: Value<'_>, b: Value<'_>) -> Result<Vector> {
+    let a: &Vector = a.into_rust()?;
+    let b: &Vector = b.into_rust()?;
     let (x, y) = (b.x + a.x, b.y + a.y);
-    Ok(Box::new(Vector { x, y }))
+    Ok(Vector { x, y })
 }
 
 #[defun]

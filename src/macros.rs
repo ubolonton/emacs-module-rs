@@ -88,7 +88,7 @@ macro_rules! plugin_is_GPL_compatible {
 /// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
 /// whose signature must be `fn(&Env) -> Result<Value>`.
 ///
-/// [`#[module]`]: ../emacs_macros/attr.module.html
+/// [`#[module]`]: /emacs-macros/*/emacs_macros/attr.module.html
 #[macro_export]
 macro_rules! module_init {
     ($init:ident) => {
@@ -116,34 +116,32 @@ macro_rules! module_init {
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! lambda {
-    // Default function-specific data is (unused) null pointer.
-    ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
-        lambda!($env, $func, $arities, $doc, ::std::ptr::null_mut())
-    };
-
     // Default doc string is empty.
     ($env:expr, $func:path, $arities:expr $(,)*) => {
         lambda!($env, $func, $arities, "")
     };
 
     // Declare a wrapper function.
-    ($env:expr, $func:path, $arities:expr, $doc:expr, $data:expr $(,)*) => {{
-        use $crate::func::HandleCall;
-        use $crate::func::Manage;
-        // TODO: Generate identifier from $func.
-        unsafe extern "C" fn extern_lambda(
-            env: *mut $crate::raw::emacs_env,
-            nargs: $crate::deps::libc::ptrdiff_t,
-            args: *mut $crate::raw::emacs_value,
-            data: *mut $crate::deps::libc::c_void,
-        ) -> $crate::raw::emacs_value {
-            let env = $crate::Env::new(env);
-            let env = $crate::CallEnv::new(env, nargs, args, data);
-            env.handle_call($func)
-        }
+    ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
+        {
+            use $crate::func::HandleCall;
+            use $crate::func::Manage;
+            // TODO: Generate identifier from $func.
+            unsafe extern "C" fn extern_lambda(
+                env: *mut $crate::raw::emacs_env,
+                nargs: $crate::deps::libc::ptrdiff_t,
+                args: *mut $crate::raw::emacs_value,
+                _data: *mut $crate::deps::libc::c_void,
+            ) -> $crate::raw::emacs_value {
+                let env = $crate::Env::new(env);
+                let env = $crate::CallEnv::new(env, nargs, args);
+                env.handle_call($func)
+            }
 
-        $env.make_function(extern_lambda, $arities, $doc, $data)
-    }};
+            // Safety: The raw pointer is simply ignored.
+            unsafe { $env.make_function(extern_lambda, $arities, $doc, ::std::ptr::null_mut()) }
+        }
+    };
 }
 
 // TODO: Use `$crate::` instead of `local_inner_macros` once everyone is on 1.30.
@@ -151,7 +149,7 @@ macro_rules! lambda {
 /// Exports Rust functions to the Lisp runtime. [`#[defun]`] is preferred over this low-level
 /// interface.
 ///
-/// [`#[defun]`]: ../emacs_macros/attr.defun.html
+/// [`#[defun]`]: /emacs-macros/*/emacs_macros/attr.defun.html
 #[macro_export(local_inner_macros)]
 macro_rules! export_functions {
     // Cut trailing comma in top-level.

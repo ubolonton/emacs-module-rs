@@ -1,6 +1,6 @@
 # Declaring a Module
 
-Each dynamic module must have an initialization function, marked by the attribute macro `#[emacs::module]`. The function's type must be `fn(&Env) -> Result<impl IntoLisp>`.
+Each dynamic module must have an initialization function, marked by the attribute macro `#[emacs::module]`. The function's type must be `fn(&Env) -> Result<()>`.
 
 In addition, in order to be loadable by Emacs, the module must be declared GPL-compatible.
 
@@ -35,4 +35,4 @@ fn rs_module_helper(_: &Env) -> Result<()> { Ok(()) }
 fn init(_: &Env) -> Result<()> { Ok(()) }
 ```
 
-**Note**: Often time, there's no initialization logic needed. A future version of this crate will support putting `#![emacs::module]` on the crate, without having to declare a no-op function. See Rust's [issue #54726](https://github.com/rust-lang/rust/issues/54726).
+**Note**: Often time, there's no initialization logic needed. A future version of this crate will support putting `#![emacs::module]` on the crate, without having to define a no-op function. See Rust's [issue #54726](https://github.com/rust-lang/rust/issues/54726).

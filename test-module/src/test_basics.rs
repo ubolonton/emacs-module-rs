@@ -26,12 +26,8 @@ fn using_fset(env: &Env) -> Result<()> {
 #[defun(mod_in_name = false)]
 fn to_lowercase_or_nil(env: &Env, input: Option<String>) -> Result<Value<'_>> {
     let output = input.map(|s| s.to_lowercase());
-    // This tests IntoLisp for Option<&str>. It looks a bit convoluted. TODO: Improve it.
-    let r: Option<&str> = match &output {
-        &None => None,
-        &Some(ref s) => Some(s),
-    };
-    r.into_lisp(env)
+    // This tests IntoLisp for Option<&str>.
+    output.as_ref().into_lisp(env)
 }
 
 pub fn init(env: &Env) -> Result<()> {

@@ -70,7 +70,7 @@ fn make_dec(env: &Env) -> Result<Value<'_>> {
         let i: i64 = env.parse_arg(0)?;
         (i - 1).into_lisp(env)
     }
-    emacs::lambda!(env, dec, 1..1, "decrement", std::ptr::null_mut())
+    emacs::lambda!(env, dec, 1..1, "decrement")
 }
 
 #[defun]

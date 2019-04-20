@@ -115,20 +115,24 @@
   (let ((s (t/wrap-string "abc")))
     (should (string-prefix-p "#<user-ptr" (format "%s" s)))
     ;; TODO: Test 'rust-invalid-user-ptr. That probably requires 2 modules.
-    (should-error (t/vector-to-list s) :type 'rust-wrong-type-user-ptr)))
+    (should-error (t/vector-to-list s)
+                  :type 'rust-wrong-type-user-ptr)))
 
-(ert-deftest transfer::ref-cell-double-mutation ()
-  (let ((r (t/ref-cell-make 5)))
+(ert-deftest transfer::ref-cell-borrow-conflict ()
+  (let ((r (t/ref-cell-wrap 5)))
+    (should (= (t/ref-cell-inc r) 6))
+    (should (= (t/ref-cell-unwrap r) 6))
+    (t/ref-cell-unwrap-and-call r (lambda () (t/ref-cell-unwrap r)))
     ;; FIX: Don't rely on error's string representation.
-    (should (equal (condition-case err
-                       (t/ref-cell-mutate-twice r)
-                     (rust-error (format "%s" err)))
-                   "(rust-error already borrowed)"))))
+    (should (equal (cdr (should-error (t/ref-cell-unwrap-and-call r (lambda () (t/ref-cell-inc r)))
+                                      :type 'rust-error))
+                   '("already borrowed")))))
 
 (ert-deftest transfer::type-check ()
-  ;; TODO: :type
-  (should-error (t/ref-cell-mutate-twice (t/vector-make 1 2)))
-  (should-error (t/ref-cell-mutate-twice 5)))
+  (should-error (t/ref-cell-inc (t/vector-make 1 2))
+                :type 'rust-wrong-type-user-ptr)
+  (should-error (t/ref-cell-inc 5)
+                :type 'wrong-type-argument))
 
 (ert-deftest transfer::hash-map ()
   (let ((m (t/hash-map-make)))

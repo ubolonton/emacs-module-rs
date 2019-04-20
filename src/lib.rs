@@ -16,7 +16,7 @@
 //! }
 //! ```
 //!
-//! ``` emacs-lisp
+//! ```emacs-lisp
 //! (require 'greeting)
 //! (greeting-say-hello "Emacs")
 //! ```
@@ -26,11 +26,8 @@
 //! [User Guide]: https://ubolonton.github.io/emacs-module-rs/
 //! [Examples]: https://github.com/ubolonton/emacs-rs-examples/
 
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref, RefMut};
 use std::ffi::CString;
-
-use failure;
-use libc;
 
 #[doc(inline)]
 pub use emacs_macros::{defun, module};
@@ -88,7 +85,6 @@ pub struct CallEnv {
     env: Env,
     nargs: usize,
     args: *mut emacs_value,
-    data: *mut libc::c_void,
 }
 
 /// A type that represents Lisp values.
@@ -104,6 +100,7 @@ pub struct Value<'e> {
     pub env: &'e Env,
 }
 
+// XXX: More accurate would be `CloneFromLisp` or `Decode`, but ...
 /// Converting Lisp [`Value`] into a Rust type.
 ///
 /// # Implementation
@@ -116,6 +113,7 @@ pub trait FromLisp<'e>: Sized {
     fn from_lisp(value: Value<'e>) -> Result<Self>;
 }
 
+// XXX: More accurate would be `CloneToLisp`, `Encode`, but ...
 /// Converting a Rust type into Lisp [`Value`].
 ///
 /// # Implementation
@@ -261,8 +259,21 @@ impl<'e> Value<'e> {
     }
 
     /// Converts this value into a Rust value of the given type.
+    #[inline]
     pub fn into_rust<T: FromLisp<'e>>(self) -> Result<T> {
         FromLisp::from_lisp(self)
+    }
+
+    #[inline]
+    pub fn into_ref<T>(self) -> Result<Ref<'e, T>> {
+        let container: &RefCell<T> = self.into_rust()?;
+        Ok(container.try_borrow()?)
+    }
+
+    #[inline]
+    pub fn into_ref_mut<T>(self) -> Result<RefMut<'e, T>> {
+        let container: &RefCell<T> = self.into_rust()?;
+        Ok(container.try_borrow_mut()?)
     }
 
     // TODO: Rename this to `borrow_mut`? Also, remove FromLisp implementation for &T. On the other

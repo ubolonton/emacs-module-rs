@@ -6,27 +6,45 @@ use crate::util;
 
 #[derive(Debug)]
 enum Name {
+    /// Use crate's name.
     Crate,
+    /// Use initializer function's name.
     Fn,
+    /// Explicitly specify a name.
     Str(String),
 }
 
 #[derive(Debug, FromMeta)]
 struct ModuleOpts {
+    /// Name of this module (feature's name).
     #[darling(default)]
-    name: Option<Name>,
-    #[darling(default)]
-    separator: Option<String>,
-    #[darling(default)]
-    mod_in_name: Option<bool>,
+    name: Name,
+    /// Separator following the feature's name to form the prefix in functions' full Lisp name.
+    #[darling(default = "default::separator")]
+    separator: String,
+    /// Whether module path should be used to construct functions' full Lisp name.
+    #[darling(default = "default::mod_in_name")]
+    mod_in_name: bool,
 }
 
 #[derive(Debug)]
 pub struct Module {
-    feature: Name,
-    separator: String,
-    mod_in_name: bool,
     def: ItemFn,
+    opts: ModuleOpts,
+}
+
+mod default {
+    pub fn separator() -> String {
+        "-".into()
+    }
+    pub fn mod_in_name() -> bool {
+        true
+    }
+    impl Default for super::Name {
+        fn default() -> Self {
+            super::Name::Crate
+        }
+    }
 }
 
 /// We don't use the derived impl provided by darling, since we want a different syntax.
@@ -66,12 +84,7 @@ impl Module {
             Ok(v) => v,
             Err(e) => return Err(e.write_errors()),
         };
-        Ok(Self {
-            feature: opts.name.unwrap_or(Name::Crate),
-            separator: opts.separator.unwrap_or_else(|| "-".to_owned()),
-            mod_in_name: opts.mod_in_name.unwrap_or(true),
-            def: fn_item,
-        })
+        Ok(Self { opts, def: fn_item })
     }
 
     pub fn render(&self) -> TokenStream2 {
@@ -96,13 +109,13 @@ impl Module {
         let env = quote!(env);
         let init = Self::init_ident();
         let feature = quote!(feature);
-        let separator = &self.separator;
+        let separator = &self.opts.separator;
         let hook = &self.def.ident;
         let init_fns = util::init_fns_path();
         let prefix = util::prefix_path();
         let mod_in_name = util::mod_in_name_path();
-        let crate_mod_in_name = &self.mod_in_name;
-        let set_feature = match &self.feature {
+        let crate_mod_in_name = &self.opts.mod_in_name;
+        let set_feature = match &self.opts.name {
             Name::Crate => quote! {
                 let #feature = ::emacs::globals::lisp_pkg(module_path!());
             },
@@ -124,11 +137,7 @@ impl Module {
             }
         };
         let configure_mod_in_name = quote! {
-            {
-                let mut mod_in_name = #mod_in_name.try_lock()
-                    .expect("Failed to acquire write lock for crate-wide mod_in_name");
-                *mod_in_name = #crate_mod_in_name;
-            }
+            #mod_in_name.store(#crate_mod_in_name, ::std::sync::atomic::Ordering::Relaxed);
         };
         let export_lisp_funcs = quote! {
             {

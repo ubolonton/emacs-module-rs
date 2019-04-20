@@ -8,7 +8,7 @@ The chosen error type is the `Error` struct from [`failure` crate](https://githu
 pub type Result<T> = result::Result<T, failure::Error>;
 ```
 
-## Handling Lisp errors in Rust
+## Handling Lisp Errors in Rust
 
 When calling a Lisp function, it's usually a good idea to propagate signaled errors with the `?` operator, letting higher level (Lisp) code handle them. If you want to handle a specific error, you can use `error.downcast_ref`:
 
@@ -50,6 +50,6 @@ In addition to [standard errors](https://www.gnu.org/software/emacs/manual/html_
 
 Unwinding from Rust into C is undefined behavior. `emacs-module-rs` prevents that by using `catch_unwind` at the Rust-to-C boundary, converting a panic into a Lisp's error signal of type `rust-panic`. Note that it is **not a sub-type** of `rust-error`.
 
-## Catching values thrown by Lisp
+## Catching Values Thrown by Lisp
 
 This is similar to handling Lisp errors. The only difference is `ErrorKind::Throw` being used instead of `ErrorKind::Signal`.
