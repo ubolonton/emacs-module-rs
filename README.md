@@ -35,7 +35,8 @@ Emacs does not support unloading modules. Live reloading thus requires a custom 
 
 - [test-module](test-module).
 - [emacs-rs-examples](https://github.com/ubolonton/emacs-rs-examples).
-- [magit-libgit2](https://github.com/ubolonton/magit-libgit2) is an experimental attempt to speed up magit using libgit2.
+- [pullover](https://github.com/ubolonton/pullover): Use Emacs to edit text for other macOS apps.
+- [magit-libgit2](https://github.com/ubolonton/magit-libgit2): Experimental attempt to speed up magit using libgit2.
 
 ## Development
 
