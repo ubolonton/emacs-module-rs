@@ -1,5 +1,5 @@
 #[doc(no_inline)]
-pub use failure::{Error, ResultExt};
+pub use failure::Error;
 use failure_derive::Fail;
 use std::mem;
 use std::result;
@@ -223,5 +223,66 @@ impl Env {
     unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
         raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
+    }
+
+    fn panic_from_error<T>(&self) -> impl FnOnce(Error) -> T + '_ {
+        move |error: Error| -> T {
+            let message = match error.downcast_ref::<ErrorKind>() {
+                Some(&ErrorKind::Signal { ref symbol, ref data }) => {
+                    let v = self.call("prin1-to-string", &[
+                        self.call("list", &[
+                            self.intern("signal").expect(""),
+                            unsafe { symbol.value(&self) },
+                            unsafe { data.value(&self) },
+                        ]).expect("")
+                    ]).expect("");
+                    v.into_rust::<String>().expect("")
+                }
+                Some(&ErrorKind::Throw { ref tag, ref value }) => {
+                    let v = self.call("prin1-to-string", &[
+                        self.call("list", &[
+                            self.intern("throw").expect(""),
+                            unsafe { tag.value(&self) },
+                            unsafe { value.value(&self) },
+                        ]).expect("")
+                    ]).expect("");
+                    v.into_rust::<String>().expect("")
+                }
+
+                _ => format!("{}", error)
+            };
+            panic!(message);
+        }
+    }
+}
+
+/// Emacs-specific extension methods for [`Result`].
+///
+/// [`Result`]: type.Result.html
+pub trait ResultExt<T> {
+    /// Unwraps a result, yielding the content of an [`Ok`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is an [`Err`], with a (best-effort) descriptive error message.
+    ///
+    /// If the underlying error is an [`ErrorKind`], tries to get a descriptive error message by
+    /// calling into the Emacs runtime. Uses [`Display`] otherwise.
+    ///
+    /// This is useful when errors cannot be expressed using [`Result`] (e.g. callbacks whose types
+    /// are dictated by 3rd-party libraries).
+    ///
+    /// [`Ok`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
+    /// [`ErrorKind`]: enum.ErrorKind.html
+    /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
+    /// [`Result`]: type.Result.html
+    fn expect_descriptive(self, env: &Env) -> T;
+}
+
+impl<T> ResultExt<T> for Result<T> {
+    #[inline]
+    fn expect_descriptive(self, env: &Env) -> T {
+        self.unwrap_or_else(env.panic_from_error())
     }
 }

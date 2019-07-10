@@ -34,10 +34,10 @@ pub use emacs_macros::{defun, module};
 use raw::*;
 
 #[doc(no_inline)]
-pub use failure::{Error, ResultExt};
+pub use failure::{self, Error};
 
 #[doc(inline)]
-pub use self::error::{ErrorKind, Result};
+pub use self::error::{ErrorKind, Result, ResultExt};
 
 #[macro_use]
 mod macros;
