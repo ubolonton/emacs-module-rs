@@ -34,6 +34,10 @@ match env.call("insert", &[some_text]) {
 
 Note the use of `unsafe` to extract the error symbol as a `Value`. The reason is that, `ErrorKind::Signal` is marked `Send+Sync`, for compatibility with `failure`, while `Value` is lifetime-bound by `env`. The `unsafe` contract here requires the error being handled (and its `TempValue`) to come from this `env`, not from another thread, or from a global/thread-local storage.
 
+### Catching Values Thrown by Lisp
+
+This is similar to handling Lisp errors. The only difference is `ErrorKind::Throw` being used instead of `ErrorKind::Signal`.
+
 ## Handling Rust errors in Lisp
 
 In addition to [standard errors](https://www.gnu.org/software/emacs/manual/html_node/elisp/Standard-Errors.html), Rust module functions can signal Rust-specific errors, which can also be handled by `condition-case`:
@@ -48,8 +52,7 @@ In addition to [standard errors](https://www.gnu.org/software/emacs/manual/html_
 
 ### Panics
 
-Unwinding from Rust into C is undefined behavior. `emacs-module-rs` prevents that by using `catch_unwind` at the Rust-to-C boundary, converting a panic into a Lisp's error signal of type `rust-panic`. Note that it is **not a sub-type** of `rust-error`.
+Unwinding from Rust into C is undefined behavior. `emacs-module-rs` prevents that by using `catch_unwind` at the Rust-to-C boundary to convert a panic into a Lisp's signal/throw of the appropriate type:
 
-## Catching Values Thrown by Lisp
-
-This is similar to handling Lisp errors. The only difference is `ErrorKind::Throw` being used instead of `ErrorKind::Signal`.
+- Normally the panic is converted into a Lisp's error signal of the type `rust-panic`. Note that it is **not a sub-type** of `rust-error`.
+- If the panic value is an `ErrorKind`, it is converted to the corresponding signal/throw, as if a `Result` was returned. This allows propagating Lisp's non-local exits through contexts where `Result` is not appropriate, e.g. callbacks whose types are dictated by 3rd-party libraries, such as `tree-sitter`.

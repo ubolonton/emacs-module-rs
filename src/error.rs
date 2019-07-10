@@ -4,6 +4,7 @@ use failure_derive::Fail;
 use std::mem;
 use std::result;
 use std::thread;
+use std::any::Any;
 
 use super::IntoLisp;
 use super::{Env, Value};
@@ -139,13 +140,7 @@ impl Env {
         match result {
             Ok(v) => v.raw,
             Err(error) => match error.downcast_ref::<ErrorKind>() {
-                Some(&ErrorKind::Signal { ref symbol, ref data }) => {
-                    self.signal(symbol.raw, data.raw)
-                }
-                Some(&ErrorKind::Throw { ref tag, ref value }) => self.throw(tag.raw, value.raw),
-                Some(&ErrorKind::WrongTypeUserPtr { .. }) => self
-                    .signal_str(WRONG_TYPE_USER_PTR, &format!("{}", error))
-                    .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
+                Some(err) => self.handle_known(err),
                 _ => self
                     .signal_str(ERROR, &format!("{}", error))
                     .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
@@ -159,8 +154,21 @@ impl Env {
             Ok(v) => v,
             Err(error) => {
                 // TODO: Try to check for some common types to display?
-                self.signal_str(PANIC, &format!("{:#?}", error))
-                    .unwrap_or_else(|_| panic!("Fail to signal panic {:#?}", error))
+                let mut m: result::Result<String, Box<Any>> = Err(error);
+                if let Err(error) = m {
+                    m = error.downcast::<String>().map(|v| *v);
+                }
+                if let Err(error) = m {
+                    m = match error.downcast::<ErrorKind>() {
+                        // TODO: Explain safety.
+                        Ok(err) => unsafe { return self.handle_known(&*err) },
+                        Err(error) => Err(error),
+                    }
+                }
+                if let Err(error) = m {
+                    m = Ok(format!("{:#?}", error));
+                }
+                self.signal_str(PANIC, &m.expect("Logic error")).expect("Fail to signal panic")
             }
         }
     }
@@ -173,6 +181,16 @@ impl Env {
         // TODO: This should also be a sub-types of 'wrong-type-argument?
         self.define_error(WRONG_TYPE_USER_PTR, "Wrong type user-ptr", ERROR)?;
         Ok(())
+    }
+
+    unsafe fn handle_known(&self, err: &ErrorKind) -> emacs_value {
+        match err {
+            &ErrorKind::Signal { ref symbol, ref data } => self.signal(symbol.raw, data.raw),
+            &ErrorKind::Throw { ref tag, ref value } => self.throw(tag.raw, value.raw),
+            &ErrorKind::WrongTypeUserPtr { .. } => self
+                .signal_str(WRONG_TYPE_USER_PTR, &format!("{}", err))
+                .unwrap_or_else(|_| panic!("Failed to signal {}", err)),
+        }
     }
 
     // TODO: Prepare static values for the symbols.
@@ -224,65 +242,41 @@ impl Env {
         raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }
-
-    fn panic_from_error<T>(&self) -> impl FnOnce(Error) -> T + '_ {
-        move |error: Error| -> T {
-            let message = match error.downcast_ref::<ErrorKind>() {
-                Some(&ErrorKind::Signal { ref symbol, ref data }) => {
-                    let v = self.call("prin1-to-string", &[
-                        self.call("list", &[
-                            self.intern("signal").expect(""),
-                            unsafe { symbol.value(&self) },
-                            unsafe { data.value(&self) },
-                        ]).expect("")
-                    ]).expect("");
-                    v.into_rust::<String>().expect("")
-                }
-                Some(&ErrorKind::Throw { ref tag, ref value }) => {
-                    let v = self.call("prin1-to-string", &[
-                        self.call("list", &[
-                            self.intern("throw").expect(""),
-                            unsafe { tag.value(&self) },
-                            unsafe { value.value(&self) },
-                        ]).expect("")
-                    ]).expect("");
-                    v.into_rust::<String>().expect("")
-                }
-
-                _ => format!("{}", error)
-            };
-            panic!(message);
-        }
-    }
 }
 
 /// Emacs-specific extension methods for [`Result`].
 ///
 /// [`Result`]: type.Result.html
-pub trait ResultExt<T> {
+pub trait ResultExt<T, E> {
     /// Unwraps a result, yielding the content of an [`Ok`].
     ///
     /// # Panics
     ///
-    /// Panics if the value is an [`Err`], with a (best-effort) descriptive error message.
+    /// Panics if the value is an [`Err`], using a sensible panic value.
     ///
-    /// If the underlying error is an [`ErrorKind`], tries to get a descriptive error message by
-    /// calling into the Emacs runtime. Uses [`Display`] otherwise.
+    /// If the underlying error is an [`ErrorKind`], it will be used as the value of the panic,
+    /// which makes the `#[defun]` behave as if the corresponding non-local exit was propagated.
+    /// Otherwise, tries to use [`Display`] to get a descriptive error message.
     ///
-    /// This is useful when errors cannot be expressed using [`Result`] (e.g. callbacks whose types
-    /// are dictated by 3rd-party libraries).
+    /// This is useful when errors cannot be propagated using [`Result`], e.g. callbacks whose types
+    /// are dictated by 3rd-party libraries.
     ///
     /// [`Ok`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     /// [`Err`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     /// [`ErrorKind`]: enum.ErrorKind.html
     /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
     /// [`Result`]: type.Result.html
-    fn expect_descriptive(self, env: &Env) -> T;
+    fn unwrap_or_propagate(self) -> T;
 }
 
-impl<T> ResultExt<T> for Result<T> {
+impl<T> ResultExt<T, Error> for Result<T> {
     #[inline]
-    fn expect_descriptive(self, env: &Env) -> T {
-        self.unwrap_or_else(env.panic_from_error())
+    fn unwrap_or_propagate(self) -> T {
+        self.unwrap_or_else(|error| {
+            match error.downcast::<ErrorKind>() {
+                Ok(err) => panic!(err),
+                Err(error) => panic!("{}", error),
+            };
+        })
     }
 }
