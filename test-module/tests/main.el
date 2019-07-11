@@ -30,13 +30,20 @@
   (should-error (t/to-lowercase-or-nil 1) :type 'wrong-type-argument))
 
 (ert-deftest error::propagating-signal ()
-  (should-error (t/error:lisp-divide 1 0) :type 'arith-error))
+  (should-error (t/error:lisp-divide 1 0) :type 'arith-error)
+  (should-error (t/error:apply #'/ '(1 0)) :type 'arith-error)
+  (should-error (t/error:apply (lambda () (error "abc")) nil) :type 'error))
 
 (ert-deftest error::propagating-throw ()
-  (should (let ((msg "Catch this!"))
-            (eq (catch 'ball
+  (let ((msg "Catch this!"))
+    (should (eq (catch 'ball
                   (t/error:get-type
                    (lambda () (throw 'ball msg))))
+                msg))
+    (should (eq (catch 'knife
+                  (t/error:apply
+                   (lambda () (throw 'knife msg))
+                   nil))
                 msg))))
 
 (ert-deftest error::handling-signal ()
@@ -52,8 +59,12 @@
                                (lambda () (throw 'knife "Watch out!")))
                 :type 'no-catch))
 
-(ert-deftest error::panic-parsing-arg ()
-  (should-error (t/error:parse-arg 5 "1") :type 'rust-panic))
+(ert-deftest error::panic ()
+  (should-error (t/error:parse-arg 5 "1") :type 'rust-panic)
+  (should (equal (condition-case err
+                  (t/error:apply #'t/error:panic '("abc"))
+                (rust-panic err))
+              '(rust-panic "abc"))))
 
 (ert-deftest function::create ()
   (let ((dec (t/make-dec)))

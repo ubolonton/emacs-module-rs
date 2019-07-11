@@ -1,5 +1,6 @@
 use emacs::{defun, CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
+use emacs::ResultExt;
 
 use super::MODULE_PREFIX;
 
@@ -36,10 +37,11 @@ fn get_type(f: Value<'_>) -> Result<Value<'_>> {
     }
 }
 
+/// Call LAMBDA and return the result. Return the thrown value if EXPECTED-TAG is thrown.
 #[defun(mod_in_name = false, name = "error:catch")]
-fn catch<'e>(expected_tag: Value<'e>, f: Value<'e>) -> Result<Value<'e>> {
+fn catch<'e>(expected_tag: Value<'e>, lambda: Value<'e>) -> Result<Value<'e>> {
     let env = expected_tag.env;
-    match env.call("funcall", &[f]) {
+    match env.call("funcall", &[lambda]) {
         Err(error) => {
             if let Some(&Throw { ref tag, ref value }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
@@ -52,6 +54,23 @@ fn catch<'e>(expected_tag: Value<'e>, f: Value<'e>) -> Result<Value<'e>> {
         }
         v => v,
     }
+}
+
+fn apply_inner(lambda: Value<'_>, args: Value<'_>) {
+    let env = lambda.env;
+    env.call("apply", &[lambda, args]).unwrap_or_propagate();
+}
+
+/// Call `apply` on LAMBDA and ARGS, using panics instead of Result to propagate errors.
+#[defun(mod_in_name = false, name = "error:apply")]
+fn apply(lambda: Value<'_>, args: Value<'_>) -> Result<()> {
+    apply_inner(lambda, args);
+    Ok(())
+}
+
+#[defun(mod_in_name = false, name = "error:panic")]
+fn panic(message: String) -> Result<()> {
+    panic!(message)
 }
 
 fn parse_arg(env: &CallEnv) -> Result<String> {
