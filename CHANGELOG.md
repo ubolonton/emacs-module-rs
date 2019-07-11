@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.9.0] - 2019-06-11
 - `ResultExt` is now a collection of Emacs-specific extension methods for `Result`, instead of a re-export of `failure::ResultExt`.
 - Added `failure` as a re-exported sub-module.
 - Added `unwrap_or_propagate` for better panic handling: propagation of non-local exits without `Result`, and improved error messages.
@@ -61,7 +63,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.0.8...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.0.9...HEAD
+[0.9.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.5.2...0.6.0
