@@ -133,7 +133,32 @@ pub trait IntoLisp<'e> {
 ///
 /// When a (boxed) value of this type is transferred to Lisp, the GC becomes its owner. Afterwards,
 /// module code can only access it through immutable references.
-pub trait Transfer: Sized {
+///
+/// The 'static bound disallows transferring short-lived references, which can become invalid while
+/// still being held by the Lisp runtime.
+///
+/// This works, because the returned string is copied into the Lisp runtime.
+///
+/// ```no_run
+/// use emacs::{defun, Result};
+///
+/// #[defun]
+/// fn foo(s: &String) -> Result<&str> {
+///     Ok(s)
+/// }
+/// ```
+///
+/// This doesn't work, because the function attempts to give the Lisp runtime a temporary reference.
+///
+/// ```compile_fail
+/// use emacs::{defun, Result};
+///
+/// #[defun(user_ptr)]
+/// fn foo(s: &String) -> Result<&str> {
+///     Ok(s)
+/// }
+/// ```
+pub trait Transfer: Sized + 'static {
     /// Finalizes a value. This is called by the GC when it discards a value of this type. Module
     /// code that needs custom destructor logic should implement [`Drop`], instead of overriding
     /// this.
@@ -265,13 +290,13 @@ impl<'e> Value<'e> {
     }
 
     #[inline]
-    pub fn into_ref<T>(self) -> Result<Ref<'e, T>> {
+    pub fn into_ref<T: 'static>(self) -> Result<Ref<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
         Ok(container.try_borrow()?)
     }
 
     #[inline]
-    pub fn into_ref_mut<T>(self) -> Result<RefMut<'e, T>> {
+    pub fn into_ref_mut<T: 'static>(self) -> Result<RefMut<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
         Ok(container.try_borrow_mut()?)
     }

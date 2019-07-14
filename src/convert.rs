@@ -120,33 +120,7 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
     }
 }
 
-/// Allows transferring ownership of a box-wrapped value to the Lisp runtime.
-///
-/// The 'static bound is needed to disallow transferring short-lived references, which can become
-/// invalid while still being held by the Lisp runtime.
-///
-/// This works, because the returned string is copied into the Lisp runtime.
-///
-/// ```no_run
-/// use emacs::{defun, Result};
-///
-/// #[defun]
-/// fn foo(s: &String) -> Result<&str> {
-///     Ok(s)
-/// }
-/// ```
-///
-/// This doesn't work, because the function attempts to give the Lisp runtime a temporary reference.
-///
-/// ```compile_fail
-/// use emacs::{defun, Result};
-///
-/// #[defun(user_ptr)]
-/// fn foo(s: &String) -> Result<&str> {
-///     Ok(s)
-/// }
-/// ```
-impl<T: Transfer + 'static> IntoLisp<'_> for Box<T> {
+impl<T: Transfer> IntoLisp<'_> for Box<T> {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut libc::c_void;

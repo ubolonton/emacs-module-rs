@@ -55,7 +55,7 @@ macro_rules! call_lisp {
 
 macro_rules! enable_transfers {
     ($($name:ident;)*) => {$(
-        impl<T> $crate::Transfer for $name<T> {
+        impl<T: 'static> $crate::Transfer for $name<T> {
             fn type_name() -> &'static str { stringify!($name) }
         }
 
