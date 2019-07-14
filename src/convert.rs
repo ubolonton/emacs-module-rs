@@ -1,7 +1,8 @@
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::ffi::CString;
 use std::ptr;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Mutex, RwLock, Arc};
 
 use super::error::{ErrorKind, Result};
 use super::{Env, Value};
@@ -151,6 +152,8 @@ enable_transfers! {
     RefCell;
     Mutex;
     RwLock;
+    Rc;
+    Arc;
 }
 
 fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
