@@ -31,6 +31,9 @@ ctor = "0.1.7"
 emacs_module = { path = "emacs-module", version = "0.4.0" }
 emacs-macros = { path = "emacs-macros", version = "0.8.0" }
 
+[features]
+utf-8-validation = []
+
 [workspace]
 members = [
     ".",

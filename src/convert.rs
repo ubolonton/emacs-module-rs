@@ -32,10 +32,17 @@ impl FromLisp<'_> for f64 {
 }
 
 impl FromLisp<'_> for String {
+    #[cfg(not(feature = "utf-8-validation"))]
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.env.string_bytes(value)?;
         // Safety: We trust Emacs to give us valid utf-8 bytes.
         unsafe { Ok(String::from_utf8_unchecked(bytes)) }
+    }
+
+    #[cfg(feature = "utf-8-validation")]
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
+        let bytes = value.env.string_bytes(value)?;
+        Ok(String::from_utf8(bytes).unwrap())
     }
 }
 

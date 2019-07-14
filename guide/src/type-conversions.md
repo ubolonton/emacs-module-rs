@@ -16,6 +16,13 @@ let s = value.into_rust::<String>()?;
 let s: Option<&str> = value.into_rust()?; // None if Lisp value is nil
 ```
 
+By default, no utf-8 validation is done when converting strings. This can be enabled through a feature:
+
+```toml
+[dependencies.emacs]
+features = ["utf-8-validation"]
+```
+
 ## Converting a Rust Value to Lisp
 
 This is enabled for types that implement `IntoLisp`. Most built-in types are supported. Note that conversion may fail, so the return type is `Result<Value<'_>>`.
