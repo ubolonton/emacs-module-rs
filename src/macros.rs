@@ -59,7 +59,7 @@ macro_rules! enable_transfers {
             fn type_name() -> &'static str { stringify!($name) }
         }
 
-        impl<'e, T> $crate::IntoLisp<'e> for $name<T> {
+        impl<'e, T: 'static> $crate::IntoLisp<'e> for $name<T> {
             fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value<'_>> {
                 ::std::boxed::Box::new(self).into_lisp(env)
             }
