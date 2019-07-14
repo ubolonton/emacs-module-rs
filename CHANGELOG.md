@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 - Fixed a safety bug in which short-lived references were allowed to be embedded in `user-ptr`.
 - Allowed `Rc` and `Arc` to be embedded in `user-ptr` by marking them as `Transfer`.
-- Made utf-8 validation optional when converting Lisp strings into Rust strings, through a feature,`utf-8-validation`.
+- Improved Lisp-to-Rust string conversion's performance by making utf-8 validation optional, behind a feature, `utf-8-validation`.
+- Improved Rust-to-Lisp string conversion's performance by skipping `libc::strlen`.
 
 ## [0.9.0] - 2019-07-11
 - `ResultExt` is now a collection of Emacs-specific extension methods for `Result`, instead of a re-export of `failure::ResultExt`.
