@@ -1,7 +1,7 @@
 #[doc(no_inline)]
 pub use failure::Error;
 use failure_derive::Fail;
-use std::mem;
+use std::mem::MaybeUninit;
 use std::result;
 use std::thread;
 use std::any::Any;
@@ -109,24 +109,24 @@ impl Env {
     /// Handles possible non-local exit after calling Lisp code.
     #[inline]
     pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
-        let mut symbol = unsafe { mem::uninitialized() };
-        let mut data = unsafe { mem::uninitialized() };
+        let mut symbol = MaybeUninit::uninit();
+        let mut data = MaybeUninit::uninit();
         let status = self.non_local_exit_get(&mut symbol, &mut data);
         match (status, symbol, data) {
             (RETURN, ..) => Ok(result),
             (SIGNAL, symbol, data) => {
                 self.non_local_exit_clear();
                 Err(ErrorKind::Signal {
-                    symbol: unsafe { TempValue::new(symbol) },
-                    data: unsafe { TempValue::new(data) },
+                    symbol: unsafe { TempValue::new(symbol.assume_init()) },
+                    data: unsafe { TempValue::new(data.assume_init()) },
                 }
                 .into())
             }
             (THROW, tag, value) => {
                 self.non_local_exit_clear();
                 Err(ErrorKind::Throw {
-                    tag: unsafe { TempValue::new(tag) },
-                    value: unsafe { TempValue::new(value) },
+                    tag: unsafe { TempValue::new(tag.assume_init()) },
+                    value: unsafe { TempValue::new(value.assume_init()) },
                 }
                 .into())
             }
@@ -210,15 +210,10 @@ impl Env {
 
     fn non_local_exit_get(
         &self,
-        symbol: &mut emacs_value,
-        data: &mut emacs_value,
+        symbol: &mut MaybeUninit<emacs_value>,
+        data: &mut MaybeUninit<emacs_value>,
     ) -> emacs_funcall_exit {
-        raw_call_no_exit!(
-            self,
-            non_local_exit_get,
-            symbol as *mut emacs_value,
-            data as *mut emacs_value
-        )
+        raw_call_no_exit!(self, non_local_exit_get, symbol.as_mut_ptr(), data.as_mut_ptr())
     }
 
     fn non_local_exit_clear(&self) {
