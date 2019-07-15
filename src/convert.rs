@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::ffi::CString;
 use std::ptr;
 use std::sync::{Mutex, RwLock, Arc};
 
@@ -99,12 +98,10 @@ impl IntoLisp<'_> for f64 {
 
 impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
     fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
-        let string = self.as_ref();
-        let len = string.len();
-        // TODO: Define a corresponding Lisp error type for NulError.
-        let cstring = CString::new(string)?;
-        let ptr = cstring.as_ptr();
-        raw_call_value!(env, make_string, ptr, len as libc::ptrdiff_t)
+        let bytes = self.as_ref().as_bytes();
+        let len = bytes.len();
+        let ptr = bytes.as_ptr();
+        raw_call_value!(env, make_string, ptr as *const libc::c_char, len as libc::ptrdiff_t)
     }
 }
 
