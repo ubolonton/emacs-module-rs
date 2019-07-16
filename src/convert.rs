@@ -1,3 +1,4 @@
+use std::os;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ptr;
@@ -9,7 +10,7 @@ use super::{FromLisp, IntoLisp, Transfer};
 use emacs_module::emacs_value;
 
 #[doc(hidden)]
-pub type Finalizer = unsafe extern "C" fn(ptr: *mut libc::c_void);
+pub type Finalizer = unsafe extern "C" fn(ptr: *mut os::raw::c_void);
 
 impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
     #[inline(always)]
@@ -101,7 +102,7 @@ impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
         let bytes = self.as_ref().as_bytes();
         let len = bytes.len();
         let ptr = bytes.as_ptr();
-        raw_call_value!(env, make_string, ptr as *const libc::c_char, len as libc::ptrdiff_t)
+        raw_call_value!(env, make_string, ptr as *const os::raw::c_char, len as isize)
     }
 }
 
@@ -123,7 +124,7 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
 impl<T: Transfer> IntoLisp<'_> for Box<T> {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let raw = Box::into_raw(self);
-        let ptr = raw as *mut libc::c_void;
+        let ptr = raw as *mut os::raw::c_void;
         raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)
     }
 }
@@ -147,7 +148,7 @@ fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
 /// Implementation details.
 impl Env {
     fn string_bytes(&self, value: Value<'_>) -> Result<Vec<u8>> {
-        let mut len: libc::ptrdiff_t = 0;
+        let mut len: isize = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);
             let ok: bool = self.handle_exit(copy_string_contents(
@@ -166,7 +167,7 @@ impl Env {
             let ok: bool = self.handle_exit(copy_string_contents(
                 self.raw,
                 value.raw,
-                bytes.as_mut_ptr() as *mut libc::c_char,
+                bytes.as_mut_ptr() as *mut os::raw::c_char,
                 &mut len,
             ))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents
@@ -183,7 +184,7 @@ impl Env {
     pub(crate) fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
         match raw_call!(self, get_user_finalizer, value)? {
             Some::<Finalizer>(fin) if fin == T::finalizer => {
-                let ptr: *mut libc::c_void = raw_call!(self, get_user_ptr, value)?;
+                let ptr: *mut os::raw::c_void = raw_call!(self, get_user_ptr, value)?;
                 Ok(ptr as *mut T)
             }
             _ => {

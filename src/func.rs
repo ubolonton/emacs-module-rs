@@ -3,6 +3,7 @@
 //!
 //! [`Env`]: struct.Env.html
 
+use std::os;
 use std::ffi::CString;
 use std::ops::{Deref, Range};
 use std::panic;
@@ -20,14 +21,14 @@ pub trait Manage {
         function: EmacsSubr,
         arities: Range<usize>,
         doc: T,
-        data: *mut libc::c_void,
+        data: *mut os::raw::c_void,
     ) -> Result<Value<'_>>;
 
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>>;
 }
 
 pub trait HandleInit {
-    fn handle_init<F>(self, f: F) -> libc::c_int
+    fn handle_init<F>(self, f: F) -> os::raw::c_int
     where
         F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe;
 }
@@ -49,13 +50,13 @@ impl Manage for Env {
         function: EmacsSubr,
         arities: Range<usize>,
         doc: T,
-        data: *mut libc::c_void,
+        data: *mut os::raw::c_void,
     ) -> Result<Value<'_>> {
         raw_call_value!(
             self,
             make_function,
-            arities.start as libc::ptrdiff_t,
-            arities.end as libc::ptrdiff_t,
+            arities.start as isize,
+            arities.end as isize,
             Some(function),
             CString::new(doc)?.as_ptr(),
             data
@@ -69,7 +70,7 @@ impl Manage for Env {
 }
 
 impl HandleInit for Env {
-    fn handle_init<F>(self, f: F) -> libc::c_int
+    fn handle_init<F>(self, f: F) -> os::raw::c_int
     where
         F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe,
     {
@@ -99,7 +100,7 @@ impl CallEnv {
     #[inline]
     pub unsafe fn new(
         env: Env,
-        nargs: libc::ptrdiff_t,
+        nargs: isize,
         args: *mut emacs_value,
     ) -> Self {
         let nargs = nargs as usize;

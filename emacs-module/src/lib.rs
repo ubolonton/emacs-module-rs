@@ -4,18 +4,18 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
-
 // generates a lot of constants that aren't used in this crate directly
 #![allow(dead_code)]
 
-use libc;
+use std::os;
 
 /// The type of all Emacs subroutines.
-pub type EmacsSubr =
-    unsafe extern "C" fn(env: *mut emacs_env,
-                         nargs: libc::ptrdiff_t,
-                         args: *mut emacs_value,
-                         data: *mut libc::c_void) -> emacs_value;
+pub type EmacsSubr = unsafe extern "C" fn(
+    env: *mut emacs_env,
+    nargs: isize,
+    args: *mut emacs_value,
+    data: *mut os::raw::c_void,
+) -> emacs_value;
 
 pub type EmacsVal = emacs_value;
 

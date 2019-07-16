@@ -26,6 +26,7 @@
 //! [User Guide]: https://ubolonton.github.io/emacs-module-rs/
 //! [Examples]: https://github.com/ubolonton/emacs-rs-examples/
 
+use std::os;
 use std::cell::{RefCell, Ref, RefMut};
 use std::ffi::CString;
 
@@ -62,7 +63,6 @@ pub mod raw {
 // External dependencies that are mostly used by macros instead of user code.
 #[doc(hidden)]
 pub mod deps {
-    pub use libc;
     pub use ctor;
     pub use lazy_static;
 }
@@ -164,7 +164,7 @@ pub trait Transfer: Sized + 'static {
     /// this.
     ///
     /// This function also serves as a form of runtime type tag.
-    unsafe extern "C" fn finalizer(ptr: *mut libc::c_void) {
+    unsafe extern "C" fn finalizer(ptr: *mut os::raw::c_void) {
         #[cfg(build = "debug")]
         println!("Finalizing {} {:#?}", Self::type_name(), ptr);
         Box::from_raw(ptr as *mut Self);
@@ -213,7 +213,7 @@ impl Env {
         let symbol = self.intern(name)?;
         // XXX Hmm
         let mut args: Vec<emacs_value> = args.iter().map(|v| v.raw).collect();
-        raw_call_value!(self, funcall, symbol.raw, args.len() as libc::ptrdiff_t, args.as_mut_ptr())
+        raw_call_value!(self, funcall, symbol.raw, args.len() as isize, args.as_mut_ptr())
     }
 
     // TODO: Add a method to Value instead.

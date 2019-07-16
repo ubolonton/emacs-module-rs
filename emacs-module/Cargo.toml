@@ -12,8 +12,5 @@ authors = [
 license = "BSD-3-Clause"
 build = "build.rs"
 
-[dependencies]
-libc = "0.2.34"
-
 [build-dependencies]
 bindgen = "0.48.1"
