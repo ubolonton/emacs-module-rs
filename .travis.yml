@@ -58,5 +58,5 @@ install:
   - cargo build --verbose --all
 
 script:
-  - cargo test --all --exclude emacs_module
+  - cargo test --all
   - ./bin/test.sh
