@@ -216,7 +216,7 @@ impl Env {
         raw_call_value!(self, funcall, symbol.raw, args.len() as isize, args.as_mut_ptr())
     }
 
-    // TODO: Add a method to Value instead.
+    #[deprecated(since = "0.10.0", note = "Please use `value.is_not_nil()` instead")]
     pub fn is_not_nil(&self, value: Value<'_>) -> bool {
         raw_call_no_exit!(self, is_not_nil, value.raw)
     }
@@ -281,6 +281,11 @@ impl<'e> Value<'e> {
     pub unsafe fn new_protected(raw: emacs_value, env: &'e Env) -> Self {
         env.protected.borrow_mut().push(raw_call_no_exit!(env, make_global_ref, raw));
         Self::new(raw, env)
+    }
+
+    pub fn is_not_nil(&self) -> bool {
+        let env = self.env;
+        raw_call_no_exit!(env, is_not_nil, self.raw)
     }
 
     /// Converts this value into a Rust value of the given type.

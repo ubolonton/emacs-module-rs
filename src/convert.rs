@@ -48,7 +48,7 @@ impl FromLisp<'_> for String {
 
 impl<'e, T: FromLisp<'e>> FromLisp<'e> for Option<T> {
     fn from_lisp(value: Value<'e>) -> Result<Self> {
-        if value.env.is_not_nil(value) {
+        if value.is_not_nil() {
             Ok(Some(<T as FromLisp>::from_lisp(value)?))
         } else {
             Ok(None)
