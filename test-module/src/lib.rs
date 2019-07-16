@@ -1,3 +1,5 @@
+use std::{env, panic};
+
 use lazy_static::lazy_static;
 
 use emacs::{defun, CallEnv, Env, IntoLisp, Result, Value};
@@ -22,7 +24,12 @@ lazy_static! {
 
 #[emacs::module(name(fn), separator = "/")]
 fn t(env: &Env) -> Result<()> {
-    env.message("Hello, Emacs!")?;
+    match env::var("RUST_BACKTRACE") {
+        Err(env::VarError::NotPresent) => panic::set_hook(Box::new(|_| {})),
+        _ => {},
+    }
+
+    env.message("Hel\0lo, \0Emacs")?;
 
     test_basics::init(env)?;
     test_error::init(env)?;
