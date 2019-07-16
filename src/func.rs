@@ -54,8 +54,8 @@ impl Manage for Env {
         raw_call_value!(
             self,
             make_function,
-            arities.start as isize,
-            arities.end as isize,
+            arities.start as libc::ptrdiff_t,
+            arities.end as libc::ptrdiff_t,
             Some(function),
             CString::new(doc)?.as_ptr(),
             data

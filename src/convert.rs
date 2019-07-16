@@ -147,7 +147,7 @@ fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
 /// Implementation details.
 impl Env {
     fn string_bytes(&self, value: Value<'_>) -> Result<Vec<u8>> {
-        let mut len: isize = 0;
+        let mut len: libc::ptrdiff_t = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);
             let ok: bool = self.handle_exit(copy_string_contents(
@@ -166,7 +166,7 @@ impl Env {
             let ok: bool = self.handle_exit(copy_string_contents(
                 self.raw,
                 value.raw,
-                bytes.as_mut_ptr() as *mut i8,
+                bytes.as_mut_ptr() as *mut libc::c_char,
                 &mut len,
             ))?;
             // Technically this shouldn't happen, and the return type of copy_string_contents

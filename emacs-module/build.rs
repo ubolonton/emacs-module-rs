@@ -8,6 +8,7 @@ fn main() {
     bindgen::builder()
         .header("./include/emacs-module.h")
         .ctypes_prefix("::libc")
+        .prepend_enum_name(false)
         .generate().unwrap()
         .write_to_file(Path::new(&out_dir).join("emacs_module.rs"))
         .unwrap();

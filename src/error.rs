@@ -10,12 +10,11 @@ use super::IntoLisp;
 use super::{Env, Value};
 use emacs_module::*;
 
-// We assume that the C code in Emacs really treats it as an enum and doesn't return an undeclared
-// value, but we still need to safeguard against possible compatibility issue (Emacs may add more
-// statuses in the future). FIX: Use an enum, and check for compatibility on load. Possible or not?
-const RETURN: emacs_funcall_exit = emacs_funcall_exit_emacs_funcall_exit_return;
-const SIGNAL: emacs_funcall_exit = emacs_funcall_exit_emacs_funcall_exit_signal;
-const THROW: emacs_funcall_exit = emacs_funcall_exit_emacs_funcall_exit_throw;
+// We use const instead of enum, in case Emacs add more exit statuses in the future.
+// See https://github.com/rust-lang/rust/issues/36927
+const RETURN: emacs_funcall_exit = emacs_funcall_exit_return;
+const SIGNAL: emacs_funcall_exit = emacs_funcall_exit_signal;
+const THROW: emacs_funcall_exit = emacs_funcall_exit_throw;
 
 #[derive(Debug)]
 pub struct TempValue {
@@ -184,10 +183,10 @@ impl Env {
     }
 
     unsafe fn handle_known(&self, err: &ErrorKind) -> emacs_value {
-        match err {
-            &ErrorKind::Signal { ref symbol, ref data } => self.signal(symbol.raw, data.raw),
-            &ErrorKind::Throw { ref tag, ref value } => self.throw(tag.raw, value.raw),
-            &ErrorKind::WrongTypeUserPtr { .. } => self
+        match *err {
+            ErrorKind::Signal { ref symbol, ref data } => self.signal(symbol.raw, data.raw),
+            ErrorKind::Throw { ref tag, ref value } => self.throw(tag.raw, value.raw),
+            ErrorKind::WrongTypeUserPtr { .. } => self
                 .signal_str(WRONG_TYPE_USER_PTR, &format!("{}", err))
                 .unwrap_or_else(|_| panic!("Failed to signal {}", err)),
         }
