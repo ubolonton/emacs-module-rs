@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Removed `libc` dependency.
 - Deprecated `env.is_not_nil(value)` in favor of `value.is_not_nil()`.
 - Deprecated `env.eq(value1, value2)` in favor of `value1.eq(value2)`.
+- Removed `Transfer::finalizer`.
 
 ## [0.9.0] - 2019-07-11
 - `ResultExt` is now a collection of Emacs-specific extension methods for `Result`, instead of a re-export of `failure::ResultExt`.

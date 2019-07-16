@@ -159,17 +159,6 @@ pub trait IntoLisp<'e> {
 /// }
 /// ```
 pub trait Transfer: Sized + 'static {
-    /// Finalizes a value. This is called by the GC when it discards a value of this type. Module
-    /// code that needs custom destructor logic should implement [`Drop`], instead of overriding
-    /// this.
-    ///
-    /// This function also serves as a form of runtime type tag.
-    unsafe extern "C" fn finalizer(ptr: *mut os::raw::c_void) {
-        #[cfg(build = "debug")]
-        println!("Finalizing {} {:#?}", Self::type_name(), ptr);
-        Box::from_raw(ptr as *mut Self);
-    }
-
     // TODO: This should be derived automatically. Use `typename` crate or something.
     /// Returns the name of this type. This is used to report runtime type error, when a function
     /// expects this type, but some Lisp code passes a different type of "user pointer".

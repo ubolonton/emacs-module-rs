@@ -9,9 +9,6 @@ use super::{Env, Value};
 use super::{FromLisp, IntoLisp, Transfer};
 use emacs_module::emacs_value;
 
-#[doc(hidden)]
-pub type Finalizer = unsafe extern "C" fn(ptr: *mut os::raw::c_void);
-
 impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
     #[inline(always)]
     fn from_lisp(value: Value<'e>) -> Result<Value<'a>> {
@@ -121,11 +118,20 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
     }
 }
 
+/// Finalizes an embedded pointer. This is called by the GC when it discards a `user-ptr`.
+///
+/// This function also serves as a form of runtime type tag, relying on Rust's mono-morphization.
+unsafe extern "C" fn finalize<T: Transfer>(ptr: *mut os::raw::c_void) {
+    #[cfg(build = "debug")]
+    println!("Finalizing {} {:#?}", T::type_name(), ptr);
+    Box::from_raw(ptr as *mut T);
+}
+
 impl<T: Transfer> IntoLisp<'_> for Box<T> {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut os::raw::c_void;
-        raw_call_value!(env, make_user_ptr, Some(T::finalizer), ptr)
+        raw_call_value!(env, make_user_ptr, Some(finalize::<T>), ptr)
     }
 }
 
@@ -144,6 +150,8 @@ fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
         len -= 1;
     }
 }
+
+type Finalizer = unsafe extern "C" fn(ptr: *mut os::raw::c_void);
 
 /// Implementation details.
 impl Env {
@@ -183,7 +191,8 @@ impl Env {
 
     pub(crate) fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
         match raw_call!(self, get_user_finalizer, value)? {
-            Some::<Finalizer>(fin) if fin == T::finalizer => {
+            // TODO: Consider using dynamic dispatch for finalize, and core::any for type checking.
+            Some::<Finalizer>(fin) if fin == finalize::<T> => {
                 let ptr: *mut os::raw::c_void = raw_call!(self, get_user_ptr, value)?;
                 Ok(ptr as *mut T)
             }
