@@ -221,7 +221,7 @@ impl Env {
         raw_call_no_exit!(self, is_not_nil, value.raw)
     }
 
-    // TODO: Implement Eq for Value instead.
+    #[deprecated(since = "0.10.0", note = "Please use `value1.eq(value2)` instead")]
     pub fn eq(&self, a: Value<'_>, b: Value<'_>) -> bool {
         raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
@@ -286,6 +286,13 @@ impl<'e> Value<'e> {
     pub fn is_not_nil(&self) -> bool {
         let env = self.env;
         raw_call_no_exit!(env, is_not_nil, self.raw)
+    }
+
+    // TODO: Decide what we want for PartialEq (==, !=): eq vs. eql vs. equal.
+    #[allow(clippy::should_implement_trait)]
+    pub fn eq(&self, other: Value<'e>) -> bool {
+        let env = self.env;
+        raw_call_no_exit!(env, eq, self.raw, other.raw)
     }
 
     /// Converts this value into a Rust value of the given type.
