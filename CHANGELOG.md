@@ -71,7 +71,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.0.9...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.9.0...HEAD
 [0.9.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.6.0...0.7.0

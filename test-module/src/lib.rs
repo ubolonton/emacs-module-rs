@@ -24,9 +24,9 @@ lazy_static! {
 
 #[emacs::module(name(fn), separator = "/")]
 fn t(env: &Env) -> Result<()> {
-    match env::var("RUST_BACKTRACE") {
-        Err(env::VarError::NotPresent) => panic::set_hook(Box::new(|_| {})),
-        _ => {},
+    if let Err(env::VarError::NotPresent) = env::var("RUST_BACKTRACE") {
+        // Silence panic logging.
+        panic::set_hook(Box::new(|_| {}));
     }
 
     env.message("Hel\0lo, \0Emacs")?;

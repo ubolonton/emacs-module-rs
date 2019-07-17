@@ -2,7 +2,7 @@
 //!
 //! Code for a minimal module looks like this:
 //!
-//! ```no_run
+//! ```
 //! use emacs::{defun, Env, Result, Value};
 //!
 //! emacs::plugin_is_GPL_compatible!();
@@ -139,7 +139,7 @@ pub trait IntoLisp<'e> {
 ///
 /// This works, because the returned string is copied into the Lisp runtime.
 ///
-/// ```no_run
+/// ```
 /// use emacs::{defun, Result};
 ///
 /// #[defun]

@@ -47,7 +47,7 @@ pub enum ErrorKind {
     ///
     /// # Examples:
     ///
-    /// ```no_run
+    /// ```
     /// # use emacs::*;
     /// # use std::cell::RefCell;
     /// #[defun]
