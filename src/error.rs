@@ -110,6 +110,7 @@ impl Env {
     pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
         let mut symbol = MaybeUninit::uninit();
         let mut data = MaybeUninit::uninit();
+        // TODO: Check whether calling non_local_exit_check first makes a difference in performance.
         let status = self.non_local_exit_get(&mut symbol, &mut data);
         match (status, symbol, data) {
             (RETURN, ..) => Ok(result),

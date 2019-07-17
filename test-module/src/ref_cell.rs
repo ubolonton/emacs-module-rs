@@ -1,3 +1,5 @@
+//! Testing RefCell embedded in user-ptr.
+
 use emacs::{defun, Result, Value};
 use std::cell::RefCell;
 

@@ -6,6 +6,12 @@
 (require 'rs-module)
 (require 't)
 
+(defmacro t/get-error (&rest body)
+  (declare (indent 0))
+  `(condition-case err
+       ,@body
+     ('error err)))
+
 (ert-deftest conversion::inc ()
   (should (= (t/inc 3) 4))
   (should (equal (documentation 't/inc) "1+"))
@@ -19,6 +25,7 @@
 (ert-deftest conversion::passthrough ()
   (let ((x "x"))
     (should (eq (t/identity x) x))
+    (should (eq (t/identity 5) 5))
     (should (equal (documentation #'t/identity) "Return the input (not a copy)."))))
 
 (ert-deftest conversion::string ()
@@ -28,6 +35,21 @@
   (should (equal (t/to-lowercase-or-nil "CDE") "cde"))
   (should (equal (t/to-lowercase-or-nil nil) nil))
   (should-error (t/to-lowercase-or-nil 1) :type 'wrong-type-argument))
+
+(ert-deftest conversion::vector-functions ()
+  (let ((v [0 1 2 3]))
+    (should (= 4 (t/vec-size v)))
+    (t/vec-set v 2 'a)
+    (should (eq 'a (t/vec-get v 2)))
+    (should (equal (t/get-error (t/vec-get v -1))
+                   '(args-out-of-range -1 0 3)))
+    (should (equal (t/get-error (t/vec-set v -5 'a))
+                   '(args-out-of-range -5 0 3))))
+  (let ((v [a b c d e]))
+    (should (eq v (t/identity-if-vector v)))
+    (should-error (t/identity-if-vector nil) :type 'wrong-type-argument)
+    (should (equal (t/get-error (eq "abc" (t/identity-if-vector "abc")))
+                   '(wrong-type-argument vectorp "abc")))))
 
 (ert-deftest error::propagating-signal ()
   ;; Through Result.
@@ -65,10 +87,8 @@
 
 (ert-deftest error::panic ()
   (should-error (t/error:parse-arg 5 "1") :type 'rust-panic)
-  (should (equal (condition-case err
-                  (t/error:apply #'t/error:panic '("abc"))
-                (rust-panic err))
-              '(rust-panic "abc"))))
+  (should (equal (t/get-error (t/error:apply #'t/error:panic '("abc")))
+                 '(rust-panic "abc"))))
 
 (ert-deftest function::create ()
   (let ((dec (t/make-dec)))

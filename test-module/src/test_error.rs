@@ -1,3 +1,5 @@
+//! Testing error reporting and handling.
+
 use emacs::{defun, CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
 use emacs::ResultExt;

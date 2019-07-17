@@ -4,14 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
-- Fixed a safety bug in which short-lived references were allowed to be embedded in `user-ptr`.
+- Added `Vector` type to represent Lisp's vectors.
 - Allowed `Rc` and `Arc` to be embedded in `user-ptr` by marking them as `Transfer`.
-- Improved Lisp-to-Rust string conversion's performance by making utf-8 validation optional, behind a feature, `utf-8-validation`.
-- Improved Rust-to-Lisp string conversion's performance by not creating a temporary `CString`.
 - Removed `libc` dependency.
+- Removed `Transfer::finalizer`.
 - Deprecated `env.is_not_nil(value)` in favor of `value.is_not_nil()`.
 - Deprecated `env.eq(value1, value2)` in favor of `value1.eq(value2)`.
-- Removed `Transfer::finalizer`.
+- Improved Lisp-to-Rust string conversion's performance by making utf-8 validation optional, behind a feature, `utf-8-validation`.
+- Improved Rust-to-Lisp string conversion's performance by not creating a temporary `CString`.
+- Fixed a safety bug in which short-lived references were allowed to be embedded in `user-ptr`.
 
 ## [0.9.0] - 2019-07-11
 - `ResultExt` is now a collection of Emacs-specific extension methods for `Result`, instead of a re-export of `failure::ResultExt`.

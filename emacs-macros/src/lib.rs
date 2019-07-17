@@ -50,9 +50,9 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// - A shared/mutable reference. This gives access to data structures that other module functions
 /// have created and embedded in the Lisp runtime (through `user-ptr` objects).
 ///
-/// - A Lisp [`Value`]. This allows holding off the conversion to Rust data structures until
-/// necessary, or working with values that don't have a meaningful representation in Rust, like Lisp
-/// lambdas.
+/// - A Lisp [`Value`], or one of its "sub-types" (e.g. [`Vector`]). This allows holding off the
+/// conversion to Rust data structures until necessary, or working with values that don't have a
+/// meaningful representation in Rust, like Lisp lambdas.
 ///
 /// - An [`&Env`]. This enables interaction with the Lisp runtime. It does not appear in the
 /// function's Lisp signature. This is unnecessary if there is already another parameter with type
@@ -73,7 +73,8 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// read-write use cases. It requires `user_ptr` option to be specified. If the data is to be shared
 /// with background Rust threads, `user_ptr(rwlock)` or `user_ptr(mutex)` must be used instead.
 ///
-/// - [`Value`]. This is mostly useful for returning an input parameter unchanged.
+/// - [`Value`], or one of its "sub-types" (e.g. [`Vector`]). This is mostly useful for returning an
+/// input parameter unchanged.
 ///
 /// # Naming
 ///
@@ -94,6 +95,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// [`Transfer`]: /emacs/*/emacs/trait.Transfer.html
 /// [`&Env`]: /emacs/*/emacs/struct.Env.html
 /// [`Value`]: /emacs/*/emacs/struct.Value.html
+/// [`Vector`]: /emacs/*/emacs/struct.Vector.html
 #[proc_macro_attribute]
 pub fn defun(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);

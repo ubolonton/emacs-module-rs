@@ -26,9 +26,9 @@
 //! [User Guide]: https://ubolonton.github.io/emacs-module-rs/
 //! [Examples]: https://github.com/ubolonton/emacs-rs-examples/
 
-use std::os;
 use std::cell::{RefCell, Ref, RefMut};
 use std::ffi::CString;
+use std::convert::TryInto;
 
 #[doc(inline)]
 pub use emacs_macros::{defun, module};
@@ -302,9 +302,6 @@ impl<'e> Value<'e> {
         Ok(container.try_borrow_mut()?)
     }
 
-    // TODO: Rename this to `borrow_mut`? Also, remove FromLisp implementation for &T. On the other
-    // hand, `Value` is similar to `Rc`, so `get_mut` may make sense.
-
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.
     ///
     /// # Safety
@@ -323,5 +320,53 @@ impl<'e> Value<'e> {
     /// [`into_rust`]: #method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
         self.env.get_raw_pointer(self.raw).map(|r| &mut *r)
+    }
+}
+
+/// A type that represents Lisp vectors. This is a newtype wrapper around [`Value`] that provides
+/// vector-specific methods.
+///
+/// Arguments to [`#[defun]`] having this type will be type-checked. This type checking can be
+/// omitted by manually wrapping a [`Value`]. Note that Emacs still does type checking when calling
+/// methods on the vector.
+///
+/// ```
+/// use emacs::{defun, Value, Vector, Result};
+///
+/// #[defun]
+/// fn must_pass_vector(vector: Vector) -> Result<Vector> {
+///     Ok(vector)
+/// }
+///
+/// #[defun]
+/// fn no_type_check(value: Value) -> Result<Vector> {
+///     Ok(Vector(value))
+/// }
+/// ```
+///
+/// [`Value`]: struct.Value.html
+/// [`#[defun]`]: /emacs-macros/*/emacs_macros/attr.defun.html
+#[derive(Debug, Clone, Copy)]
+pub struct Vector<'e>(pub Value<'e>);
+
+impl<'e> Vector<'e> {
+    pub fn get(&self, i: usize) -> Result<Value<'e>> {
+        let v = self.0;
+        let env = v.env;
+        raw_call_value!(env, vec_get, v.raw, i as isize)
+    }
+
+    pub fn set<T: IntoLisp<'e>>(&self, i: usize, value: T) -> Result<()> {
+        let v = self.0;
+        let env = v.env;
+        let value = value.into_lisp(env)?;
+        raw_call!(env, vec_set, v.raw, i as isize, value.raw)
+    }
+
+    pub fn size(&self) -> Result<usize> {
+        let v = self.0;
+        let env = v.env;
+        let result = raw_call_no_exit!(env, vec_size, v.raw).try_into().expect("invalid size from Emacs");
+        env.handle_exit(result)
     }
 }

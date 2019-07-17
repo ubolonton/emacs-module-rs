@@ -1,3 +1,5 @@
+//! Testing a custom vector (user-ptr).
+
 use emacs::{defun, Env, IntoLisp, Result, Value};
 
 struct Vector {

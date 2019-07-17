@@ -5,7 +5,7 @@ use std::ptr;
 use std::sync::{Mutex, RwLock, Arc};
 
 use super::error::{ErrorKind, Result};
-use super::{Env, Value};
+use super::{Env, Value, Vector};
 use super::{FromLisp, IntoLisp, Transfer};
 use emacs_module::emacs_value;
 
@@ -13,6 +13,15 @@ impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
     #[inline(always)]
     fn from_lisp(value: Value<'e>) -> Result<Value<'a>> {
         Ok(value)
+    }
+}
+
+impl<'a, 'e: 'a> FromLisp<'e> for Vector<'a> {
+    fn from_lisp(value: Value<'e>) -> Result<Vector<'a>> {
+        let vector = Vector(value);
+        // TODO: Confirm that this is indeed cheaper than calling vectorp and signaling error.
+        vector.size()?;
+        Ok(vector)
     }
 }
 
@@ -63,6 +72,13 @@ impl<'e> IntoLisp<'e> for Value<'e> {
     #[inline(always)]
     fn into_lisp(self, _: &'e Env) -> Result<Value<'_>> {
         Ok(self)
+    }
+}
+
+impl<'e> IntoLisp<'e> for Vector<'e> {
+    #[inline(always)]
+    fn into_lisp(self, _: &'e Env) -> Result<Value<'_>> {
+        Ok(self.0)
     }
 }
 

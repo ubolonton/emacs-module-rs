@@ -4,6 +4,8 @@ The type `Value` represents Lisp values:
 - They can be copied around, but cannot outlive the `Env` they come from.
 - They are "proxy values": only useful when converted to Rust values, or used as arguments when calling Lisp functions.
 
+Lisp vectors are represented by the type `Vector`, which can be considered a "sub-type" of `Value`.
+
 ## Converting a Lisp `Value` to Rust
 
 This is enabled for types that implement `FromLisp`. Most built-in types are supported. Note that conversion may fail, so the return type is `Result<T>`.

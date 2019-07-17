@@ -21,14 +21,23 @@ Each parameter must be one of the following:
         Ok(())
     }
     ```
-- A Lisp `Value`. This allows holding off the conversion to Rust data structures until necessary, or working with values that don't have a meaningful representation in Rust, like Lisp lambdas.
+- A Lisp `Value`, or one of its "sub-types" (e.g. `Vector`). This allows holding off the conversion to Rust data structures until necessary, or working with values that don't have a meaningful representation in Rust, like Lisp lambdas.
     ```rust
     #[defun]
-    fn maybe_call(lambda: Value<'_>) -> Result<()> {
+    fn maybe_call(lambda: Value) -> Result<()> {
         if some_hidden_native_logic() {
             lambda.env.call("funcall", &[lambda])?;
         }
         Ok(())
+    }
+
+    #[defun(user_ptr)]
+    fn to_rust_vec_string(input: Vector) -> Result<Vec<String>> {
+        let mut vec = vec![];
+        for i in 0..input.size()? {
+            vec.push(input.get(i)?.into_rust()?);
+        }
+        Ok(vec)
     }
     ```
 - An `&Env`. This enables interaction with the Lisp runtime. It does not appear in the function's Lisp signature. This is unnecessary if there is already another parameter with type `Value`, which allows accessing the runtime through `Value.env`.
@@ -64,7 +73,7 @@ The return type must be `Result<T>`, where `T` is one of the following:
     }
     ```
 - A type that implements `Transfer`. This allows embedding a native data structure in a `user-ptr` object, for read-only use cases. It requires `user_ptr(direct)` option to be specified.
-- `Value`. This is mostly useful for returning an input parameter unchanged.
+- `Value`, or one of its "sub-types" (e.g. `Vector`). This is mostly useful for returning an input parameter unchanged.
 
 See [Custom Types](./custom-types.md) for more details on embedding Rust data structures in Lisp's `user-ptr` objects.
 

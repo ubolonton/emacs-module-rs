@@ -10,6 +10,7 @@ mod macros;
 mod test_basics;
 mod test_error;
 mod test_lifetime;
+mod test_vector;
 
 mod ref_cell;
 mod vector;

@@ -1,3 +1,5 @@
+//! Testing soundness of GC interactions.
+
 use emacs::{defun, Env, IntoLisp, Result, Value};
 use emacs::ErrorKind::{self, Signal};
 
