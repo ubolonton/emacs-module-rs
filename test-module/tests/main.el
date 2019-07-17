@@ -6,7 +6,7 @@
 (require 'rs-module)
 (require 't)
 
-(ert-deftest convert::inc ()
+(ert-deftest conversion::inc ()
   (should (= (t/inc 3) 4))
   (should (equal (documentation 't/inc) "1+"))
 
@@ -16,30 +16,34 @@
   (should-error (t/inc) :type 'wrong-number-of-arguments)
   (should-error (t/inc 1 2) :type 'wrong-number-of-arguments))
 
-(ert-deftest convert::passthrough ()
+(ert-deftest conversion::passthrough ()
   (let ((x "x"))
     (should (eq (t/identity x) x))
     (should (equal (documentation #'t/identity) "Return the input (not a copy)."))))
 
-(ert-deftest convert::string ()
+(ert-deftest conversion::string ()
   (should (equal (t/to-uppercase "abc") "ABC")))
 
-(ert-deftest convert::option-string ()
+(ert-deftest conversion::option-string ()
   (should (equal (t/to-lowercase-or-nil "CDE") "cde"))
   (should (equal (t/to-lowercase-or-nil nil) nil))
   (should-error (t/to-lowercase-or-nil 1) :type 'wrong-type-argument))
 
 (ert-deftest error::propagating-signal ()
+  ;; Through Result.
   (should-error (t/error:lisp-divide 1 0) :type 'arith-error)
+  ;; Through panic.
   (should-error (t/error:apply #'/ '(1 0)) :type 'arith-error)
   (should-error (t/error:apply (lambda () (error "abc")) nil) :type 'error))
 
 (ert-deftest error::propagating-throw ()
   (let ((msg "Catch this!"))
+    ;; Through Result.
     (should (eq (catch 'ball
                   (t/error:get-type
                    (lambda () (throw 'ball msg))))
                 msg))
+    ;; Through panic.
     (should (eq (catch 'knife
                   (t/error:apply
                    (lambda () (throw 'knife msg))
@@ -157,8 +161,10 @@
 
 ;;; Tests that, if failed, crash the whole process unrecoverably. They will be run under a
 ;;; sub-process Emacs.
-(defmacro destructive-test (name)
-  `(ert-deftest ,(intern (format "destructive::%s" name)) ()
+(defmacro destructive-test (name &optional prefix)
+  `(ert-deftest ,(intern (if prefix
+                             (format "%s::%s" prefix name)
+                           (format "%s" name))) ()
      (let ((name ,(format "t/%s" name))
            (exit-code)
            (error-string)
@@ -181,12 +187,12 @@
        (unless (= exit-code 0)
          (error "Exit code: %s. Error: %s" exit-code error-string)))))
 
-(destructive-test gc-after-new-string)
-(destructive-test gc-after-uninterning)
-(destructive-test gc-after-retrieving)
+(destructive-test gc-after-new-string lifetime)
+(destructive-test gc-after-uninterning lifetime)
+(destructive-test gc-after-retrieving lifetime)
 
 ;;; TODO: The way this test is called is a bit convoluted.
 (defun t/gc-after-catching ()
   (t/gc-after-catching-1
    (lambda () (error "abc"))))
-(destructive-test gc-after-catching)
+(destructive-test gc-after-catching lifetime)
