@@ -21,3 +21,12 @@ fn vec_set(v: Vector, i: i64, value: Value) -> Result<()> {
 fn identity_if_vector(v: Vector) -> Result<Vector> {
     Ok(v)
 }
+
+#[defun(mod_in_name = false)]
+fn stringify_num_vector(v: Vector) -> Result<Vector> {
+    for i in 0..v.size()? {
+        let x: i64 = v.get(i)?;
+        v.set(i, format!("{}", x))?;
+    }
+    Ok(v)
+}

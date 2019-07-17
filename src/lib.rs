@@ -350,10 +350,10 @@ impl<'e> Value<'e> {
 pub struct Vector<'e>(pub Value<'e>);
 
 impl<'e> Vector<'e> {
-    pub fn get(&self, i: usize) -> Result<Value<'e>> {
+    pub fn get<T: FromLisp<'e>>(&self, i: usize) -> Result<T> {
         let v = self.0;
         let env = v.env;
-        raw_call_value!(env, vec_get, v.raw, i as isize)
+        raw_call_value!(env, vec_get, v.raw, i as isize)?.into_rust()
     }
 
     pub fn set<T: IntoLisp<'e>>(&self, i: usize, value: T) -> Result<()> {

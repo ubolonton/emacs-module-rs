@@ -47,7 +47,11 @@
     (should (eq v (t/identity-if-vector v)))
     (should-error (t/identity-if-vector nil) :type 'wrong-type-argument)
     (should (equal (t/get-error (eq "abc" (t/identity-if-vector "abc")))
-                   '(wrong-type-argument vectorp "abc")))))
+                   '(wrong-type-argument vectorp "abc"))))
+  (let ((v [0 1 2 3]))
+    (should (eq v (t/stringify-num-vector v)))
+    (should (equal v ["0" "1" "2" "3"]))
+    (should-error (t/stringify-num-vector v) :type 'wrong-type-argument)))
 
 (ert-deftest error::propagating-signal ()
   ;; Through Result.

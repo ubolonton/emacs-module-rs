@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Made `Vector::get` generic by return type.
 
 ## [0.10.0] - 2019-07-17
 - Added `Vector` type to represent Lisp's vectors.
