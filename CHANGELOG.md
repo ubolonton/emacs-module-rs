@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 - Made `Vector::get` generic by return type.
-- Added `FromLisp` and `IntoLisp` implementations for most integer types, and an optional feature `lossy-integer-conversion` to control their behavior.
+- Added `FromLisp` and `IntoLisp` implementations for most integer types, and an optional feature `lossy-integer-conversion` to control their behavior. This allows them to be used in `#[defun]` signatures.
 - Made `Env::message` take `AsRef<str>`, not just a `&str`.
 
 ## [0.10.0] - 2019-07-17
