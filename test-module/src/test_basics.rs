@@ -47,3 +47,18 @@ pub fn init(env: &Env) -> Result<()> {
 
     Ok(())
 }
+
+#[defun(mod_in_name = false)]
+fn identity_i8(i: i8) -> Result<i8> {
+    Ok(i)
+}
+
+#[defun(mod_in_name = false)]
+fn identity_u8(i: u8) -> Result<u8> {
+    Ok(i)
+}
+
+#[defun(mod_in_name = false)]
+fn u64_overflow() -> Result<u64> {
+    Ok(u64::max_value())
+}

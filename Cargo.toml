@@ -32,6 +32,7 @@ emacs-macros = { path = "emacs-macros", version = "0.10.0" }
 
 [features]
 utf-8-validation = []
+lossy-integer-conversion = []
 
 [workspace]
 members = [

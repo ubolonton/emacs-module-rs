@@ -40,3 +40,16 @@ This is enabled for types that implement `IntoLisp`. Most built-in types are sup
 true.into_lisp(env)?; // t
 false.into_lisp(env)?; // nil
 ```
+
+## Integer conversion
+
+Integer conversion is lossless by default, which means that a module will signal an "out of range" `rust-error` in cases such as:
+- A `#[defun]` expecting `u8` gets passed `-1`.
+- A `#[defun]` returning `u64` returns a value larger than `i64::max_value()`.
+
+To disable this behavior, use the `lossy-integer-conversion` feature:
+
+```toml
+[dependencies.emacs]
+features = ["lossy-integer-conversion"]
+```

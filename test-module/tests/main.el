@@ -12,7 +12,7 @@
        ,@body
      ('error err)))
 
-(ert-deftest conversion::inc ()
+(ert-deftest conversion::integers ()
   (should (= (t/inc 3) 4))
   (should (equal (documentation 't/inc) "1+"))
 
@@ -20,7 +20,21 @@
   (should-error (t/inc nil) :type 'wrong-type-argument)
 
   (should-error (t/inc) :type 'wrong-number-of-arguments)
-  (should-error (t/inc 1 2) :type 'wrong-number-of-arguments))
+  (should-error (t/inc 1 2) :type 'wrong-number-of-arguments)
+
+  (should (= -128 (t/identity-i8 -128)))
+  (should (= 255 (t/identity-u8 255)))
+
+  ;; FIX: Don't rely on error's string representation.
+  (should (string-match-p
+           "out of range"
+           (cadr (should-error (t/u64-overflow) :type 'rust-error))))
+  (should (string-match-p
+           "out of range"
+           (cadr (should-error (t/identity-i8 128) :type 'rust-error))))
+  (should (string-match-p
+           "out of range"
+           (cadr (should-error (t/identity-u8 -1) :type 'rust-error)))))
 
 (ert-deftest conversion::passthrough ()
   (let ((x "x"))

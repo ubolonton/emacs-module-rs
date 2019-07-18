@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 - Made `Vector::get` generic by return type.
+- Added `FromLisp` and `IntoLisp` implementations for most integer types, and an optional feature `lossy-integer-conversion` to control their behavior.
 
 ## [0.10.0] - 2019-07-17
 - Added `Vector` type to represent Lisp's vectors.
