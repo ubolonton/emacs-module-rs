@@ -225,7 +225,6 @@ impl Env {
     }
 
     pub fn message(&self, text: &str) -> Result<Value<'_>> {
-        let text = text.into_lisp(self)?;
         call_lisp!(self, "message", text)
     }
 }

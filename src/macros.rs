@@ -43,12 +43,14 @@ macro_rules! raw_call_value {
 
 // TODO: Export this.
 macro_rules! call_lisp {
-    ($env:ident, $name:expr $(, $arg:expr)*) => {
+    ($env:expr, $name:expr $(, $arg:expr)*) => {
         {
-            // println!("call_lisp {:?}", $name);
-            let symbol: $crate::Value<'_> = $env.intern($name)?;
-            let args = &mut [$($arg.raw,)*];
-            raw_call_value!($env, funcall, symbol.raw, args.len() as isize, args.as_mut_ptr())
+            let env = $env;
+            let symbol: $crate::Value<'_> = env.intern($name)?;
+            let mut args = [
+                $($crate::IntoLisp::into_lisp($arg, env)?.raw,)*
+            ];
+            raw_call_value!(env, funcall, symbol.raw, args.len() as isize, args.as_mut_ptr())
         }
     };
 }
