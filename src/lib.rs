@@ -224,8 +224,8 @@ impl Env {
         call_lisp!(self, "provide", name)
     }
 
-    pub fn message(&self, text: &str) -> Result<Value<'_>> {
-        call_lisp!(self, "message", text)
+    pub fn message<T: AsRef<str>>(&self, text: T) -> Result<Value<'_>> {
+        call_lisp!(self, "message", text.as_ref())
     }
 }
 

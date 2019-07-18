@@ -78,7 +78,7 @@ impl HandleInit for Env {
         let result = panic::catch_unwind(|| match env.define_errors().and_then(|_| f(&env)) {
             Ok(_) => 0,
             Err(e) => {
-                env.message(&format!("Error during initialization: {:#?}", e))
+                env.message(format!("Error during initialization: {:#?}", e))
                     .expect("Fail to message Emacs about error");
                 1
             }
@@ -86,7 +86,7 @@ impl HandleInit for Env {
         match result {
             Ok(v) => v,
             Err(e) => {
-                env.message(&format!("Panic during initialization: {:#?}", e))
+                env.message(format!("Panic during initialization: {:#?}", e))
                     .expect("Fail to message Emacs about panic");
                 2
             }
