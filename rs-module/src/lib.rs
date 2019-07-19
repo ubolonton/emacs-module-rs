@@ -1,23 +1,24 @@
-use libloading as lib;
-use lazy_static::lazy_static;
-
-use std::collections::HashMap;
-use std::sync::Mutex;
+use std::{
+    collections::HashMap,
+    sync::Mutex,
+};
 
 use emacs::{defun, Env, Value, Result};
 use emacs::raw::emacs_env;
 
+use libloading::{Library, Symbol};
+
 emacs::plugin_is_GPL_compatible!();
 
-lazy_static! {
-    static ref LIBRARIES: Mutex<HashMap<String, lib::Library>> = Mutex::new(HashMap::new());
+emacs::deps::lazy_static::lazy_static! {
+    static ref LIBRARIES: Mutex<HashMap<String, Library>> = Mutex::new(HashMap::new());
 }
 
 const INIT_FROM_ENV: &str = "emacs_rs_module_init";
 
 macro_rules! message {
     ($env:expr, $fmt:expr $(, $args:expr)*) => {
-        $env.message(&format!($fmt $(, $args)*))
+        $env.message(format!($fmt $(, $args)*))
     };
 }
 
@@ -36,17 +37,17 @@ fn load(env: &Env, path: String) -> Result<Value<'_>> {
         .expect("Failed to acquire lock for module map");
     // TODO: How about tracking by feature name?
     match libraries.remove(&path) {
-        Some(l) => message!(env, "[{}]: unloaded {:?}...", &path, &l)?,
-        None => message!(env, "[{}]: not loaded yet", &path)?,
+        Some(l) => message!(env, "[{}]: unloaded {:?}...", path, l)?,
+        None => message!(env, "[{}]: not loaded yet", path)?,
     };
-    message!(env, "[{}]: loading...", &path)?;
-    let l = lib::Library::new(&path)?;
-    message!(env, "[{}]: initializing...", &path)?;
+    message!(env, "[{}]: loading...", path)?;
+    let lib = Library::new(&path)?;
+    message!(env, "[{}]: initializing...", path)?;
     unsafe {
-        let rs_init: lib::Symbol<'_, unsafe extern fn(*mut emacs_env) -> u32> =
-            l.get(INIT_FROM_ENV.as_bytes())?;
+        let rs_init: Symbol<'_, unsafe extern fn(*mut emacs_env) -> u32> =
+            lib.get(INIT_FROM_ENV.as_bytes())?;
         rs_init(env.raw());
     }
-    libraries.insert(path.clone(), l);
-    message!(env, "[{}]: loaded and initialized", &path)
+    libraries.insert(path.clone(), lib);
+    message!(env, "[{}]: loaded and initialized", path)
 }

@@ -13,4 +13,4 @@ lazy_static = "1.3.0"
 emacs = { path = "..", version = "0.10.1" }
 
 [dev-dependencies]
-emacs-rs-module = { path = "../rs-module", version = "0.7.0" }
+emacs-rs-module = { path = "../rs-module", version = "0.10.1" }
