@@ -17,6 +17,4 @@ pub type EmacsSubr = unsafe extern "C" fn(
     data: *mut os::raw::c_void,
 ) -> emacs_value;
 
-pub type EmacsVal = emacs_value;
-
 include!(concat!(env!("OUT_DIR"), "/emacs_module.rs"));
