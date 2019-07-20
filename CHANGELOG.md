@@ -4,11 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.10.1] - 2019-07-18
 - Made `Vector::get` generic by return type.
 - Added `FromLisp` and `IntoLisp` implementations for most integer types, and an optional feature `lossy-integer-conversion` to control their behavior. This allows them to be used in `#[defun]` signatures.
 - Made `Env::message` take `AsRef<str>`, not just a `&str`.
 
 ## [0.10.0] - 2019-07-17
+- Raise minimum supported Rust version to 1.36 (for `MaybeUninit`).
 - Added `Vector` type to represent Lisp's vectors.
 - Allowed `Rc` and `Arc` to be embedded in `user-ptr` by marking them as `Transfer`.
 - Removed `libc` dependency.
@@ -77,7 +80,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.0...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.1...HEAD
+[0.10.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.0...0.10.1
 [0.10.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.7.0...0.8.0
