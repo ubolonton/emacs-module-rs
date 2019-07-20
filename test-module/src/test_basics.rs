@@ -48,6 +48,13 @@ pub fn init(env: &Env) -> Result<()> {
     Ok(())
 }
 
+// Test that raw identifiers are handled correctly. Note that it must be a reserved keyword,
+// otherwise syn parses it into a non-raw identifier.
+#[defun]
+fn r#match() -> Result<()> {
+    Ok(())
+}
+
 #[defun(mod_in_name = false)]
 fn identity_i8(i: i8) -> Result<i8> {
     Ok(i)

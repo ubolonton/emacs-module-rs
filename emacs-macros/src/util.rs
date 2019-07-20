@@ -3,16 +3,17 @@ use std::fmt::Display;
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
     export::{Span, TokenStream2},
+    ext::IdentExt,
     Ident, ItemFn,
 };
 
 // TODO: Add more extensively checks and transformations to make this more "idiomatic".
 pub fn lisp_name(id: &Ident) -> String {
-    id.to_string().trim_start_matches("r#").replace("_", "-")
+    id.unraw().to_string().replace("_", "-")
 }
 
 pub fn concat(lhs: &str, rhs: &Ident) -> Ident {
-    Ident::new(&format!("{}{}", lhs, rhs), Span::call_site())
+    Ident::new(&format!("{}{}", lhs, rhs.unraw()), Span::call_site())
 }
 
 pub fn arg(name: &str, i: usize) -> Ident {
