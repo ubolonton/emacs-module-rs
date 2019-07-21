@@ -109,31 +109,23 @@ impl Module {
     }
 
     pub fn gen_init(&self) -> TokenStream2 {
-        let env = quote!(env);
         let init = Self::init_ident();
-        let feature = quote!(feature);
         let separator = &self.opts.separator;
         let hook = &self.def.ident;
         let init_fns = util::init_fns_path();
         let prefix = util::prefix_path();
         let mod_in_name = util::mod_in_name_path();
         let crate_mod_in_name = &self.opts.mod_in_name;
-        let set_feature = match &self.opts.name {
-            Name::Crate => quote! {
-                let #feature = ::emacs::globals::lisp_pkg(module_path!());
-            },
+        let feature = match &self.opts.name {
+            Name::Crate => quote!(::emacs::globals::lisp_pkg(module_path!())),
+            Name::Str(name) => quote!(#name.to_owned()),
             Name::Fn => {
                 let name = util::lisp_name(hook);
-                quote! {
-                    let #feature = #name.to_owned();
-                }
+                quote!(#name.to_owned())
             }
-            Name::Str(name) => quote! {
-                let #feature = #name.to_owned();
-            },
         };
         let defun_prefix = match &self.opts.defun_prefix {
-            None => quote!(#feature.clone()),
+            None => quote!(feature.clone()),
             Some(defun_prefix) => quote!(#defun_prefix.to_owned()),
         };
         let set_prefix = quote! {
@@ -151,19 +143,19 @@ impl Module {
                 let funcs = #init_fns.try_lock()
                     .expect("Failed to acquire a read lock on map of initializers");
                 for (name, func) in funcs.iter() {
-                    func(#env)?
+                    func(env)?
                 }
             }
         };
         quote! {
             #[allow(non_snake_case)]
-            fn #init(#env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
-                #set_feature
+            fn #init(env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
+                let feature = #feature;
                 #set_prefix
                 #configure_mod_in_name
                 #export_lisp_funcs
-                #hook(#env)?;
-                #env.provide(&#feature)
+                #hook(env)?;
+                env.provide(&feature)
             }
         }
     }

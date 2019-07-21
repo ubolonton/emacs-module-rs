@@ -173,30 +173,30 @@ impl LispFunc {
             None => TokenStream2::new(),
             Some(user_ptr) => match user_ptr {
                 UserPtr::RefCell => quote_spanned! {self.output_span=>
-                    let result = ::std::boxed::Box::new(::std::cell::RefCell::new(result));
+                    let output = ::std::boxed::Box::new(::std::cell::RefCell::new(output));
                 },
                 UserPtr::RwLock => quote_spanned! {self.output_span=>
-                    let result = ::std::boxed::Box::new(::std::sync::RwLock::new(result));
+                    let output = ::std::boxed::Box::new(::std::sync::RwLock::new(output));
                 },
                 UserPtr::Mutex => quote_spanned! {self.output_span=>
-                    let result = ::std::boxed::Box::new(::std::sync::Mutex::new(result));
+                    let output = ::std::boxed::Box::new(::std::sync::Mutex::new(output));
                 },
                 UserPtr::Direct => quote_spanned! {self.output_span=>
-                    let result = ::std::boxed::Box::new(result);
+                    let output = ::std::boxed::Box::new(output);
                 },
             },
         };
-        // XXX: result can be (), but we can't easily know when.
+        // XXX: output can be (), but we can't easily know when.
         let into_lisp = quote_spanned! {self.output_span=>
             #[allow(clippy::unit_arg)]
-            ::emacs::IntoLisp::into_lisp(result, env)
+            ::emacs::IntoLisp::into_lisp(output, env)
         };
         let inner = &self.def.ident;
         let wrapper = self.wrapper_ident();
         quote! {
             fn #wrapper(env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
                 #bindings
-                let result = #inner(#args)?;
+                let output = #inner(#args)?;
                 #maybe_embed
                 #into_lisp
             }
