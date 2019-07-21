@@ -16,15 +16,18 @@ enum Name {
 
 #[derive(Debug, FromMeta)]
 struct ModuleOpts {
-    /// Name of this module (feature's name).
+    /// Name of this module (feature name).
     #[darling(default)]
     name: Name,
-    /// Separator following the feature's name to form the prefix in functions' full Lisp name.
+    /// Separator following the feature name to form the prefix in functions' full Lisp name.
     #[darling(default = "default::separator")]
     separator: String,
     /// Whether module path should be used to construct functions' full Lisp name.
     #[darling(default = "default::mod_in_name")]
     mod_in_name: bool,
+    /// Alternative prefix (instead of the feature name) to use in functions' full Lisp name.
+    #[darling(default)]
+    defun_prefix: Option<String>,
 }
 
 #[derive(Debug)]
@@ -129,11 +132,15 @@ impl Module {
                 let #feature = #name.to_owned();
             },
         };
+        let defun_prefix = match &self.opts.defun_prefix {
+            None => quote!(#feature.clone()),
+            Some(defun_prefix) => quote!(#defun_prefix.to_owned()),
+        };
         let set_prefix = quote! {
             {
                 let mut prefix = #prefix.try_lock()
                     .expect("Failed to acquire write lock on module prefix");
-                *prefix = [#feature.clone(), #separator.to_owned()];
+                *prefix = [#defun_prefix, #separator.to_owned()];
             }
         };
         let configure_mod_in_name = quote! {

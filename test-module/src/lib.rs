@@ -23,6 +23,7 @@ lazy_static! {
     static ref MODULE_PREFIX: String = format!("{}/", MODULE);
 }
 
+// TODO: Add more tests for different combinations of module options.
 #[emacs::module(name(fn), separator = "/")]
 fn t(env: &Env) -> Result<()> {
     if let Err(env::VarError::NotPresent) = env::var("RUST_BACKTRACE") {

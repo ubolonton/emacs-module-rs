@@ -80,7 +80,7 @@ See [Custom Types](./custom-types.md) for more details on embedding Rust data st
 ## Naming
 
 By default, the function's Lisp name has the form `<feature-prefix>[mod-prefix]<base-name>`.
-- `feature-prefix` is the feature's name, followed by `-`. This can be customized by the `name` and `separator` [options](./module.md#options) on `#[emacs::module]`.
+- `feature-prefix` is the feature name followed by `-`. This can be customized by the `name`, `defun_prefix`, and `separator` [options](./module.md#options) on `#[emacs::module]`.
 - `mod-prefix` is constructed from the function's Rust module path (with `_` and `::` replaced by `-`). This can be turned off crate-wide, or for individual function, using the option `mod_in_name`.
 - `base-name` is the function's Rust name (with `_` replaced by `-`). This can be overridden with the option `name`.
 

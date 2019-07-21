@@ -16,15 +16,17 @@ mod func;
 ///
 /// # Options
 ///
-/// - `name`: By default, name of the feature provided by the module is the crate's name (with `_`
-/// replaced by `-`). There is no need to explicitly call `provide` inside the initializer. This
+/// - `name`: By default, the name of the feature provided by the module is the crate's name (with
+/// `_` replaced by `-`). There is no need to explicitly call `provide` inside the initializer. This
 /// option allows the initializer's name, or a string, to be used instead. For examples:
 /// `#[module(name(fn))]`, or `#[module(name = "feature-name")]`.
-/// - `separator`: Function names in Emacs are conventionally prefixed with the feature name,
-/// followed by `-`, this option allows a different separator to be used. For example:
-/// `#[module(separator = "/")]`.
+///
+/// - `defun_prefix` and `separator`: Function names in Emacs are conventionally prefixed with the
+/// feature name followed by `-`. These 2 options allow different prefix and separator to be used.
+/// For example: `#[module(name = "foo-dyn", defun_prefix = "foo", separator = "/")]`.
+///
 /// - `mod_in_name`: Whether to put module path in function names. Default to `true`. This can also
-/// be overridden for each individual function, by an option of the same name in [`#[defun]`].
+/// be overridden for each individual function, by an option of the same name on [`#[defun]`].
 ///
 /// [`#[defun]`]: attr.defun.html
 #[proc_macro_attribute]
@@ -78,12 +80,14 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 ///
 /// # Naming
 ///
-/// By default, the function's Lisp name has the form `<feature-prefix>[mod-prefix]<base-name>`.
-/// - `feature-prefix` is the feature's name, followed by `-`. This can be customized by the `name`
-/// and `separator` options on [`#[module]`].
+/// By default, the function's Lisp name has the form `<crate-prefix>[mod-prefix]<base-name>`.
 ///
-/// - `mod-prefix` is constructed from the function's Rust module path (with `_` replaced by `-`).
-/// This can be turned off crate-wide, or for individual function, using the option `mod_in_name`.
+/// - `crate-prefix` is the feature name followed by `-`. This can be customized by the `name`,
+/// `defun_prefix`, and `separator` options on [`#[module]`].
+///
+/// - `mod-prefix` is constructed from the function's Rust module path (with `_` and `::` replaced
+/// by `-`). This can be turned off crate-wide, or for individual function, using the option
+/// `mod_in_name`.
 ///
 /// - `base-name` is the function's Rust name (with `_` replaced by `-`). This can be overridden
 /// with the option `name`, e.g. `#[defun(name = "foo:bar")]`.

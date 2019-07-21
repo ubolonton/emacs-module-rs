@@ -18,21 +18,32 @@ fn init(env: &Env) -> Result<()> {
 
 ## Options
 
-- `name`: By default, name of the feature provided by the module is the crate's name (with `_` replaced by `-`). There is no need to explicitly call `provide` inside the initialization function. This option allows the function's name, or a string, to be used instead.
-- `separator`: Function names in Emacs are conventionally prefixed with the feature name, followed by `-`, this option allows a different separator to be used.
-- `mod_in_name`: Whether to put module path in [function names](./functions.md#naming). Default to `true`. This can also be overridden for each individual function, by an option of the same name in `#[defun]`.
+- `name`: By default, the name of the feature provided by the module is the crate's name (with `_` replaced by `-`). There is no need to explicitly call `provide` inside the initialization function. This option allows the function's name, or a string, to be used instead.
 
-```rust
-// Putting `rs` in crate's name is discouraged so we use the function's name instead.
-// The feature will be `rs-module-helper`.
-#[emacs::module(name(fn))]
-fn rs_module_helper(_: &Env) -> Result<()> { Ok(()) }
-```
+    ```rust
+    // Putting `rs` in crate's name is discouraged so we use the function's name
+    // instead. The feature will be `rs-module-helper`.
+    #[emacs::module(name(fn))]
+    fn rs_module_helper(_: &Env) -> Result<()> { Ok(()) }
+    ```
 
-```rust
-// Use `/` as the separator that goes after feature's name, like some popular packages.
-#[emacs::module(separator = "/")]
-fn init(_: &Env) -> Result<()> { Ok(()) }
-```
+- `defun_prefix` and `separator`: Function names in Emacs are conventionally prefixed with the feature name followed by `-`. These 2 options allow a different prefix and separator to be used.
+
+    ```rust
+    // Use `/` as the separator that goes after feature name, like some other packages.
+    #[emacs::module(separator = "/")]
+    fn init(_: &Env) -> Result<()> { Ok(()) }
+    ```
+
+    ```rust
+    // The whole package contains other Lisp files, so the module is named
+    // `tree-sitter-dyn`. But we want functions to be `tree-sitter-something`,
+    // not `tree-sitter-dyn-something`.
+    #[emacs::module(name = "tree-sitter-dyn", defun_prefix = "tree-sitter")]
+    fn init(_: &Env) -> Result<()> { Ok(()) }
+    ```
+
+- `mod_in_name`: Whether to put module path in [function names](./functions.md#naming). Default to `true`. This can also be overridden for each individual function, by an option of the same name on `#[defun]`.
+
 
 **Note**: Often time, there's no initialization logic needed. A future version of this crate will support putting `#![emacs::module]` on the crate, without having to define a no-op function. See Rust's [issue #54726](https://github.com/rust-lang/rust/issues/54726).
