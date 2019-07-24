@@ -292,12 +292,14 @@ impl<'e> Value<'e> {
     #[inline]
     pub fn into_ref<T: 'static>(self) -> Result<Ref<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
+        // TODO: Use .borrow(), we want panics.
         Ok(container.try_borrow()?)
     }
 
     #[inline]
     pub fn into_ref_mut<T: 'static>(self) -> Result<RefMut<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
+        // TODO: Use .borrow_mut(), we want panics.
         Ok(container.try_borrow_mut()?)
     }
 

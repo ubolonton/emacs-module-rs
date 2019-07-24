@@ -6,7 +6,7 @@ use syn::{
     self,
     export::{Span, TokenStream2},
     spanned::Spanned,
-    AttributeArgs, FnArg, FnDecl, Ident, ItemFn,
+    AttributeArgs, FnArg, FnDecl, Ident, ItemFn, Pat,
 };
 
 use crate::util::{self, report};
@@ -14,7 +14,7 @@ use crate::util::{self, report};
 #[derive(Debug)]
 enum Arg {
     Env { span: Span },
-    Val { span: Span, access: Access, nth: usize },
+    Val { span: Span, access: Access, nth: usize, name: Option<Ident> },
 }
 
 /// Kinds of argument.
@@ -113,6 +113,18 @@ impl FromMeta for UserPtr {
     }
 }
 
+impl Arg {
+    fn lisp_name(&self) -> Option<String> {
+        match self {
+            Arg::Env { .. } => None,
+            Arg::Val { name: None, .. } => Some("_".to_owned()),
+            Arg::Val { name: Some(ident), ..} => {
+                Some(util::lisp_name(ident).to_uppercase())
+            }
+        }
+    }
+}
+
 impl LispFunc {
     pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
         let opts: FuncOpts = match FuncOpts::from_list(&attr_args) {
@@ -147,7 +159,7 @@ impl LispFunc {
                     // error is confusing (i.e expecting Env, found &Env).
                     args.append_all(quote_spanned!(span=> &**env,))
                 }
-                Arg::Val { span, access, nth } => {
+                Arg::Val { span, access, nth, .. } => {
                     let name = util::arg("arg", nth);
                     // TODO: Create a slice of `emacs_value` once and iterate through it, instead of
                     // using `get_arg`, which creates a slice each call.
@@ -210,7 +222,10 @@ impl LispFunc {
         let wrapper = self.wrapper_ident();
         let exporter = self.exporter_ident();
         let (min, max) = (self.arities.start, self.arities.end);
-        let doc = util::doc(&self.def);
+        let mut doc = util::doc(&self.def);
+        doc.push_str("\n\n");
+        doc.push_str(&lisp_signature(&self.args));
+        lisp_signature(&self.args);
         let path = match &self.opts.mod_in_name {
             None => {
                 let crate_mod_in_name = util::mod_in_name_path();
@@ -313,7 +328,19 @@ fn check_signature(decl: &FnDecl) -> Result<(Vec<Arg>, Range<usize>, Span), Toke
                         }
                         _ => Access::Owned,
                     };
-                    let a = Arg::Val { span, access, nth: i };
+                    let name = match &capt.pat {
+                        Pat::Ident(pat_ident) => {
+                            Some(pat_ident.ident.clone())
+                        }
+                        Pat::Wild(_) => {
+                            None
+                        }
+                        _ => {
+                            report(errors, &capt.pat, "Expected identifier");
+                            continue;
+                        }
+                    };
+                    let a = Arg::Val { span, access, name, nth: i };
                     i += 1;
                     a
                 });
@@ -352,4 +379,15 @@ fn is_env(ty: &syn::Type) -> bool {
         }
         _ => false,
     }
+}
+
+fn lisp_signature(args: &[Arg]) -> String {
+    let mut sig = "(fn".to_owned();
+    for arg in args.iter().flat_map(|a| a.lisp_name()) {
+        sig.push_str(" ");
+        sig.push_str(&arg);
+    }
+    sig.push_str(")");
+    println!("{}", sig);
+    sig
 }

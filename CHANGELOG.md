@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Made `#[defun]` function signatures display correctly in `help-mode` and `helpful-mode`.
 
 ## [0.10.2] - 2019-07-24
 - Added `defun_prefix` option to `#[module]`.

@@ -118,3 +118,18 @@ mod shared_state {
     }
 }
 ```
+
+## Documentation
+
+`#[defun]` converts Rust's docstring into Lisp's docstring. It also automatically constructs and appends the [function's signature](https://www.gnu.org/software/emacs/manual/html_node/elisp/Function-Documentation.html#Function-Documentation) to the end of the docstring, so that help modes can correctly display it.
+
+```rust
+// `(fn X Y)` is automatically appended, so you don't have to manually do so.
+// In help modes, the signature will be (add X Y).
+
+/// Add 2 numbers.
+#[defun]
+fn add(x: usize, y: usize) -> Result<usize> {
+    Ok(x + y)
+}
+```

@@ -69,3 +69,8 @@ fn identity_u8(i: u8) -> Result<u8> {
 fn u64_overflow() -> Result<u64> {
     Ok(u64::max_value())
 }
+
+#[defun(mod_in_name = false)]
+fn ignore_args(_: &Env, _: u8, _: u16) -> Result<()> {
+    Ok(())
+}

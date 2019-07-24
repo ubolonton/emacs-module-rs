@@ -1,4 +1,5 @@
 (require 'subr-x)
+(require 'help)
 
 (when-let ((module-path (getenv "MODULE_DIR")))
   (add-to-list 'load-path module-path))
@@ -12,9 +13,15 @@
        ,@body
      ('error err)))
 
+(defun t/sig (sym)
+  (let* ((docstring (documentation sym))
+         (s (help-split-fundoc docstring sym)))
+    (car s)))
+
 (ert-deftest conversion::integers ()
   (should (= (t/inc 3) 4))
-  (should (equal (documentation 't/inc) "1+"))
+  (should (string-match-p (regexp-quote "1+")
+                          (documentation 't/inc) ))
 
   (should-error (t/inc "3") :type 'wrong-type-argument)
   (should-error (t/inc nil) :type 'wrong-type-argument)
@@ -40,7 +47,8 @@
   (let ((x "x"))
     (should (eq (t/identity x) x))
     (should (eq (t/identity 5) 5))
-    (should (equal (documentation #'t/identity) "Return the input (not a copy)."))))
+    (should (string-match-p (regexp-quote "Return the input (not a copy).")
+                            (documentation #'t/identity) ))))
 
 (ert-deftest conversion::string ()
   (should (equal (t/to-uppercase "abc") "ABC")))
@@ -133,6 +141,14 @@
         (y 3))
     (should (equal (t/sum-and-diff x y)
                    (list (+ x y) (- x y))))))
+
+(ert-deftest function::defun-signature ()
+  (should (equal (t/sig 't/ignore-args)
+                 "(t/ignore-args _ _)"))
+  (should (equal (t/sig 't/to-lowercase-or-nil)
+                 "(t/to-lowercase-or-nil INPUT)"))
+  (should (equal (t/sig 't/error:catch)
+                 "(t/error:catch EXPECTED-TAG LAMBDA)")))
 
 (ert-deftest transfer::vector ()
 
