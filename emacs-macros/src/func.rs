@@ -113,18 +113,6 @@ impl FromMeta for UserPtr {
     }
 }
 
-impl Arg {
-    fn lisp_name(&self) -> Option<String> {
-        match self {
-            Arg::Env { .. } => None,
-            Arg::Val { name: None, .. } => Some("_".to_owned()),
-            Arg::Val { name: Some(ident), ..} => {
-                Some(util::lisp_name(ident).to_uppercase())
-            }
-        }
-    }
-}
-
 impl LispFunc {
     pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
         let opts: FuncOpts = match FuncOpts::from_list(&attr_args) {
@@ -329,12 +317,8 @@ fn check_signature(decl: &FnDecl) -> Result<(Vec<Arg>, Range<usize>, Span), Toke
                         _ => Access::Owned,
                     };
                     let name = match &capt.pat {
-                        Pat::Ident(pat_ident) => {
-                            Some(pat_ident.ident.clone())
-                        }
-                        Pat::Wild(_) => {
-                            None
-                        }
+                        Pat::Ident(pat_ident) => Some(pat_ident.ident.clone()),
+                        Pat::Wild(_) => None,
                         _ => {
                             report(errors, &capt.pat, "Expected identifier");
                             continue;
@@ -381,13 +365,20 @@ fn is_env(ty: &syn::Type) -> bool {
     }
 }
 
+fn lisp_name(arg: &Arg) -> Option<String> {
+    match arg {
+        Arg::Env { .. } => None,
+        Arg::Val { name: None, .. } => Some("_".to_owned()),
+        Arg::Val { name: Some(ident), .. } => Some(util::lisp_name(ident).to_uppercase()),
+    }
+}
+
 fn lisp_signature(args: &[Arg]) -> String {
     let mut sig = "(fn".to_owned();
-    for arg in args.iter().flat_map(|a| a.lisp_name()) {
+    for arg in args.iter().flat_map(lisp_name) {
         sig.push_str(" ");
         sig.push_str(&arg);
     }
     sig.push_str(")");
-    println!("{}", sig);
     sig
 }
