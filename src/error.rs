@@ -176,10 +176,13 @@ impl Env {
     pub(crate) fn define_errors(&self) -> Result<()> {
         // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
         // not a sub-type of 'error.
-        self.define_error(PANIC, "Rust panic", "error")?;
-        self.define_error(ERROR, "Rust error", "error")?;
-        // TODO: This should also be a sub-types of 'wrong-type-argument?
-        self.define_error(WRONG_TYPE_USER_PTR, "Wrong type user-ptr", ERROR)?;
+        self.define_error(PANIC, "Rust panic", &["error"])?;
+        self.define_error(ERROR, "Rust error", &["error"])?;
+        self.define_error(
+            WRONG_TYPE_USER_PTR,
+            "Wrong type user-ptr",
+            &[ERROR, "wrong-type-argument"],
+        )?;
         Ok(())
     }
 
@@ -201,11 +204,13 @@ impl Env {
         unsafe { Ok(self.signal(symbol.raw, data.raw)) }
     }
 
-    fn define_error(&self, name: &str, message: &str, parent: &str) -> Result<Value<'_>> {
-        self.call(
-            "define-error",
-            &[self.intern(name)?, message.into_lisp(self)?, self.intern(parent)?],
-        )
+    fn define_error(&self, name: &str, message: &str, parents: &[&str]) -> Result<Value<'_>> {
+        let mut parent_symbols = vec![];
+        for symbol in parents.iter().map(|p| self.intern(p)) {
+            parent_symbols.push(symbol?)
+        }
+        let parents = self.list(&parent_symbols)?;
+        self.call("define-error", &[self.intern(name)?, message.into_lisp(self)?, parents])
     }
 
     fn non_local_exit_get(
