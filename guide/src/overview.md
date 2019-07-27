@@ -28,5 +28,9 @@ You will also need to install LLVM and set `LIBCLANG_PATH` accordingly.
 ```powershell
 # In Powershell
 scoop install llvm
-$env:LIBCLANG_PATH = "$(scoop install llvm)\bin"
+
+$env:LIBCLANG_PATH = "$(scoop prefix llvm)\bin"
+cargo build --all
+
+.\bin\test.ps1
 ```
