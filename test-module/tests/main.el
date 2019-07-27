@@ -223,6 +223,8 @@
   `(ert-deftest ,(intern (if prefix
                              (format "%s::%s" prefix name)
                            (format "%s" name))) ()
+     (when (eq system-type 'windows-nt)
+       (ert-skip "Tests that use sub-processes have not been ported to Windows"))
      (let ((name ,(format "t/%s" name))
            (exit-code)
            (error-string)

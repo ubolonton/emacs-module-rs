@@ -26,3 +26,15 @@ steps:
     $env:LIBCLANG_PATH = "$($env:SystemDrive)\Program Files\LLVM\bin"
     cargo build --all
   displayName: Build all packages
+
+# We use this instead of the one from GNU FTP for dynamic module support.
+- script: |
+    set MSYS_PATH=%CD%\ci-tools\msys2
+    choco install msys2 --params="/InstallDir:%MSYS_PATH% /NoPath"
+    set PATH=%MSYS_PATH%\usr\bin;%PATH%
+    pacman -S --noconfirm --needed mingw-w64-x86_64-emacs
+  displayName: Install Emacs
+
+- powershell: |
+    .\bin\test.ps1
+  displayName: Run tests
