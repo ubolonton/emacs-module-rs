@@ -227,23 +227,19 @@
              (pcase system-type
                ((or 'darwin 'gnu/linux)
                 (call-process
-                 "bin/fn.sh"
-                 nil
+                 "bash"
                  ;; If VERBOSE, redirect subprocess's stdout to stderr
-                 (list (if (getenv "VERBOSE")
-                           '(:file "/dev/stderr")
-                         t)
-                       error-file)
-                 nil
-                 name))
+                 nil (list (if (getenv "VERBOSE")
+                               '(:file "/dev/stderr")
+                             t)
+                           error-file)
+                 nil "./bin/fn.sh" name))
                ('windows-nt
                 (call-process
                  "powershell"
-                 nil
                  ;; If VERBOSE, redirect subprocess's stdout to stderr
-                 (list t error-file)
-                 nil
-                 ".\\bin\\fn.ps1" name))))
+                 nil (list t error-file)
+                 nil ".\\bin\\fn.ps1" name))))
             (error-string
              (with-temp-buffer
                (insert-file-contents error-file)
