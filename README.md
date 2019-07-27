@@ -1,4 +1,4 @@
-# Emacs Module in Rust [![crates.io](https://meritbadge.herokuapp.com/emacs)](https://crates.io/crates/emacs) [![doc.rs](https://docs.rs/emacs/badge.svg)](https://docs.rs/emacs/) [![Build Status](https://travis-ci.org/ubolonton/emacs-module-rs.svg?branch=master)](https://travis-ci.org/ubolonton/emacs-module-rs)
+# Emacs Module in Rust [![crates.io](https://meritbadge.herokuapp.com/emacs)](https://crates.io/crates/emacs) [![doc.rs](https://docs.rs/emacs/badge.svg)](https://docs.rs/emacs/) [![Build Status](https://travis-ci.org/ubolonton/emacs-module-rs.svg?branch=master)](https://travis-ci.org/ubolonton/emacs-module-rs) [![Build Status](https://dev.azure.com/ubolonton/emacs-module-rs/_apis/build/status/ubolonton.emacs-module-rs?branchName=master)](https://dev.azure.com/ubolonton/emacs-module-rs/_build/latest?definitionId=1&branchName=master)
 
 [User Guide](https://ubolonton.github.io/emacs-module-rs/) | [Change Log](https://github.com/ubolonton/emacs-module-rs/blob/master/CHANGELOG.md) | [Examples](https://github.com/ubolonton/emacs-module-rs#sample-modules)
 
