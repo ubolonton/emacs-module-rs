@@ -1,6 +1,3 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
 trigger:
@@ -15,11 +12,11 @@ steps:
     rustup default stable
     rustc -Vv
     cargo -V
-  displayName: Install rust
+  displayName: Install Rust
 
 - script: |
     choco install llvm --version 8.0.0
-  displayName: Install llvm
+  displayName: Install LLVM
 
 # TODO: Install and get llvm location in a less fragile way.
 - powershell: |
@@ -33,6 +30,7 @@ steps:
     choco install msys2 --params="/InstallDir:%MSYS_PATH% /NoPath"
     set PATH=%MSYS_PATH%\usr\bin;%PATH%
     pacman -S --noconfirm --needed mingw-w64-x86_64-emacs
+    echo ##vso[task.prependpath]%MSYS_PATH%\mingw64\bin
   displayName: Install Emacs
 
 - powershell: |
