@@ -16,6 +16,7 @@ source $here/env.sh
 $EMACS --version
 echo "Testing $MODULE_FULL"
 
-$EMACS -batch -l ert \
+$EMACS -batch --directory "$MODULE_DIR" \
+       -l ert \
        -l "$PROJECT_ROOT/test-module/tests/main.el" \
        -f ert-run-tests-batch-and-exit

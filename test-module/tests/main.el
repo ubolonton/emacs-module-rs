@@ -1,9 +1,6 @@
 (require 'subr-x)
 (require 'help)
 
-(when-let ((module-path (getenv "MODULE_DIR")))
-  (add-to-list 'load-path module-path))
-
 (require 'rs-module)
 (require 't)
 
@@ -223,27 +220,35 @@
   `(ert-deftest ,(intern (if prefix
                              (format "%s::%s" prefix name)
                            (format "%s" name))) ()
-     (when (eq system-type 'windows-nt)
-       (ert-skip "Tests that use sub-processes have not been ported to Windows"))
-     (let ((name ,(format "t/%s" name))
-           (exit-code)
-           (error-string)
-           (error-file (make-temp-file "destructive-fn")))
-       (setq exit-code (call-process
-                        (format "%s/%s" (getenv "PROJECT_ROOT") "bin/fn.sh")
-                        nil             ; no input
-                        (list (if (getenv "VERBOSE")
-                                  '(:file "/dev/stderr") ; ert prints stderr, not stdout.
-                                t)
-                              error-file)
-                        t
-                        name))
-       (setq error-string (with-temp-buffer
-                            (insert-file-contents error-file)
-                            (goto-char (point-max))
-                            (beginning-of-line 0)
-                            (string-trim-right
-                             (buffer-substring-no-properties (point) (point-max)))))
+     (let* ((default-directory (getenv "PROJECT_ROOT"))
+            (name ,(format "t/%s" name))
+            (error-file (make-temp-file "destructive-fn"))
+            (exit-code
+             (pcase system-type
+               ((or 'darwin 'gnu/linux)
+                (call-process
+                 "bin/fn.sh"
+                 nil
+                 ;; If VERBOSE, redirect subprocess's stdout to stderr
+                 (list (if (getenv "VERBOSE")
+                           '(:file "/dev/stderr")
+                         t)
+                       error-file)
+                 nil
+                 name))
+               ('windows-nt
+                (call-process
+                 "powershell"
+                 nil
+                 ;; If VERBOSE, redirect subprocess's stdout to stderr
+                 (list t error-file)
+                 nil
+                 ".\\bin\\fn.ps1" name))))
+            (error-string
+             (with-temp-buffer
+               (insert-file-contents error-file)
+               (string-trim-right
+                (buffer-substring-no-properties (point-min) (point-max))))))
        (unless (= exit-code 0)
          (error "Exit code: %s. Error: %s" exit-code error-string)))))
 
