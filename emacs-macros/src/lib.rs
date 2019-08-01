@@ -18,15 +18,17 @@ mod func;
 ///
 /// - `name`: By default, the name of the feature provided by the module is the crate's name (with
 /// `_` replaced by `-`). There is no need to explicitly call `provide` inside the initializer. This
-/// option allows the initializer's name, or a string, to be used instead. For examples:
-/// `#[module(name(fn))]`, or `#[module(name = "feature-name")]`.
+/// option allows the initializer's name, or a string, to be used instead. Examples:
+/// `#[module(name(fn))]`, `#[module(name = "feature-name")]`.
 ///
 /// - `defun_prefix` and `separator`: Function names in Emacs are conventionally prefixed with the
 /// feature name followed by `-`. These 2 options allow different prefix and separator to be used.
-/// For example: `#[module(name = "foo-dyn", defun_prefix = "foo", separator = "/")]`.
+/// Example: `#[module(name = "foo-dyn", defun_prefix = "foo", separator = "/")]`.
 ///
-/// - `mod_in_name`: Whether to put module path in function names. Default to `true`. This can also
-/// be overridden for each individual function, by an option of the same name on [`#[defun]`].
+/// - `mod_in_name`: Whether to use Rust's `mod` path to construct function names. Default to
+/// `true`. For example, supposed that the crate is named `parser`, a `#[defun]` named `next_child`
+/// inside `mod cursor` will have the Lisp name of `parser-cursor-next-child`. This can also be
+/// overridden for each individual function, by an option of the same name on [`#[defun]`].
 ///
 /// [`#[defun]`]: attr.defun.html
 #[proc_macro_attribute]

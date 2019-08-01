@@ -43,7 +43,6 @@ fn init(env: &Env) -> Result<()> {
     fn init(_: &Env) -> Result<()> { Ok(()) }
     ```
 
-- `mod_in_name`: Whether to put module path in [function names](./functions.md#naming). Default to `true`. This can also be overridden for each individual function, by an option of the same name on `#[defun]`.
-
+- `mod_in_name`: Whether to use Rust's `mod` path to construct [function names](./functions.md#naming). Default to `true`. For example, supposed that the crate is named `parser`, a `#[defun]` named `next_child` inside `mod cursor` will have the Lisp name of `parser-cursor-next-child`. This can also be overridden for each individual function, by an option of the same name on `#[defun]`.
 
 **Note**: Often time, there's no initialization logic needed. A future version of this crate will support putting `#![emacs::module]` on the crate, without having to define a no-op function. See Rust's [issue #54726](https://github.com/rust-lang/rust/issues/54726).
