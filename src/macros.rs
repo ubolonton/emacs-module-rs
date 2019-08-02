@@ -84,13 +84,13 @@ macro_rules! plugin_is_GPL_compatible {
 
 // TODO: Deprecate this in favor of #[module].
 
-/// Registers a function as the initialization hook. [`#[module]`] is preferred over this low-level
+/// Registers a function as the initialization hook. #[[`module`]] is preferred over this low-level
 /// interface.
 ///
 /// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
 /// whose signature must be `fn(&Env) -> Result<Value>`.
 ///
-/// [`#[module]`]: /emacs-macros/*/emacs_macros/attr.module.html
+/// [`module`]: /emacs-macros/*/emacs_macros/attr.module.html
 #[macro_export]
 macro_rules! module_init {
     ($init:ident) => {
@@ -148,10 +148,10 @@ macro_rules! lambda {
 
 // TODO: Use `$crate::` instead of `local_inner_macros` once everyone is on 1.30.
 // See https://doc.rust-lang.org/nightly/edition-guide/rust-2018/macros/macro-changes.html#macros-using-local_inner_macros.
-/// Exports Rust functions to the Lisp runtime. [`#[defun]`] is preferred over this low-level
+/// Exports Rust functions to the Lisp runtime. #[[`defun`]] is preferred over this low-level
 /// interface.
 ///
-/// [`#[defun]`]: /emacs-macros/*/emacs_macros/attr.defun.html
+/// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
 #[macro_export(local_inner_macros)]
 macro_rules! export_functions {
     // Cut trailing comma in top-level.

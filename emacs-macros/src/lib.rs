@@ -26,11 +26,11 @@ mod func;
 /// Example: `#[module(name = "foo-dyn", defun_prefix = "foo", separator = "/")]`.
 ///
 /// - `mod_in_name`: Whether to use Rust's `mod` path to construct function names. Default to
-/// `true`. For example, supposed that the crate is named `parser`, a `#[defun]` named `next_child`
+/// `true`. For example, supposed that the crate is named `parser`, a #[[`defun`]] named `next_child`
 /// inside `mod cursor` will have the Lisp name of `parser-cursor-next-child`. This can also be
-/// overridden for each individual function, by an option of the same name on [`#[defun]`].
+/// overridden for each individual function, by an option of the same name on #[[`defun`]].
 ///
-/// [`#[defun]`]: attr.defun.html
+/// [`defun`]: attr.defun.html
 #[proc_macro_attribute]
 pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
@@ -85,7 +85,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// By default, the function's Lisp name has the form `<crate-prefix>[mod-prefix]<base-name>`.
 ///
 /// - `crate-prefix` is the feature name followed by `-`. This can be customized by the `name`,
-/// `defun_prefix`, and `separator` options on [`#[module]`].
+/// `defun_prefix`, and `separator` options on #[[`module`]].
 ///
 /// - `mod-prefix` is constructed from the function's Rust module path (with `_` and `::` replaced
 /// by `-`). This can be turned off crate-wide, or for individual function, using the option
@@ -94,7 +94,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// - `base-name` is the function's Rust name (with `_` replaced by `-`). This can be overridden
 /// with the option `name`, e.g. `#[defun(name = "foo:bar")]`.
 ///
-/// [`#[module]`]: attr.module.html
+/// [`module`]: attr.module.html
 /// [`Result<T>`]: /emacs/*/emacs/type.Result.html
 /// [`FromLisp`]: /emacs/*/emacs/trait.FromLisp.html
 /// [`IntoLisp`]: /emacs/*/emacs/trait.IntoLisp.html

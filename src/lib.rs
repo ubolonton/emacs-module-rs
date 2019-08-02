@@ -327,7 +327,7 @@ impl<'e> Value<'e> {
 /// A type that represents Lisp vectors. This is a newtype wrapper around [`Value`] that provides
 /// vector-specific methods.
 ///
-/// Arguments to [`#[defun]`] having this type will be type-checked. This type checking can be
+/// Arguments to #[[`defun`]] having this type will be type-checked. This type checking can be
 /// omitted by manually wrapping a [`Value`]. Note that Emacs still does type checking when calling
 /// methods on the vector.
 ///
@@ -346,7 +346,7 @@ impl<'e> Value<'e> {
 /// ```
 ///
 /// [`Value`]: struct.Value.html
-/// [`#[defun]`]: /emacs-macros/*/emacs_macros/attr.defun.html
+/// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
 #[derive(Debug, Clone, Copy)]
 pub struct Vector<'e>(pub Value<'e>);
 
