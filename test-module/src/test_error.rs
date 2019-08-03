@@ -82,7 +82,7 @@ fn parse_arg(env: &CallEnv) -> Result<String> {
 }
 
 pub fn init(env: &Env) -> Result<()> {
-    emacs::export_functions! {
+    emacs::__export_functions! {
         env, format!("{}error:", *MODULE_PREFIX), {
             "parse-arg"   => (parse_arg   , 2..5),
         }

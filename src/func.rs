@@ -18,17 +18,35 @@ use crate::{Env, Value, Result, FromLisp, IntoLisp};
 /// interface.
 ///
 /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+#[deprecated(since = "0.11.0", note = "Please use `#[defun]` instead")]
 #[macro_export]
 macro_rules! export_functions {
+    ($($inner:tt)*) => {
+        $crate::__export_functions!($($inner)*)
+    };
+}
+
+#[deprecated(since = "0.7.0", note = "Please use `#[defun]` instead")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! emacs_export_functions {
+    ($($inner:tt)*) => {
+        $crate::__export_functions!($($inner)*)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __export_functions {
     // Cut trailing comma in top-level.
     ($env:expr, $prefix:expr, $mappings:tt,) => {
-        $crate::export_functions!($env, $prefix, $mappings)
+        $crate::__export_functions!($env, $prefix, $mappings)
     };
     // Cut trailing comma in mappings.
     ($env:expr, $prefix:expr, {
         $( $name:expr => $declaration:tt ),+,
     }) => {
-        $crate::export_functions!($env, $prefix, {
+        $crate::__export_functions!($env, $prefix, {
             $( $name => $declaration ),*
         })
     };
@@ -38,13 +56,13 @@ macro_rules! export_functions {
     }) => {
         {
             use $crate::func::Manage;
-            $( $crate::export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+            $( $crate::__export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
         }
     };
 
     // Cut trailing comma in declaration.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
-        $crate::export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
+        $crate::__export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
     };
     // Create a function and set a symbol to it.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
@@ -84,15 +102,6 @@ macro_rules! lambda {
             // Safety: The raw pointer is simply ignored.
             unsafe { $env.make_function(extern_lambda, $arities, $doc, ::std::ptr::null_mut()) }
         }
-    };
-}
-
-#[deprecated(since = "0.7.0", note = "Please use `#[defun]` instead")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! emacs_export_functions {
-    ($($inner:tt)*) => {
-        $crate::export_functions!($($inner)*)
     };
 }
 

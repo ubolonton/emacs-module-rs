@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 - Added `rust-wrong-type-user-ptr` to `wrong-type-argument` classification.
-- Deprecated `emacs::module_init!`.
+- Deprecated `emacs::module_init!` and `emacs::export_functions!`.
 
 ## [0.10.3] - 2019-07-24
 - Made `#[defun]` function signatures display correctly in `help-mode` and `helpful-mode`.

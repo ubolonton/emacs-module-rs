@@ -39,7 +39,7 @@ pub fn init(env: &Env) -> Result<()> {
         Ok(x + y)
     }
 
-    emacs::export_functions! {
+    emacs::__export_functions! {
         env, *MODULE_PREFIX, {
             "sum" => (sum, 2..2),
         }
