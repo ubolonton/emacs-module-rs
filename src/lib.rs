@@ -39,6 +39,7 @@ pub use failure::{self, Error};
 
 #[doc(inline)]
 pub use self::error::{ErrorKind, Result, ResultExt};
+pub use self::func::CallEnv;
 
 #[macro_use]
 mod macros;
@@ -73,18 +74,6 @@ pub struct Env {
     pub(crate) raw: *mut emacs_env,
     /// Raw values "rooted" during the lifetime of this `Env`.
     pub(crate) protected: RefCell<Vec<emacs_value>>,
-}
-
-/// Like [`Env`], but is available only in exported functions. This has additional methods to handle
-/// arguments passed from Lisp code.
-///
-/// [`Env`]: struct.Env.html
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct CallEnv {
-    env: Env,
-    nargs: usize,
-    args: *mut emacs_value,
 }
 
 /// A type that represents Lisp values.

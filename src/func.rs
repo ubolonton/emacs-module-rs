@@ -1,19 +1,109 @@
-//! This module contains additional methods on [`Env`] that are mainly used by macros. User code
-//! should use these macros instead of this module.
+//! Machinery for defining and exporting functions to the Lisp runtime. It should be mainly used by
+//! the #[[`defun`]] macro, not module code.
 //!
-//! [`Env`]: struct.Env.html
+//! [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
 
-use std::os;
-use std::ffi::CString;
-use std::ops::{Deref, Range};
-use std::panic;
-use std::slice;
+use std::{
+    os, panic,
+    ffi::CString,
+    ops::{Deref, Range},
+    slice,
+};
 
 use emacs_module::{emacs_value, EmacsSubr};
 
-use super::error::Result;
-use super::{CallEnv, Env, Value};
-use super::{FromLisp, IntoLisp};
+use crate::{Env, Value, Result, FromLisp, IntoLisp};
+
+/// Exports Rust functions to the Lisp runtime. #[[`defun`]] is preferred over this low-level
+/// interface.
+///
+/// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+#[macro_export]
+macro_rules! export_functions {
+    // Cut trailing comma in top-level.
+    ($env:expr, $prefix:expr, $mappings:tt,) => {
+        $crate::export_functions!($env, $prefix, $mappings)
+    };
+    // Cut trailing comma in mappings.
+    ($env:expr, $prefix:expr, {
+        $( $name:expr => $declaration:tt ),+,
+    }) => {
+        $crate::export_functions!($env, $prefix, {
+            $( $name => $declaration ),*
+        })
+    };
+    // Expand each mapping.
+    ($env:expr, $prefix:expr, {
+        $( $name:expr => $declaration:tt ),*
+    }) => {
+        {
+            use $crate::func::Manage;
+            $( $crate::export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
+        }
+    };
+
+    // Cut trailing comma in declaration.
+    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
+        $crate::export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
+    };
+    // Create a function and set a symbol to it.
+    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
+        $env.fset(
+            &format!("{}{}", $prefix, $name),
+            $crate::lambda!($env, $func, $($opt),*)?
+        )
+    };
+}
+
+// TODO: Support closures, storing them in the data pointer, using a single handler to dispatch.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! lambda {
+    // Default doc string is empty.
+    ($env:expr, $func:path, $arities:expr $(,)*) => {
+        $crate::lambda!($env, $func, $arities, "")
+    };
+
+    // Declare a wrapper function.
+    ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
+        {
+            use $crate::func::HandleCall;
+            use $crate::func::Manage;
+            // TODO: Generate identifier from $func.
+            unsafe extern "C" fn extern_lambda(
+                env: *mut $crate::raw::emacs_env,
+                nargs: isize,
+                args: *mut $crate::raw::emacs_value,
+                _data: *mut ::std::os::raw::c_void,
+            ) -> $crate::raw::emacs_value {
+                let env = $crate::Env::new(env);
+                let env = $crate::CallEnv::new(env, nargs, args);
+                env.handle_call($func)
+            }
+
+            // Safety: The raw pointer is simply ignored.
+            unsafe { $env.make_function(extern_lambda, $arities, $doc, ::std::ptr::null_mut()) }
+        }
+    };
+}
+
+#[deprecated(since = "0.7.0", note = "Please use `#[defun]` instead")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! emacs_export_functions {
+    ($($inner:tt)*) => {
+        $crate::export_functions!($($inner)*)
+    };
+}
+
+#[deprecated(since = "0.7.0", note = "Please use `emacs::lambda!` instead")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! emacs_lambda {
+    ($($inner:tt)*) => {
+        $crate::lambda!($($inner)*)
+    };
+}
 
 pub trait Manage {
     unsafe fn make_function<T: Into<Vec<u8>>>(
@@ -25,13 +115,6 @@ pub trait Manage {
     ) -> Result<Value<'_>>;
 
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>>;
-}
-
-pub trait HandleCall {
-    fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
-    where
-        F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
-        T: IntoLisp<'e>;
 }
 
 impl Manage for Env {
@@ -61,6 +144,18 @@ impl Manage for Env {
         let symbol = self.intern(name)?;
         call_lisp!(self, "fset", symbol, func)
     }
+}
+
+/// Like [`Env`], but is available only in exported functions. This has additional methods to handle
+/// arguments passed from Lisp code.
+///
+/// [`Env`]: struct.Env.html
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct CallEnv {
+    env: Env,
+    nargs: usize,
+    args: *mut emacs_value,
 }
 
 // TODO: Iterator and Index
@@ -101,6 +196,24 @@ impl CallEnv {
     }
 }
 
+/// This allows `Env`'s methods to be called on a `CallEnv`.
+impl Deref for CallEnv {
+    type Target = Env;
+
+    #[doc(hidden)]
+    #[inline(always)]
+    fn deref(&self) -> &Env {
+        &self.env
+    }
+}
+
+pub trait HandleCall {
+    fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
+        where
+            F: Fn(&'e CallEnv) -> Result<T> + panic::RefUnwindSafe,
+            T: IntoLisp<'e>;
+}
+
 impl HandleCall for CallEnv {
     #[inline]
     fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
@@ -115,16 +228,5 @@ impl HandleCall for CallEnv {
             env.maybe_exit(lisp_result)
         });
         env.handle_panic(result)
-    }
-}
-
-/// This allows `Env`'s methods to be called on a `CallEnv`.
-impl Deref for CallEnv {
-    type Target = Env;
-
-    #[doc(hidden)]
-    #[inline(always)]
-    fn deref(&self) -> &Env {
-        &self.env
     }
 }

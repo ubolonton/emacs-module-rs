@@ -82,80 +82,6 @@ macro_rules! plugin_is_GPL_compatible {
     };
 }
 
-// TODO: Consider making this a function, using `data` to do the actual routing, like in
-// https://github.com/Wilfred/remacs/pull/516.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! lambda {
-    // Default doc string is empty.
-    ($env:expr, $func:path, $arities:expr $(,)*) => {
-        $crate::lambda!($env, $func, $arities, "")
-    };
-
-    // Declare a wrapper function.
-    ($env:expr, $func:path, $arities:expr, $doc:expr $(,)*) => {
-        {
-            use $crate::func::HandleCall;
-            use $crate::func::Manage;
-            // TODO: Generate identifier from $func.
-            unsafe extern "C" fn extern_lambda(
-                env: *mut $crate::raw::emacs_env,
-                nargs: isize,
-                args: *mut $crate::raw::emacs_value,
-                _data: *mut ::std::os::raw::c_void,
-            ) -> $crate::raw::emacs_value {
-                let env = $crate::Env::new(env);
-                let env = $crate::CallEnv::new(env, nargs, args);
-                env.handle_call($func)
-            }
-
-            // Safety: The raw pointer is simply ignored.
-            unsafe { $env.make_function(extern_lambda, $arities, $doc, ::std::ptr::null_mut()) }
-        }
-    };
-}
-
-/// Exports Rust functions to the Lisp runtime. #[[`defun`]] is preferred over this low-level
-/// interface.
-///
-/// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
-#[macro_export]
-macro_rules! export_functions {
-    // Cut trailing comma in top-level.
-    ($env:expr, $prefix:expr, $mappings:tt,) => {
-        $crate::export_functions!($env, $prefix, $mappings)
-    };
-    // Cut trailing comma in mappings.
-    ($env:expr, $prefix:expr, {
-        $( $name:expr => $declaration:tt ),+,
-    }) => {
-        $crate::export_functions!($env, $prefix, {
-            $( $name => $declaration ),*
-        })
-    };
-    // Expand each mapping.
-    ($env:expr, $prefix:expr, {
-        $( $name:expr => $declaration:tt ),*
-    }) => {
-        {
-            use $crate::func::Manage;
-            $( $crate::export_functions!(decl, $env, $prefix, $name, $declaration)?; )*
-        }
-    };
-
-    // Cut trailing comma in declaration.
-    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
-        $crate::export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
-    };
-    // Create a function and set a symbol to it.
-    (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
-        $env.fset(
-            &format!("{}{}", $prefix, $name),
-            $crate::lambda!($env, $func, $($opt),*)?
-        )
-    };
-}
-
 #[deprecated(since = "0.7.0", note = "Please use `emacs::plugin_is_GPL_compatible!` instead")]
 #[doc(hidden)]
 #[macro_export]
@@ -163,23 +89,5 @@ macro_rules! export_functions {
 macro_rules! emacs_plugin_is_GPL_compatible {
     ($($inner:tt)*) => {
         $crate::plugin_is_GPL_compatible!($($inner)*);
-    };
-}
-
-#[deprecated(since = "0.7.0", note = "Please use `#[defun]` instead")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! emacs_export_functions {
-    ($($inner:tt)*) => {
-        $crate::export_functions!($($inner)*)
-    };
-}
-
-#[deprecated(since = "0.7.0", note = "Please use `emacs::lambda!` instead")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! emacs_lambda {
-    ($($inner:tt)*) => {
-        $crate::lambda!($($inner)*)
     };
 }
