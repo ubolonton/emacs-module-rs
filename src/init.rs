@@ -12,6 +12,53 @@ use lazy_static::lazy_static;
 
 use crate::{Env, Value, Result};
 
+/// Registers a function as the initialization hook. #[[`module`]] is preferred over this low-level
+/// interface.
+///
+/// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
+/// whose signature must be `fn(&Env) -> Result<Value>`.
+///
+/// [`module`]: /emacs-macros/*/emacs_macros/attr.module.html
+#[deprecated(since = "0.11.0", note = "Please use `#[emacs::module]` instead")]
+#[macro_export]
+macro_rules! module_init {
+    ($($inner:tt)*) => {
+        $crate::__module_init!($($inner)*);
+    };
+}
+
+#[deprecated(since = "0.7.0", note = "Please use `#[emacs::module]` instead")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! emacs_module_init {
+    ($($inner:tt)*) => {
+        $crate::__module_init!($($inner)*);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __module_init {
+    ($init:ident) => {
+        /// Entry point for Emacs's module loader.
+        #[no_mangle]
+        pub unsafe extern "C" fn emacs_module_init(
+            runtime: *mut $crate::raw::emacs_runtime,
+        ) -> ::std::os::raw::c_int {
+            $crate::init::initialize(&$crate::Env::from_runtime(runtime), $init)
+        }
+
+        // TODO: Exclude this in release build.
+        /// Entry point for live-reloading (by `rs-module`) during development.
+        #[no_mangle]
+        pub unsafe extern "C" fn emacs_rs_module_init(
+            raw: *mut $crate::raw::emacs_env,
+        ) -> ::std::os::raw::c_int {
+            $crate::init::initialize(&$crate::Env::new(raw), $init)
+        }
+    };
+}
+
 type InitFn = dyn Fn(&Env) -> Result<()> + Send + 'static;
 
 type FnMap = HashMap<String, Box<InitFn>>;
@@ -36,45 +83,6 @@ lazy_static! {
     pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
 
     pub static ref __MOD_IN_NAME__: AtomicBool = AtomicBool::new(true);
-}
-
-// TODO: Deprecate this in favor of #[module].
-/// Registers a function as the initialization hook. #[[`module`]] is preferred over this low-level
-/// interface.
-///
-/// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
-/// whose signature must be `fn(&Env) -> Result<Value>`.
-///
-/// [`module`]: /emacs-macros/*/emacs_macros/attr.module.html
-#[macro_export]
-macro_rules! module_init {
-    ($init:ident) => {
-        /// Entry point for Emacs's module loader.
-        #[no_mangle]
-        pub unsafe extern "C" fn emacs_module_init(
-            runtime: *mut $crate::raw::emacs_runtime,
-        ) -> ::std::os::raw::c_int {
-            $crate::init::initialize(&$crate::Env::from_runtime(runtime), $init)
-        }
-
-        // TODO: Exclude this in release build.
-        /// Entry point for live-reloading (by `rs-module`) during development.
-        #[no_mangle]
-        pub unsafe extern "C" fn emacs_rs_module_init(
-            raw: *mut $crate::raw::emacs_env,
-        ) -> ::std::os::raw::c_int {
-            $crate::init::initialize(&$crate::Env::new(raw), $init)
-        }
-    };
-}
-
-#[deprecated(since = "0.7.0", note = "Please use `#[emacs::module]` instead")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! emacs_module_init {
-    ($($inner:tt)*) => {
-        $crate::module_init!($($inner)*);
-    };
 }
 
 #[inline]

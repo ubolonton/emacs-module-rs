@@ -104,7 +104,7 @@ impl Module {
     pub fn gen_registrator() -> TokenStream2 {
         let init = Self::init_ident();
         quote! {
-            ::emacs::module_init!(#init);
+            ::emacs::__module_init!(#init);
         }
     }
 
