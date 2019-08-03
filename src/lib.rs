@@ -45,8 +45,6 @@ pub use self::{
 #[macro_use] mod macros;
 
 #[doc(hidden)]
-pub mod error;
-#[doc(hidden)]
 pub mod init;
 #[doc(hidden)]
 pub mod func;
@@ -54,6 +52,7 @@ pub mod func;
 mod env;
 mod value;
 mod types;
+mod error;
 
 /// This exposes some raw types for module to use (e.g. in `emacs_module_init`) without having to
 /// declare the raw `emacs_module` as a dependency.
