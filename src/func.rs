@@ -27,12 +27,6 @@ pub trait Manage {
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>>;
 }
 
-pub trait HandleInit {
-    fn handle_init<F>(self, f: F) -> os::raw::c_int
-    where
-        F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe;
-}
-
 pub trait HandleCall {
     fn handle_call<'e, T, F>(&'e self, f: F) -> emacs_value
     where
@@ -66,31 +60,6 @@ impl Manage for Env {
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>> {
         let symbol = self.intern(name)?;
         call_lisp!(self, "fset", symbol, func)
-    }
-}
-
-impl HandleInit for Env {
-    fn handle_init<F>(self, f: F) -> os::raw::c_int
-    where
-        F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe,
-    {
-        let env = panic::AssertUnwindSafe(self);
-        let result = panic::catch_unwind(|| match env.define_errors().and_then(|_| f(&env)) {
-            Ok(_) => 0,
-            Err(e) => {
-                env.message(format!("Error during initialization: {:#?}", e))
-                    .expect("Fail to message Emacs about error");
-                1
-            }
-        });
-        match result {
-            Ok(v) => v,
-            Err(e) => {
-                env.message(format!("Panic during initialization: {:#?}", e))
-                    .expect("Fail to message Emacs about panic");
-                2
-            }
-        }
     }
 }
 

@@ -117,7 +117,7 @@ impl Module {
         let mod_in_name = util::mod_in_name_path();
         let crate_mod_in_name = &self.opts.mod_in_name;
         let feature = match &self.opts.name {
-            Name::Crate => quote!(::emacs::globals::lisp_pkg(module_path!())),
+            Name::Crate => quote!(::emacs::init::lisp_pkg(module_path!())),
             Name::Str(name) => quote!(#name.to_owned()),
             Name::Fn => {
                 let name = util::lisp_name(hook);

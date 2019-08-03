@@ -41,13 +41,13 @@ pub fn doc(fn_item: &ItemFn) -> String {
 }
 
 pub fn init_fns_path() -> TokenStream2 {
-    quote!(::emacs::globals::__INIT_FNS__)
+    quote!(::emacs::init::__INIT_FNS__)
 }
 
 pub fn prefix_path() -> TokenStream2 {
-    quote!(::emacs::globals::__PREFIX__)
+    quote!(::emacs::init::__PREFIX__)
 }
 
 pub fn mod_in_name_path() -> TokenStream2 {
-    quote!(::emacs::globals::__MOD_IN_NAME__)
+    quote!(::emacs::init::__MOD_IN_NAME__)
 }

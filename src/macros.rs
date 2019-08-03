@@ -82,37 +82,6 @@ macro_rules! plugin_is_GPL_compatible {
     };
 }
 
-// TODO: Deprecate this in favor of #[module].
-
-/// Registers a function as the initialization hook. #[[`module`]] is preferred over this low-level
-/// interface.
-///
-/// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
-/// whose signature must be `fn(&Env) -> Result<Value>`.
-///
-/// [`module`]: /emacs-macros/*/emacs_macros/attr.module.html
-#[macro_export]
-macro_rules! module_init {
-    ($init:ident) => {
-        /// Entry point for Emacs's module loader.
-        #[no_mangle]
-        pub unsafe extern "C" fn emacs_module_init(
-            runtime: *mut $crate::raw::emacs_runtime,
-        ) -> ::std::os::raw::c_int {
-            $crate::func::HandleInit::handle_init($crate::Env::from_runtime(runtime), $init)
-        }
-
-        // TODO: Exclude this in release build.
-        /// Entry point for live-reloading (by `rs-module`) during development.
-        #[no_mangle]
-        pub unsafe extern "C" fn emacs_rs_module_init(
-            raw: *mut $crate::raw::emacs_env,
-        ) ->::std::os::raw::c_int {
-            $crate::func::HandleInit::handle_init($crate::Env::new(raw), $init)
-        }
-    };
-}
-
 // TODO: Consider making this a function, using `data` to do the actual routing, like in
 // https://github.com/Wilfred/remacs/pull/516.
 #[doc(hidden)]
@@ -194,15 +163,6 @@ macro_rules! export_functions {
 macro_rules! emacs_plugin_is_GPL_compatible {
     ($($inner:tt)*) => {
         $crate::plugin_is_GPL_compatible!($($inner)*);
-    };
-}
-
-#[deprecated(since = "0.7.0", note = "Please use `#[emacs::module]` instead")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! emacs_module_init {
-    ($($inner:tt)*) => {
-        $crate::module_init!($($inner)*);
     };
 }
 
