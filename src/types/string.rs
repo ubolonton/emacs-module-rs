@@ -1,4 +1,4 @@
-use std::{os, ptr};
+use std::{os, ptr, borrow::Borrow};
 
 use super::*;
 
@@ -17,9 +17,9 @@ impl FromLisp<'_> for String {
     }
 }
 
-impl<'e, 'a, T: AsRef<str> + ?Sized> IntoLisp<'e> for &'a T {
+impl<'e, 'a, T: Borrow<str> + ?Sized> IntoLisp<'e> for &'a T {
     fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
-        let bytes = self.as_ref().as_bytes();
+        let bytes = self.borrow().as_bytes();
         let len = bytes.len();
         let ptr = bytes.as_ptr();
         raw_call_value!(env, make_string, ptr as *const os::raw::c_char, len as isize)
