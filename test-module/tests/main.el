@@ -111,6 +111,9 @@
   (should (equal (t/get-error (t/error:apply #'t/error:panic '("abc")))
                  '(rust-panic "abc"))))
 
+(ert-deftest calling ()
+  (should (equal '(0 1 2) (t/call-list 3))))
+
 (ert-deftest function::create ()
   (let ((dec (t/make-dec)))
     (should (= (funcall dec 9) 8))
