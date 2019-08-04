@@ -1,7 +1,5 @@
 # Live Reloading
 
-**Note**: This doesn't work on macOS 10.13+ (High Sierra and up). See Rust's [issue #28794](https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049).
-
 Live code reloading is very useful during development. However, Emacs does not support unloading modules. Live reloading thus requires a custom module loader, e.g. [emacs-rs-module](https://crates.io/crates/emacs-rs-module), which is itself a dynamic module.
 
 To use it, load it in Emacs:
@@ -27,3 +25,8 @@ emacs-rs-module = { version = "0.7.0" }
 [magit-libgit2](https://github.com/ubolonton/magit-libgit2#interactive-development) is an example of how to set this all up, to have live-reloading on-save.
 
 A future version will have tighter integration with `cargo`.
+
+**Notes**:
+- It mainly works on Linux, but potentially because Linux's dynamic loading system is unsafe (i.e. UB-ridden).
+- It doesn't work on macOS 10.13+ (High Sierra and up). See Rust's [issue #28794](https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049).
+- It doesn't work on Windows, since loading the dll prevents writing to its file.

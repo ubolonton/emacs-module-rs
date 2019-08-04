@@ -17,12 +17,20 @@ pub trait IntoLispCallable<'e> {
 }
 
 impl Env {
-    pub fn call<'e, F, A>(&'e self, function: F, args: A) -> Result<Value<'_>>
+    /// Calls a Lisp function, passing the given arguments.
+    ///
+    /// - `func` should be a string, or a Lisp's callable [`Value`]. An error is signaled otherwise.
+    /// - `args` should be an array/slice of [`Value`], or a tuple of different types,
+    /// each implementing [`IntoLisp`].
+    ///
+    /// [`IntoLisp`]: trait.IntoLisp.html
+    /// [`Value`]: struct.Value.html
+    pub fn call<'e, F, A>(&'e self, func: F, args: A) -> Result<Value<'_>>
     where
         F: IntoLispCallable<'e>,
         A: IntoLispArgs<'e>,
     {
-        let callable = function.into_lisp_callable(self)?;
+        let callable = func.into_lisp_callable(self)?;
         let mut lisp_args = args.into_lisp_args(self)?;
         let lisp_args: &mut [emacs_value] = lisp_args.borrow_mut();
         let ptr = lisp_args.as_mut_ptr();
