@@ -115,8 +115,16 @@ pub fn defun(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
     }
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn impl_lisp_args_for_tuples_with_max_arity(arity: TokenStream) -> TokenStream {
     let arity: LitInt = parse_macro_input!(arity);
     lisp_args::impl_for_tuples(arity.value() as usize).into()
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn impl_lisp_args_for_arrays_of_max_length(length: TokenStream) -> TokenStream {
+    let length: LitInt = parse_macro_input!(length);
+    lisp_args::impl_for_arrays(length.value() as usize).into()
 }

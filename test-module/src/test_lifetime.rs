@@ -10,7 +10,7 @@ fn gc(env: &Env) -> Result<Value<'_>> {
 }
 
 fn print<'e>(env: &'e Env, v: Value<'e>) -> Result<Value<'e>> {
-    env.call_flex("print", v)
+    env.call("print", v)
 }
 
 fn create_collect_use<'e, CF, UF>(
@@ -65,7 +65,7 @@ fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
     // Wouldn't fail if count is 1 or 2.
     create_collect_use(env, 3, || {
         let x = env.intern("xyz")?;
-        env.call_flex("unintern", x)?;
+        env.call("unintern", x)?;
         Ok(x)
     }, print)
 }
@@ -77,17 +77,17 @@ fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
 fn gc_after_retrieving(env: &Env) -> Result<Value<'_>> {
     create_collect_use(env, 2, || {
         // XXX: These come from `hash_map` module.
-        env.call(&format!("{}hash-map-make", *MODULE_PREFIX), &[])
+        env.call(&format!("{}hash-map-make", *MODULE_PREFIX), [])
     }, |env, v| {
         print(env, v)?; // Used: #<user-ptr ptr=... finalizer=...>. Free: #<misc free cell>.
-        env.call_flex(&format!("{}hash-map-set", *MODULE_PREFIX), (v, "x", "y"))
+        env.call(&format!("{}hash-map-set", *MODULE_PREFIX), (v, "x", "y"))
     })
 }
 
 #[defun(mod_in_name = false)]
 fn gc_after_catching_1<'e>(env: &'e Env, f: Value<'e>) -> Result<Value<'e>> {
     create_collect_use(env, 2, || {
-        match env.call_flex("funcall", f) {
+        match env.call("funcall", f) {
             Err(error) => {
                 if let Some(&Signal { ref data, .. }) = error.downcast_ref::<ErrorKind>() {
                     unsafe {

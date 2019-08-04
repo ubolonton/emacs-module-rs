@@ -17,8 +17,11 @@ impl FromLisp<'_> for String {
     }
 }
 
-impl<'e> IntoLisp<'e> for &str {
-    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
+// XXX: We don't unify impl for &str and impl for &String with an impl for Borrow<str>, because that
+// would cause conflicts between IntoLispArgs' impl for IntoLisp and impl for &[Value]. Check this
+// again once specialization lands. https://github.com/rust-lang/rust/issues/31844
+impl IntoLisp<'_> for &str {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let bytes = self.as_bytes();
         let len = bytes.len();
         let ptr = bytes.as_ptr();
@@ -26,12 +29,9 @@ impl<'e> IntoLisp<'e> for &str {
     }
 }
 
-impl<'e> IntoLisp<'e> for &String {
-    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
-        let bytes = self.as_bytes();
-        let len = bytes.len();
-        let ptr = bytes.as_ptr();
-        raw_call_value!(env, make_string, ptr as *const os::raw::c_char, len as isize)
+impl IntoLisp<'_> for &String {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+        self.as_str().into_lisp(env)
     }
 }
 

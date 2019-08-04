@@ -52,7 +52,7 @@ impl Env {
     }
 
     pub fn list(&self, args: &[Value<'_>]) -> Result<Value<'_>> {
-        self.call_flex("list", args)
+        self.call("list", args)
     }
 
     pub fn provide(&self, name: &str) -> Result<Value<'_>> {
