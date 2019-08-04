@@ -17,7 +17,7 @@ env.list((1, "str", true))?;
 To call arbitrary Lisp functions, use `env.call(func, args)`.
 - `func` can be:
   + A string identifying a named function in Lisp.
-  + Any Lisp-callable `Value` (a symbol with assigned function, a lambda, a subr).
+  + Any Lisp-callable `Value` (a symbol with a function assigned, a lambda, a subr). This can also be written as `func.call(args)`.
 - `args` can be:
   + An array, or a slice of `Value`.
   + A tuple of different types, each satisfying the `IntoLisp` trait.
@@ -35,6 +35,7 @@ let subr = env.call("symbol-function", [list])?;
 env.call(list, ("str", 2))?;
 // (funcall (symbol-function 'list) "str" 2)
 env.call(subr, ("str", 2))?;
+subr.call(("str", 2))?; // Like the above, but shorter.
 ```
 
 ```rust

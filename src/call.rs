@@ -12,6 +12,38 @@ pub unsafe trait IntoLispArgs<'e> {
     fn into_lisp_args(self, env: &'e Env) -> Result<Self::LispArgs>;
 }
 
+impl<'e> Value<'e> {
+    /// Calls this value with the given arguments. An error is signaled if it is actually not a
+    /// Lisp's callable.
+    ///
+    /// `args` should be an array/slice of `Value`, or a tuple of different types, each implementing
+    /// [`IntoLisp`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use emacs::{defun, Value, Result, Vector};
+    /// #[defun]
+    /// fn mapc_enumerate_vec(function: Value, vector: Vector) -> Result<()> {
+    ///     for nth in 0..vector.size()? {
+    ///         let elem: Value = vector.get(nth)?;
+    ///         function.call((nth, elem))?;
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// [`IntoLisp`]: trait.IntoLisp.html
+    pub fn call<A>(self, args: A) -> Result<Value<'e>> where A: IntoLispArgs<'e> {
+        let env = self.env;
+        let mut lisp_args = args.into_lisp_args(env)?;
+        let lisp_args: &mut [emacs_value] = lisp_args.borrow_mut();
+        let ptr = lisp_args.as_mut_ptr();
+        let length = lisp_args.len() as isize;
+        raw_call_value!(env, funcall, self.raw, length, ptr)
+    }
+}
+
 pub trait IntoLispCallable<'e> {
     fn into_lisp_callable(self, env: &'e Env) -> Result<Value<'e>>;
 }
@@ -19,26 +51,39 @@ pub trait IntoLispCallable<'e> {
 impl Env {
     /// Calls a Lisp function, passing the given arguments.
     ///
-    /// - `func` should be a string, or a Lisp's callable [`Value`]. An error is signaled otherwise.
-    /// - `args` should be an array/slice of [`Value`], or a tuple of different types,
-    /// each implementing [`IntoLisp`].
+    /// - `func` should be a string, or a Lisp's callable [`Value`] (in which case [`func.call`]
+    /// is preferable). An error is signaled otherwise.
+    /// - `args` should be an array/slice of [`Value`], or a tuple of different types, each
+    /// implementing [`IntoLisp`].
     ///
-    /// [`IntoLisp`]: trait.IntoLisp.html
+    /// # Examples
+    ///
+    /// ```
+    /// # use emacs::{defun, Value, Result, Vector};
+    /// #[defun]
+    /// fn listify_vec(vector: Vector) -> Result<Value> {
+    ///     let env = vector.0.env;
+    ///     let mut args = vec![];
+    ///     for i in 0..vector.size()? {
+    ///         args.push(vector.get(i)?)
+    ///     }
+    ///     env.call("list", &args)
+    /// }
+    /// ```
+    ///
     /// [`Value`]: struct.Value.html
+    /// [`func.call`]: struct.Value.html#method.call
+    /// [`IntoLisp`]: trait.IntoLisp.html
+    #[inline]
     pub fn call<'e, F, A>(&'e self, func: F, args: A) -> Result<Value<'_>>
     where
         F: IntoLispCallable<'e>,
         A: IntoLispArgs<'e>,
     {
-        let callable = func.into_lisp_callable(self)?;
-        let mut lisp_args = args.into_lisp_args(self)?;
-        let lisp_args: &mut [emacs_value] = lisp_args.borrow_mut();
-        let ptr = lisp_args.as_mut_ptr();
-        let length = lisp_args.len() as isize;
-        raw_call_value!(self, funcall, callable.raw, length, ptr)
+        func.into_lisp_callable(self)?.call(args)
     }
 
-    pub fn list<'e, A: IntoLispArgs<'e>>(&'e self, args: A) -> Result<Value<'_>> {
+    pub fn list<'e, A>(&'e self, args: A) -> Result<Value<'_>> where A: IntoLispArgs<'e> {
         self.call("list", args)
     }
 }
