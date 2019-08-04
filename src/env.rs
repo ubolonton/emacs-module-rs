@@ -51,7 +51,7 @@ impl Env {
         raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
 
-    pub fn list(&self, args: &[Value<'_>]) -> Result<Value<'_>> {
+    pub fn list<'e>(&'e self, args: &[Value<'e>]) -> Result<Value<'_>> {
         self.call("list", args)
     }
 

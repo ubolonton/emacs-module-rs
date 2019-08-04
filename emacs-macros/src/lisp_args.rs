@@ -48,19 +48,7 @@ fn impl_for_array(length: usize) -> TokenStream2 {
     for i in 0..length {
         values.append_all(quote!(self[#i].raw, ));
     }
-    // XXX: We can't unify these 2 duplicate implementations, as that would conflict with the
-    // implementation for T: IntoLisp. Check this again when specialization lands.
-    // https://github.com/rust-lang/rust/issues/31844
     return quote! {
-        unsafe impl IntoLispArgs<'_> for &[Value<'_>; #length] {
-            type LispArgs = [emacs_value; #length];
-
-            #[inline]
-            fn into_lisp_args(self, _: &Env) -> Result<Self::LispArgs> {
-                Ok([#values])
-            }
-        }
-
         unsafe impl IntoLispArgs<'_> for [Value<'_>; #length] {
             type LispArgs = [emacs_value; #length];
 

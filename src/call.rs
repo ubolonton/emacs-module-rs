@@ -31,17 +31,17 @@ impl Env {
     }
 }
 
-unsafe impl IntoLispArgs<'_> for &[Value<'_>] {
+unsafe impl<'e, T: AsRef<[Value<'e>]> + ?Sized> IntoLispArgs<'e> for &T {
     type LispArgs = Vec<emacs_value>;
 
-    fn into_lisp_args(self, _: &Env) -> Result<Self::LispArgs> {
-        Ok(self.iter().map(|v| v.raw).collect())
+    fn into_lisp_args(self, _: &'e Env) -> Result<Self::LispArgs> {
+        Ok(self.as_ref().iter().map(|v| v.raw).collect())
     }
 }
 
-emacs_macros::impl_lisp_args_for_tuples_with_max_arity!(12);
+emacs_macros::impl_lisp_args_for_tuples!(12);
 
-emacs_macros::impl_lisp_args_for_arrays_of_max_length!(12);
+emacs_macros::impl_lisp_args_for_arrays!(12);
 
 impl<'e> IntoLispCallable<'e> for Value<'e> {
     #[inline(always)]
