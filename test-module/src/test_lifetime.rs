@@ -9,8 +9,8 @@ fn gc(env: &Env) -> Result<Value<'_>> {
     env.call("garbage-collect", &[])
 }
 
-fn print<'e>(env: &'e Env, v: Value<'_>) -> Result<Value<'e>> {
-    env.call("print", &[v])
+fn print<'e>(env: &'e Env, v: Value<'e>) -> Result<Value<'e>> {
+    env.call_flex("print", v)
 }
 
 fn create_collect_use<'e, CF, UF>(
@@ -20,7 +20,7 @@ fn create_collect_use<'e, CF, UF>(
     using: UF,
 ) -> Result<Value<'_>>
     where CF: Fn() -> Result<Value<'e>>,
-          UF: Fn(&'e Env, Value<'_>) -> Result<Value<'e>>,
+          UF: Fn(&'e Env, Value<'e>) -> Result<Value<'e>>,
 {
     // - It's interesting that it wouldn't crash if the loop is unrolled.
     // - Even more interesting is it'd crash when manual malloc+free is used in raw C
@@ -65,7 +65,7 @@ fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
     // Wouldn't fail if count is 1 or 2.
     create_collect_use(env, 3, || {
         let x = env.intern("xyz")?;
-        env.call("unintern", &[x])?;
+        env.call_flex("unintern", x)?;
         Ok(x)
     }, print)
 }
@@ -80,18 +80,14 @@ fn gc_after_retrieving(env: &Env) -> Result<Value<'_>> {
         env.call(&format!("{}hash-map-make", *MODULE_PREFIX), &[])
     }, |env, v| {
         print(env, v)?; // Used: #<user-ptr ptr=... finalizer=...>. Free: #<misc free cell>.
-        env.call(&format!("{}hash-map-set", *MODULE_PREFIX), &[
-            v,
-            "x".into_lisp(env)?,
-            "y".into_lisp(env)?,
-        ])
+        env.call_flex(&format!("{}hash-map-set", *MODULE_PREFIX), (v, "x", "y"))
     })
 }
 
 #[defun(mod_in_name = false)]
-fn gc_after_catching_1<'e>(env: &'e Env, f: Value<'_>) -> Result<Value<'e>> {
+fn gc_after_catching_1<'e>(env: &'e Env, f: Value<'e>) -> Result<Value<'e>> {
     create_collect_use(env, 2, || {
-        match env.call("funcall", &[f]) {
+        match env.call_flex("funcall", f) {
             Err(error) => {
                 if let Some(&Signal { ref data, .. }) = error.downcast_ref::<ErrorKind>() {
                     unsafe {

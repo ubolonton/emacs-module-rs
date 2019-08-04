@@ -41,14 +41,6 @@ impl Env {
         raw_call_value!(self, type_of, value.raw)
     }
 
-    // TODO: Add a convenient macro?
-    pub fn call(&self, name: &str, args: &[Value<'_>]) -> Result<Value<'_>> {
-        let symbol = self.intern(name)?;
-        // XXX Hmm
-        let mut args: Vec<emacs_value> = args.iter().map(|v| v.raw).collect();
-        raw_call_value!(self, funcall, symbol.raw, args.len() as isize, args.as_mut_ptr())
-    }
-
     #[deprecated(since = "0.10.0", note = "Please use `value.is_not_nil()` instead")]
     pub fn is_not_nil(&self, value: Value<'_>) -> bool {
         raw_call_no_exit!(self, is_not_nil, value.raw)
@@ -60,7 +52,7 @@ impl Env {
     }
 
     pub fn list(&self, args: &[Value<'_>]) -> Result<Value<'_>> {
-        self.call("list", args)
+        self.call_flex("list", args)
     }
 
     pub fn provide(&self, name: &str) -> Result<Value<'_>> {

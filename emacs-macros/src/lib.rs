@@ -1,15 +1,18 @@
 //! This crate implements proc macros for the `emacs` crate. It is a dependency of `emacs` crate,
 //! and should not be listed as a direct dependency by Emacs dynamic modules.
 
+#![recursion_limit = "128"]
+
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
 
-use syn::{self, AttributeArgs, ItemFn, parse_macro_input};
+use syn::{self, AttributeArgs, ItemFn, LitInt, parse_macro_input};
 
 mod util;
 mod module;
 mod func;
+mod lisp_args;
 
 /// Registers a function as the initializer, to be called when Emacs loads the module. Each dynamic
 /// module must have one and only one such function.
@@ -110,4 +113,10 @@ pub fn defun(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
         Ok(func) => func.render().into(),
         Err(e) => e.into(),
     }
+}
+
+#[proc_macro]
+pub fn impl_lisp_args_for_tuples_with_max_arity(arity: TokenStream) -> TokenStream {
+    let arity: LitInt = parse_macro_input!(arity);
+    lisp_args::impl_for_tuples(arity.value() as usize).into()
 }

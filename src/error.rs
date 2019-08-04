@@ -210,7 +210,7 @@ impl Env {
             parent_symbols.push(symbol?)
         }
         let parents = self.list(&parent_symbols)?;
-        self.call("define-error", &[self.intern(name)?, message.into_lisp(self)?, parents])
+        self.call_flex("define-error", (self.intern(name)?, message, parents))
     }
 
     fn non_local_exit_get(
