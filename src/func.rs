@@ -151,7 +151,7 @@ impl Manage for Env {
 
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>> {
         let symbol = self.intern(name)?;
-        call_lisp!(self, "fset", symbol, func)
+        self.call("fset", [symbol, func])
     }
 }
 

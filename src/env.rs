@@ -51,17 +51,13 @@ impl Env {
         raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
 
-    pub fn list<'e>(&'e self, args: &[Value<'e>]) -> Result<Value<'_>> {
-        self.call("list", args)
-    }
-
     pub fn provide(&self, name: &str) -> Result<Value<'_>> {
         let name = self.intern(name)?;
-        call_lisp!(self, "provide", name)
+        self.call("provide", [name])
     }
 
     pub fn message<T: AsRef<str>>(&self, text: T) -> Result<Value<'_>> {
-        call_lisp!(self, "message", text.as_ref())
+        self.call("message", (text.as_ref(),))
     }
 }
 

@@ -199,7 +199,7 @@ impl Env {
     // TODO: Prepare static values for the symbols.
     fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
         let message = message.into_lisp(&self)?;
-        let data = self.list(&[message])?;
+        let data = self.list([message])?;
         let symbol = self.intern(symbol)?;
         unsafe { Ok(self.signal(symbol.raw, data.raw)) }
     }

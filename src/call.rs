@@ -29,6 +29,10 @@ impl Env {
         let length = lisp_args.len() as isize;
         raw_call_value!(self, funcall, callable.raw, length, ptr)
     }
+
+    pub fn list<'e, A: IntoLispArgs<'e>>(&'e self, args: A) -> Result<Value<'_>> {
+        self.call("list", args)
+    }
 }
 
 unsafe impl<'e, T: AsRef<[Value<'e>]> + ?Sized> IntoLispArgs<'e> for &T {
