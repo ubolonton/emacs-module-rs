@@ -18,8 +18,8 @@ impl FromLisp<'_> for String {
 }
 
 // XXX: We don't unify impl for &str and impl for &String with an impl for Borrow<str>, because that
-// would cause conflicts between IntoLispArgs' impl for IntoLisp and impl for &[Value]. Check this
-// again once specialization lands. https://github.com/rust-lang/rust/issues/31844
+// would cause potential cause conflicts later on for other interesting &T. Check this again once
+// specialization lands. https://github.com/rust-lang/rust/issues/31844
 impl IntoLisp<'_> for &str {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let bytes = self.as_bytes();

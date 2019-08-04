@@ -11,18 +11,17 @@ fn list(env: &Env, n: u16) -> Result<Value> {
     let vz = z.into_lisp(env)?;
 
     let list = env.intern("list")?;
-    let list_subr = env.call("symbol-function", list)?;
+    let list_subr = env.call("symbol-function", [list])?;
 
     // Passing statically-sized slices and arrays.
     env.call("list", &[])?;
     env.call("list", [])?;
     env.call("list", &[vx, vy, vz])?;
     env.call("list", [vx, vy, vz])?;
-    env.call("list", vx)?;
+    env.call("list", [vx])?;
 
-    // Passing tuples and single arg.
+    // Passing tuples.
     env.call("list", (x, y, z))?;
-    env.call("list", x)?;
 
     // Calling by symbol, subr, owned string.
     env.call(list, [])?;

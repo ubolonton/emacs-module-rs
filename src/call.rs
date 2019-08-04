@@ -39,17 +39,6 @@ unsafe impl IntoLispArgs<'_> for &[Value<'_>] {
     }
 }
 
-// TODO: With this, () would become a single argument with value nil, which is correct, but looks
-// surprising.
-unsafe impl<'e, T: IntoLisp<'e>> IntoLispArgs<'e> for T {
-    type LispArgs = [emacs_value; 1];
-
-    #[inline]
-    fn into_lisp_args(self, env: &'e Env) -> Result<Self::LispArgs> {
-        Ok([self.into_lisp(env)?.raw])
-    }
-}
-
 emacs_macros::impl_lisp_args_for_tuples_with_max_arity!(12);
 
 emacs_macros::impl_lisp_args_for_arrays_of_max_length!(12);

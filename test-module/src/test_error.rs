@@ -26,7 +26,7 @@ fn lisp_divide(x: Value<'_>, y: Value<'_>) -> Result<i64> {
 #[defun(mod_in_name = false, name = "error:get-type")]
 fn get_type(f: Value<'_>) -> Result<Value<'_>> {
     let env = f.env;
-    match env.call("funcall", f) {
+    match env.call("funcall", [f]) {
         Err(error) => {
             if let Some(&Signal { ref symbol, .. }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
@@ -43,7 +43,7 @@ fn get_type(f: Value<'_>) -> Result<Value<'_>> {
 #[defun(mod_in_name = false, name = "error:catch")]
 fn catch<'e>(expected_tag: Value<'e>, lambda: Value<'e>) -> Result<Value<'e>> {
     let env = expected_tag.env;
-    match env.call("funcall", lambda) {
+    match env.call("funcall", [lambda]) {
         Err(error) => {
             if let Some(&Throw { ref tag, ref value }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
