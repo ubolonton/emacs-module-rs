@@ -29,14 +29,6 @@ impl Env {
         let length = lisp_args.len() as isize;
         raw_call_value!(self, funcall, callable.raw, length, ptr)
     }
-
-    // TODO: Add a convenient macro?
-    pub fn call_old(&self, name: &str, args: &[Value<'_>]) -> Result<Value<'_>> {
-        let symbol = self.intern(name)?;
-        // XXX Hmm
-        let mut args: Vec<emacs_value> = args.iter().map(|v| v.raw).collect();
-        raw_call_value!(self, funcall, symbol.raw, args.len() as isize, args.as_mut_ptr())
-    }
 }
 
 unsafe impl IntoLispArgs<'_> for &[Value<'_>] {
