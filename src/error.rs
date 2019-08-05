@@ -199,7 +199,7 @@ impl Env {
     // TODO: Prepare static values for the symbols.
     fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
         let message = message.into_lisp(&self)?;
-        let data = self.list(&[message])?;
+        let data = self.list([message])?;
         let symbol = self.intern(symbol)?;
         unsafe { Ok(self.signal(symbol.raw, data.raw)) }
     }
@@ -210,7 +210,7 @@ impl Env {
             parent_symbols.push(symbol?)
         }
         let parents = self.list(&parent_symbols)?;
-        self.call("define-error", &[self.intern(name)?, message.into_lisp(self)?, parents])
+        self.call("define-error", (self.intern(name)?, message, parents))
     }
 
     fn non_local_exit_get(

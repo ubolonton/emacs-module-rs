@@ -1,4 +1,4 @@
-use std::{os, ptr, borrow::Borrow};
+use std::{os, ptr};
 
 use super::*;
 
@@ -17,12 +17,21 @@ impl FromLisp<'_> for String {
     }
 }
 
-impl<'e, 'a, T: Borrow<str> + ?Sized> IntoLisp<'e> for &'a T {
-    fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
-        let bytes = self.borrow().as_bytes();
+// XXX: We don't unify impl for &str and impl for &String with an impl for Borrow<str>, because that
+// would cause potential cause conflicts later on for other interesting &T. Check this again once
+// specialization lands. https://github.com/rust-lang/rust/issues/31844
+impl IntoLisp<'_> for &str {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+        let bytes = self.as_bytes();
         let len = bytes.len();
         let ptr = bytes.as_ptr();
         raw_call_value!(env, make_string, ptr as *const os::raw::c_char, len as isize)
+    }
+}
+
+impl IntoLisp<'_> for &String {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+        self.as_str().into_lisp(env)
     }
 }
 

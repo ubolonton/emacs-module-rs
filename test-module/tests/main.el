@@ -111,6 +111,16 @@
   (should (equal (t/get-error (t/error:apply #'t/error:panic '("abc")))
                  '(rust-panic "abc"))))
 
+(ert-deftest calling::through-env ()
+  (should (equal '(0 1 2) (t/call-list 3))))
+
+(ert-deftest calling::through-value ()
+  (should (eq 'integer (t/call-value 'type-of 3)))
+  (should (equal "xyz" (t/call-value (symbol-function 'symbol-name) 'xyz)))
+  (should (eq 'abc (t/call-value (lambda (x) x) 'abc)))
+  (should-error (t/call-value nil nil) :type 'void-function)
+  (should-error (t/call-value 3 nil) :type 'invalid-function))
+
 (ert-deftest function::create ()
   (let ((dec (t/make-dec)))
     (should (= (funcall dec 9) 8))
