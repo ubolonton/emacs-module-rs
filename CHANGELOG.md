@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
-- Made `env.call` a lot more flexible, fixing #15. Also added `value.call`.
+
+## [0.11.0] - 2019-08-05
+- Made `env.call` a lot more flexible. Also added `value.call`.
 - Added `rust-wrong-type-user-ptr` to `wrong-type-argument` classification.
 - Deprecated `emacs::module_init!` and `emacs::export_functions!`.
 - Replaced`IntoLisp` implementation for `AsRef<str>` with separate implementations for `&str` and `&String`.
@@ -91,7 +93,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.3...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.11.0...HEAD
+[0.11.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.3...0.11.0
 [0.10.3]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.2...0.10.3
 [0.10.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.1...0.10.2
 [0.10.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.0...0.10.1

@@ -1,6 +1,6 @@
 [package]
 name = "emacs"
-version = "0.10.3"
+version = "0.11.0"
 edition = "2018"
 description = "Rust library for creating Emacs's dynamic modules"
 homepage = "https://github.com/ubolonton/emacs-module-rs"
@@ -28,7 +28,7 @@ failure_derive = "0.1.1"
 lazy_static = "1.3.0"
 ctor = "0.1.7"
 emacs_module = { path = "emacs-module", version = "0.10.0" }
-emacs-macros = { path = "emacs-macros", version = "0.10.3" }
+emacs-macros = { path = "emacs-macros", version = "0.11.0" }
 
 [features]
 utf-8-validation = []
