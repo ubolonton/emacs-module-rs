@@ -41,20 +41,6 @@ macro_rules! raw_call_value {
     };
 }
 
-macro_rules! enable_transfers {
-    ($($name:ident;)*) => {$(
-        impl<T: 'static> $crate::Transfer for $name<T> {
-            fn type_name() -> &'static str { stringify!($name) }
-        }
-
-        impl<'e, T: 'static> $crate::IntoLisp<'e> for $name<T> {
-            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value<'_>> {
-                ::std::boxed::Box::new(self).into_lisp(env)
-            }
-        }
-    )*};
-}
-
 /// Declares that this module is GPL-compatible. Emacs will not load it otherwise.
 #[macro_export]
 #[allow(non_snake_case)]

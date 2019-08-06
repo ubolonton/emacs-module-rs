@@ -73,6 +73,20 @@ impl<T: Transfer> IntoLisp<'_> for Box<T> {
     }
 }
 
+macro_rules! enable_transfers {
+    ($($name:ident;)*) => {$(
+        impl<T: 'static> $crate::Transfer for $name<T> {
+            fn type_name() -> &'static str { stringify!($name) }
+        }
+
+        impl<'e, T: 'static> $crate::IntoLisp<'e> for $name<T> {
+            fn into_lisp(self, env: &$crate::Env) -> $crate::Result<$crate::Value<'_>> {
+                ::std::boxed::Box::new(self).into_lisp(env)
+            }
+        }
+    )*};
+}
+
 enable_transfers! {
     RefCell;
     Mutex;
