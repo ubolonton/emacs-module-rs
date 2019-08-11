@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use super::*;
 
 impl FromLisp<'_> for i64 {
@@ -11,13 +13,13 @@ macro_rules! int_from_lisp {
         impl FromLisp<'_> for $name {
             #[cfg(not(feature = "lossy-integer-conversion"))]
             fn from_lisp(value: Value<'_>) -> Result<$name> {
-                let i = <i64 as FromLisp>::from_lisp(value)?;
-                Ok(::std::convert::TryInto::<$name>::try_into(i)?)
+                let i: i64 = value.into_rust()?;
+                Ok(i.try_into()?)
             }
 
             #[cfg(feature = "lossy-integer-conversion")]
             fn from_lisp(value: Value<'_>) -> Result<$name> {
-                let i = <i64 as FromLisp>::from_lisp(value)?;
+                let i: i64 = value.into_rust()?;
                 Ok(i as $name)
             }
         }
@@ -44,16 +46,16 @@ impl IntoLisp<'_> for i64 {
 macro_rules! int_into_lisp {
     ($name:ident) => {
         impl IntoLisp<'_> for $name {
+            #[inline]
             fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-                let i = self as i64;
-                i.into_lisp(env)
+                (self as i64).into_lisp(env)
             }
         }
     };
     ($name:ident, lossless) => {
         impl IntoLisp<'_> for $name {
             fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-                let i = ::std::convert::TryInto::<i64>::try_into(self)?;
+                let i: i64 = self.try_into()?;
                 i.into_lisp(env)
             }
         }
