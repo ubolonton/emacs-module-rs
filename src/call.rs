@@ -88,6 +88,11 @@ impl Env {
     }
 }
 
+// We can implement IntoLispArgs for IntoLisp types (after breaking up this implementation).
+// However, that would prevent implementing IntoLisp for arrays and tuples. It is a choice between
+// the convenience of not having to use (,) when calling functions with 1 argument, and the
+// convenience of not having to use .into_lisp(env)? when returning an array/tuple from a #[defun].
+// TODO: Check again when specialization lands: https://github.com/rust-lang/rust/issues/31844.
 unsafe impl<'e, T: AsRef<[Value<'e>]> + ?Sized> IntoLispArgs<'e> for &T {
     type LispArgs = Vec<emacs_value>;
 
