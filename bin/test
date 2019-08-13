@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# FIX: Use Rust instead of bash to drive the tests.
+
+set -euo pipefail
+
+here=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+source "$here/env.bash"
+
+if [[ $@ == "watch" ]]; then
+    (
+        cd "$PROJECT_ROOT"
+        cargo watch -s bin/build -s bin/test
+    )
+else
+    $EMACS --version
+    echo "Testing $MODULE_FULL"
+
+    $EMACS -batch --directory "$MODULE_DIR" \
+           -l ert \
+           -l "$PROJECT_ROOT/test-module/tests/main.el" \
+           -f ert-run-tests-batch-and-exit
+fi

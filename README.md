@@ -27,7 +27,7 @@ fn say_hello(env: &Env, name: String) -> Result<Value<'_>> {
 
 ## Live Reloading
 
-Emacs does not support unloading modules. Live reloading thus requires a custom module loader. [rs-module](rs-module) is one such loader (which itself is a module that must be loaded by Emacs's normal loading mechanism). See [load.sh](bin/load.sh).
+Emacs does not support unloading modules. Live reloading thus requires a custom module loader. [rs-module](rs-module) is one such loader (which itself is a module that must be loaded by Emacs's normal loading mechanism). See [load](bin/load).
 
 **Note**: This doesn't work on macOS 10.13+ (High Sierra and up). See Rust's [issue #28794](https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049).
 
@@ -42,13 +42,13 @@ Emacs does not support unloading modules. Live reloading thus requires a custom 
 
 - Building:
     ```shell
-    cargo build --all
+    bin/build
     ```
 - Testing:
     ```shell
-    bin/test.sh
+    bin/test
     ```
 - Continuous testing (requires `cargo-watch`):
     ```shell
-    cargo watch -x 'build --all' -s bin/test.sh
+    bin/test watch
     ```

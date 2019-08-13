@@ -41,11 +41,11 @@ fn value<'e>(function: Value<'e>, arg: Value) -> Result<Value<'e>> {
     function.call([arg])
 }
 
-//#[defun]
-//fn mapc_vec(function: Value, vector: emacs::Vector) -> Result<()> {
-//    for i in 0..vector.size()? as usize {
-//        let elem: Value = vector.get(i)?;
-//        function.call((i, elem))?;
-//    }
-//    Ok(())
-//}
+#[defun]
+fn mapc_vec(function: Value, vector: emacs::Vector) -> Result<()> {
+    for i in 0..vector.size()? as usize {
+        let elem: Value = vector.get(i)?;
+        function.call((i, elem))?;
+    }
+    Ok(())
+}

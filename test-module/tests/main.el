@@ -243,7 +243,7 @@
                                '(:file "/dev/stderr")
                              t)
                            error-file)
-                 nil "./bin/fn.sh" name))
+                 nil "./bin/fn" name))
                ('windows-nt
                 (call-process
                  "powershell"

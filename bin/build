@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+here=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+source "$here/env.bash"
+
+(
+    cd "$PROJECT_ROOT"
+
+    if [[ $TARGET == "release" ]]; then
+        extra="--release"
+    else
+        extra=""
+    fi
+
+    cargo build --all $extra
+
+    cd "$MODULE_DIR"
+    ln -f -s libemacs_rs_module."$EXT" rs-module.so
+    ln -f -s "$MODULE_ORIGINAL" "$MODULE_RENAMED"
+)
