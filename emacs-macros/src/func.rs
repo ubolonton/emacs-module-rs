@@ -6,7 +6,8 @@ use syn::{
     self,
     export::{Span, TokenStream2},
     spanned::Spanned,
-    AttributeArgs, FnArg, FnDecl, Ident, ItemFn, Pat,
+    AttributeArgs, FnArg, Signature, Ident, ItemFn, Pat, PatType, Type, TypeReference, ReturnType,
+    TypePath,
 };
 
 use crate::util::{self, report};
@@ -89,20 +90,23 @@ impl FromMeta for UserPtr {
         Ok(UserPtr::RefCell)
     }
 
+    // Use syn::, because it should have been the (non-existent) reexported version from `darling`.
     fn from_list(outer: &[syn::NestedMeta]) -> darling::Result<UserPtr> {
         match outer.len() {
             0 => Err(darling::Error::too_few_items(1)),
             1 => {
                 let elem = &outer[0];
                 match elem {
-                    syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) => {
-                        match ident.to_string().as_ref() {
+                    syn::NestedMeta::Meta(syn::Meta::Path(path)) => {
+                        match path.segments.last().unwrap().ident.to_string().as_ref() {
                             "refcell" => Ok(UserPtr::RefCell),
                             "mutex" => Ok(UserPtr::Mutex),
                             "rwlock" => Ok(UserPtr::RwLock),
                             "direct" => Ok(UserPtr::Direct),
-                            _ => Err(darling::Error::custom("Unknown kind of embedding")
-                                .with_span(ident)),
+                            _ => {
+                                Err(darling::Error::custom("Unknown kind of embedding")
+                                    .with_span(path))
+                            }
                         }
                     }
                     _ => Err(darling::Error::custom("Expected an identifier").with_span(elem)),
@@ -119,7 +123,7 @@ impl LispFunc {
             Ok(v) => v,
             Err(e) => return Err(e.write_errors()),
         };
-        let (args, arities, output_span) = check_signature(&fn_item.decl)?;
+        let (args, arities, output_span) = check_signature(&fn_item.sig)?;
         let def = fn_item;
         Ok(Self { def, args, arities, output_span, opts })
     }
@@ -191,7 +195,7 @@ impl LispFunc {
             #[allow(clippy::unit_arg)]
             ::emacs::IntoLisp::into_lisp(output, env)
         };
-        let inner = &self.def.ident;
+        let inner = &self.def.sig.ident;
         let wrapper = self.wrapper_ident();
         quote! {
             fn #wrapper(env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
@@ -230,7 +234,7 @@ impl LispFunc {
         };
         let lisp_name = match &self.opts.name {
             Some(name) => name.clone(),
-            None => util::lisp_name(&self.def.ident),
+            None => util::lisp_name(&self.def.sig.ident),
         };
         // TODO: Consider defining `extern "C" fn` directly instead of using export_functions! and
         // CallEnv wrapper.
@@ -258,7 +262,7 @@ impl LispFunc {
         let exporter = self.exporter_ident();
         let registrator = self.registrator_ident();
         let init_fns = util::init_fns_path();
-        let name = format!("{}", self.def.ident);
+        let name = format!("{}", self.def.sig.ident);
         quote! {
             #[::emacs::deps::ctor::ctor]
             fn #registrator() {
@@ -273,32 +277,31 @@ impl LispFunc {
     }
 
     fn wrapper_ident(&self) -> Ident {
-        util::concat("__emr_O_", &self.def.ident)
+        util::concat("__emr_O_", &self.def.sig.ident)
     }
 
     fn exporter_ident(&self) -> Ident {
-        util::concat("__emrs_E_", &self.def.ident)
+        util::concat("__emrs_E_", &self.def.sig.ident)
     }
 
     fn registrator_ident(&self) -> Ident {
-        util::concat("__emrs_R_", &self.def.ident)
+        util::concat("__emrs_R_", &self.def.sig.ident)
     }
 }
 
-fn check_signature(decl: &FnDecl) -> Result<(Vec<Arg>, Range<usize>, Span), TokenStream2> {
+fn check_signature(sig: &Signature) -> Result<(Vec<Arg>, Range<usize>, Span), TokenStream2> {
     let mut i: usize = 0;
     let mut err = TokenStream2::new();
     let mut has_env = false;
     let mut args: Vec<Arg> = vec![];
     let errors = &mut err;
-    for fn_arg in &decl.inputs {
+    for fn_arg in &sig.inputs {
         match fn_arg {
-            FnArg::Captured(capt) => {
-                let ty = &capt.ty;
+            FnArg::Typed(PatType { ty, pat, .. }) => {
                 let span = fn_arg.span();
-                args.push(if is_env(ty) {
-                    match ty {
-                        syn::Type::Reference(_) => (),
+                args.push(if is_env(&ty) {
+                    match ty.as_ref() {
+                        Type::Reference(_) => (),
                         _ => report(errors, fn_arg, "Can only take an &Env, not an Env"),
                     }
                     if has_env {
@@ -307,20 +310,18 @@ fn check_signature(decl: &FnDecl) -> Result<(Vec<Arg>, Range<usize>, Span), Toke
                     has_env = true;
                     Arg::Env { span }
                 } else {
-                    let access = match ty {
-                        syn::Type::Reference(syn::TypeReference { mutability, .. }) => {
-                            match mutability {
-                                Some(_) => Access::RefMut,
-                                None => Access::Ref,
-                            }
-                        }
+                    let access = match ty.as_ref() {
+                        Type::Reference(TypeReference { mutability, .. }) => match mutability {
+                            Some(_) => Access::RefMut,
+                            None => Access::Ref,
+                        },
                         _ => Access::Owned,
                     };
-                    let name = match &capt.pat {
+                    let name = match pat.as_ref() {
                         Pat::Ident(pat_ident) => Some(pat_ident.ident.clone()),
                         Pat::Wild(_) => None,
                         _ => {
-                            report(errors, &capt.pat, "Expected identifier");
+                            report(errors, pat, "Expected identifier");
                             continue;
                         }
                     };
@@ -329,21 +330,15 @@ fn check_signature(decl: &FnDecl) -> Result<(Vec<Arg>, Range<usize>, Span), Toke
                     a
                 });
             }
-            FnArg::SelfRef(_) => report(errors, fn_arg, "Cannot take &self argument"),
-            FnArg::SelfValue(_) => report(errors, fn_arg, "Cannot take self argument"),
-            // TODO: Support this.
-            FnArg::Ignored(_) => report(errors, fn_arg, "Ignored argument is not supported"),
-            FnArg::Inferred(_) => {
-                report(errors, fn_arg, "Argument with inferred type is not supported")
-            }
+            FnArg::Receiver(_) => report(errors, fn_arg, "Cannot take self argument"),
         }
     }
     // TODO: Make the Span span the whole return type.
-    let output_span = match &decl.output {
-        syn::ReturnType::Type(_, ty) => ty.span(),
+    let output_span = match &sig.output {
+        ReturnType::Type(_, ty) => ty.span(),
         _ => {
-            report(errors, &decl.fn_token, "Must return emacs::Result<T> where T: IntoLisp<'_>");
-            decl.fn_token.span()
+            report(errors, &sig.fn_token, "Must return emacs::Result<T> where T: IntoLisp<'_>");
+            sig.fn_token.span()
         }
     };
     if err.is_empty() {
@@ -354,10 +349,10 @@ fn check_signature(decl: &FnDecl) -> Result<(Vec<Arg>, Range<usize>, Span), Toke
 }
 
 // XXX
-fn is_env(ty: &syn::Type) -> bool {
+fn is_env(ty: &Type) -> bool {
     match ty {
-        syn::Type::Reference(syn::TypeReference { elem, .. }) => is_env(elem),
-        syn::Type::Path(syn::TypePath { qself: None, ref path }) => {
+        Type::Reference(TypeReference { elem, .. }) => is_env(elem),
+        Type::Path(TypePath { qself: None, path }) => {
             let str_path = format!("{}", quote!(#path));
             str_path.ends_with("Env")
         }

@@ -30,7 +30,7 @@ pub fn doc(fn_item: &ItemFn) -> String {
     let doc = &mut vec![];
     for attr in &fn_item.attrs {
         if let Ok(syn::Meta::NameValue(mnv)) = attr.parse_meta() {
-            if mnv.ident == "doc" {
+            if &mnv.path.segments.last().unwrap().ident.to_string() == "doc" {
                 if let syn::Lit::Str(ls) = mnv.lit {
                     doc.push(ls.value().trim_start_matches(' ').to_owned());
                 }

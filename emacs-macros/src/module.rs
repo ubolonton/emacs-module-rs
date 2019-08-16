@@ -53,20 +53,21 @@ mod default {
 /// We don't use the derived impl provided by darling, since we want a different syntax.
 /// See https://github.com/TedDriggs/darling/issues/74.
 impl FromMeta for Name {
+    // Use syn::, because it should have been the (non-existent) reexported version from `darling`.
     fn from_list(outer: &[syn::NestedMeta]) -> darling::Result<Name> {
         match outer.len() {
             0 => Err(darling::Error::too_few_items(1)),
             1 => {
                 let elem = &outer[0];
                 match elem {
-                    syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) => {
-                        match ident.to_string().as_ref() {
+                    syn::NestedMeta::Meta(syn::Meta::Path(path)) => {
+                        match path.segments.last().unwrap().ident.to_string().as_ref() {
                             "fn" => Ok(Name::Fn),
                             "crate" => Ok(Name::Crate),
-                            _ => Err(darling::Error::custom("Expected crate/fn").with_span(ident)),
+                            _ => Err(darling::Error::custom("Expected crate/fn").with_span(path)),
                         }
                     }
-                    syn::NestedMeta::Literal(syn::Lit::Str(ref lit)) => Ok(Name::Str(lit.value())),
+                    syn::NestedMeta::Lit(syn::Lit::Str(lit)) => Ok(Name::Str(lit.value())),
                     _ => {
                         Err(darling::Error::custom("Expected crate/fn or a string").with_span(elem))
                     }
@@ -111,7 +112,7 @@ impl Module {
     pub fn gen_init(&self) -> TokenStream2 {
         let init = Self::init_ident();
         let separator = &self.opts.separator;
-        let hook = &self.def.ident;
+        let hook = &self.def.sig.ident;
         let init_fns = util::init_fns_path();
         let prefix = util::prefix_path();
         let mod_in_name = util::mod_in_name_path();
