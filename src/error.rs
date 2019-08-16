@@ -154,7 +154,7 @@ impl Env {
             Ok(v) => v,
             Err(error) => {
                 // TODO: Try to check for some common types to display?
-                let mut m: result::Result<String, Box<Any>> = Err(error);
+                let mut m: result::Result<String, Box<dyn Any>> = Err(error);
                 if let Err(error) = m {
                     m = error.downcast::<String>().map(|v| *v);
                 }
