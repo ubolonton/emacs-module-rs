@@ -16,7 +16,7 @@ When calling a Lisp function, it's usually a good idea to propagate signaled err
 match env.call("insert", &[some_text]) {
     Err(error) => {
         // Handle `buffer-read-only` error.
-        if let Some(&Signal { ref symbol, .. }) = error.downcast_ref::<ErrorKind>() {
+        if let Some(Signal { symbol, .. }) = error.downcast_ref::<ErrorKind>() {
             let buffer_read_only = env.intern("buffer-read-only")?;
             // `symbol` is a `TempValue` that must be converted to `Value`.
             let symbol = unsafe { Ok(symbol.value(env)) };

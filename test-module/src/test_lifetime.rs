@@ -89,7 +89,7 @@ fn gc_after_catching_1<'e>(env: &'e Env, f: Value<'e>) -> Result<Value<'e>> {
     create_collect_use(env, 2, || {
         match env.call("funcall", [f]) {
             Err(error) => {
-                if let Some(&Signal { ref data, .. }) = error.downcast_ref::<ErrorKind>() {
+                if let Some(Signal { data, .. }) = error.downcast_ref::<ErrorKind>() {
                     unsafe {
                         return Ok(data.value(env));
                     }

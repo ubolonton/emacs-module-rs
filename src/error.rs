@@ -187,9 +187,9 @@ impl Env {
     }
 
     unsafe fn handle_known(&self, err: &ErrorKind) -> emacs_value {
-        match *err {
-            ErrorKind::Signal { ref symbol, ref data } => self.signal(symbol.raw, data.raw),
-            ErrorKind::Throw { ref tag, ref value } => self.throw(tag.raw, value.raw),
+        match err {
+            ErrorKind::Signal { symbol, data } => self.signal(symbol.raw, data.raw),
+            ErrorKind::Throw { tag, value } => self.throw(tag.raw, value.raw),
             ErrorKind::WrongTypeUserPtr { .. } => self
                 .signal_str(WRONG_TYPE_USER_PTR, &format!("{}", err))
                 .unwrap_or_else(|_| panic!("Failed to signal {}", err)),

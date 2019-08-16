@@ -28,7 +28,7 @@ fn get_type(f: Value<'_>) -> Result<Value<'_>> {
     let env = f.env;
     match env.call("funcall", [f]) {
         Err(error) => {
-            if let Some(&Signal { ref symbol, .. }) = error.downcast_ref::<ErrorKind>() {
+            if let Some(Signal { symbol, .. }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
                     return Ok(symbol.value(env));
                 }
@@ -45,7 +45,7 @@ fn catch<'e>(expected_tag: Value<'e>, lambda: Value<'e>) -> Result<Value<'e>> {
     let env = expected_tag.env;
     match env.call("funcall", [lambda]) {
         Err(error) => {
-            if let Some(&Throw { ref tag, ref value }) = error.downcast_ref::<ErrorKind>() {
+            if let Some(Throw { tag, value }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
                     if tag.value(env).eq(expected_tag) {
                         return Ok(value.value(env));
