@@ -2,9 +2,6 @@ $here = $PSScriptRoot
 $project_root = (Get-Item $here).Parent.FullName
 $module_dir = "$project_root\target\debug"
 
-Copy-Item $module_dir\emacs_rs_module.dll $module_dir\rs-module.dll
-Copy-Item $module_dir\test_module.dll $module_dir\t.dll
-
 emacs --version
 
 $env:PROJECT_ROOT = $project_root
