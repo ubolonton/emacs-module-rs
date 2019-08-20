@@ -2,6 +2,7 @@
 
 trigger:
 - master
+- azure-pipelines
 
 pr:
 - master
