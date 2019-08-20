@@ -32,6 +32,9 @@ strategy:
     #   IMAGE_NAME: 'ubuntu-16.04'
     #   EVM_EMACS: emacs-26.2
 
+pool:
+  vmImage: $(IMAGE_NAME)
+
 steps:
 - template: steps/install-rust.yml
 - template: steps/set-up-llvm.yml
