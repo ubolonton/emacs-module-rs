@@ -261,17 +261,24 @@ pub trait ResultExt<T, E> {
     /// This is useful when errors cannot be propagated using [`Result`], e.g. callbacks whose types
     /// are dictated by 3rd-party libraries.
     ///
+    /// # Safety
+    ///
+    /// The panic must not propagate across an FFI boundary, e.g. this must not be used in callbacks
+    /// that will be called by C code. See Rust's [`issue #52652`].
+    ///
     /// [`Ok`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     /// [`Err`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     /// [`ErrorKind`]: enum.ErrorKind.html
     /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
     /// [`Result`]: type.Result.html
-    fn unwrap_or_propagate(self) -> T;
+    /// [`issue #52652`]: https://github.com/rust-lang/rust/issues/52652
+    #[deprecated(since = "0.12.0", note = "Use Result or a variable to track error instead")]
+    unsafe fn unwrap_or_propagate(self) -> T;
 }
 
 impl<T> ResultExt<T, Error> for Result<T> {
     #[inline]
-    fn unwrap_or_propagate(self) -> T {
+    unsafe fn unwrap_or_propagate(self) -> T {
         self.unwrap_or_else(|error| {
             match error.downcast::<ErrorKind>() {
                 Ok(err) => panic!(err),

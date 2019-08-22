@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Deprecated `unwrap_or_propagate`, and marked it as `unsafe`.
 
 ## [0.11.0] - 2019-08-05
 - Made `env.call` a lot more flexible. Also added `value.call`.

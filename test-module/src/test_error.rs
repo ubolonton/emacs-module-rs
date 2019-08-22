@@ -58,7 +58,8 @@ fn catch<'e>(expected_tag: Value<'e>, lambda: Value<'e>) -> Result<Value<'e>> {
     }
 }
 
-fn apply_inner(lambda: Value<'_>, args: Value<'_>) {
+#[allow(deprecated)]
+unsafe fn apply_inner(lambda: Value<'_>, args: Value<'_>) {
     let env = lambda.env;
     env.call("apply", (lambda, args)).unwrap_or_propagate();
 }
@@ -66,7 +67,7 @@ fn apply_inner(lambda: Value<'_>, args: Value<'_>) {
 /// Call `apply` on LAMBDA and ARGS, using panics instead of Result to propagate errors.
 #[defun(mod_in_name = false, name = "error:apply")]
 fn apply(lambda: Value<'_>, args: Value<'_>) -> Result<()> {
-    apply_inner(lambda, args);
+    unsafe { apply_inner(lambda, args); }
     Ok(())
 }
 
