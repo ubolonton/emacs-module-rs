@@ -1,4 +1,4 @@
-use std::{os, ptr};
+use std::{os, ptr, cmp};
 
 use super::*;
 
@@ -38,6 +38,27 @@ impl IntoLisp<'_> for &String {
 impl IntoLisp<'_> for String {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         self.as_str().into_lisp(env)
+    }
+}
+
+impl<'e> Value<'e> {
+    /// Copies the content of this Lisp string value to the given buffer as a null-terminated UTF-8
+    /// string. Returns the copied bytes, excluding the null terminator.
+    ///
+    /// Signals an `args-out-of-range` error if the buffer is too small.
+    pub fn copy_string_contents(self, buffer: &mut [u8]) -> Result<&[u8]> {
+        let env = self.env;
+        let ptr = buffer.as_mut_ptr() as *mut os::raw::c_char;
+        let max_len = buffer.len();
+        let mut len = max_len as isize;
+        match raw_call!(env, copy_string_contents, self.raw, ptr, &mut len) {
+            Ok(false) => panic!("Emacs failed to copy string but did not raise a signal"),
+            Err(x) => Err(x),
+            _ => {
+                let n = cmp::min(max_len, len as usize) - 1;
+                Ok(&buffer[0..n])
+            }
+        }
     }
 }
 

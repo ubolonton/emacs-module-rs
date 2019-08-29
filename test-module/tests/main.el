@@ -48,7 +48,13 @@
                             (documentation #'t/identity) ))))
 
 (ert-deftest conversion::string ()
-  (should (equal (t/to-uppercase "abc") "ABC")))
+  (should (equal (t/to-uppercase "abc") "ABC"))
+  ;; copy_string_contents copies the null terminator.
+  (should-error (t/copy-string-contents "xyz" 3) :type 'args-out-of-range)
+  (should-error (t/copy-string-contents "" 0) :type 'args-out-of-range)
+  (should (string= "xyz" (t/copy-string-contents "xyz" 4)))
+  (should (string= "" (t/copy-string-contents "" 1)))
+  (should-error (t/copy-string-contents "abcxyz" 3) :type 'args-out-of-range))
 
 (ert-deftest conversion::option-string ()
   (should (equal (t/to-lowercase-or-nil "CDE") "cde"))
