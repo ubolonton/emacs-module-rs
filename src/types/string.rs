@@ -25,7 +25,8 @@ impl IntoLisp<'_> for &str {
         let bytes = self.as_bytes();
         let len = bytes.len();
         let ptr = bytes.as_ptr();
-        raw_call_value!(env, make_string, ptr as *const os::raw::c_char, len as isize)
+        // Safety: ptr and len are valid, coming from a slice.
+        unsafe_raw_call_value!(env, make_string, ptr as *const os::raw::c_char, len as isize)
     }
 }
 
@@ -51,7 +52,8 @@ impl<'e> Value<'e> {
         let ptr = buffer.as_mut_ptr() as *mut os::raw::c_char;
         let max_len = buffer.len();
         let mut len = max_len as isize;
-        match raw_call!(env, copy_string_contents, self.raw, ptr, &mut len) {
+        // Safety: ptr and len are valid, coming from a slice.
+        match unsafe_raw_call!(env, copy_string_contents, self.raw, ptr, &mut len) {
             Ok(false) => panic!("Emacs failed to copy string but did not raise a signal"),
             Err(x) => Err(x),
             _ => {

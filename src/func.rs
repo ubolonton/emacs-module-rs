@@ -138,7 +138,7 @@ impl Manage for Env {
         doc: T,
         data: *mut os::raw::c_void,
     ) -> Result<Value<'_>> {
-        raw_call_value!(
+        unsafe_raw_call_value!(
             self,
             make_function,
             arities.start as isize,

@@ -4,7 +4,7 @@ use super::*;
 
 impl FromLisp<'_> for i64 {
     fn from_lisp(value: Value<'_>) -> Result<Self> {
-        raw_call!(value.env, extract_integer, value.raw)
+        unsafe_raw_call!(value.env, extract_integer, value.raw)
     }
 }
 
@@ -39,7 +39,7 @@ int_from_lisp!(usize);
 
 impl IntoLisp<'_> for i64 {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-        raw_call_value!(env, make_integer, self)
+        unsafe_raw_call_value!(env, make_integer, self)
     }
 }
 

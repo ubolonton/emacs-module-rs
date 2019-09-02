@@ -40,7 +40,10 @@ impl<'e> Value<'e> {
         let lisp_args: &mut [emacs_value] = lisp_args.borrow_mut();
         let ptr = lisp_args.as_mut_ptr();
         let length = lisp_args.len() as isize;
-        raw_call_value!(env, funcall, self.raw, length, ptr)
+        // Safety:
+        // - ptr comes from a locally-owned value.
+        // - length is ensured to be valid by IntoLispArgs implementation.
+        unsafe_raw_call_value!(env, funcall, self.raw, length, ptr)
     }
 }
 

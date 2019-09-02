@@ -218,11 +218,12 @@ impl Env {
         symbol: &mut MaybeUninit<emacs_value>,
         data: &mut MaybeUninit<emacs_value>,
     ) -> emacs_funcall_exit {
-        raw_call_no_exit!(self, non_local_exit_get, symbol.as_mut_ptr(), data.as_mut_ptr())
+        // Safety: The C code writes to these pointers. It doesn't read from them.
+        unsafe_raw_call_no_exit!(self, non_local_exit_get, symbol.as_mut_ptr(), data.as_mut_ptr())
     }
 
     fn non_local_exit_clear(&self) {
-        raw_call_no_exit!(self, non_local_exit_clear)
+        unsafe_raw_call_no_exit!(self, non_local_exit_clear)
     }
 
     /// # Safety
@@ -230,7 +231,7 @@ impl Env {
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
     unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
-        raw_call_no_exit!(self, non_local_exit_throw, tag, value);
+        unsafe_raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
 
@@ -239,7 +240,7 @@ impl Env {
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
     unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
-        raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
+        unsafe_raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }
 }

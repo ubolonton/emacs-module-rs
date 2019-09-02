@@ -32,21 +32,23 @@ impl<'e> Vector<'e> {
     pub fn get<T: FromLisp<'e>>(&self, i: usize) -> Result<T> {
         let v = self.0;
         let env = v.env;
-        raw_call_value!(env, vec_get, v.raw, i as isize)?.into_rust()
+        // Safety: Same lifetime. Emacs does bound checking.
+        unsafe_raw_call_value!(env, vec_get, v.raw, i as isize)?.into_rust()
     }
 
     pub fn set<T: IntoLisp<'e>>(&self, i: usize, value: T) -> Result<()> {
         let v = self.0;
         let env = v.env;
         let value = value.into_lisp(env)?;
-        raw_call!(env, vec_set, v.raw, i as isize, value.raw)
+        // Safety: Same lifetime. Emacs does bound checking.
+        unsafe_raw_call!(env, vec_set, v.raw, i as isize, value.raw)
     }
 
     pub fn size(&self) -> Result<usize> {
         let v = self.0;
         let env = v.env;
         let result =
-            raw_call_no_exit!(env, vec_size, v.raw).try_into().expect("invalid size from Emacs");
+            unsafe_raw_call_no_exit!(env, vec_size, v.raw).try_into().expect("invalid size from Emacs");
         env.handle_exit(result)
     }
 }

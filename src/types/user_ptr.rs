@@ -5,8 +5,6 @@ use std::{
     sync::{Mutex, RwLock, Arc},
 };
 
-use emacs_module::emacs_value;
-
 use super::*;
 use crate::ErrorKind;
 
@@ -52,7 +50,7 @@ pub trait Transfer: Sized + 'static {
 
 impl<'a, 'e: 'a, T: Transfer> FromLisp<'e> for &'a T {
     fn from_lisp(value: Value<'e>) -> Result<Self> {
-        value.env.get_raw_pointer(value.raw).map(|r| unsafe { &*r })
+        value.get_raw_pointer().map(|r| unsafe { &*r })
     }
 }
 
@@ -69,7 +67,8 @@ impl<T: Transfer> IntoLisp<'_> for Box<T> {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut os::raw::c_void;
-        raw_call_value!(env, make_user_ptr, Some(finalize::<T>), ptr)
+        // Safety: self is forgotten by `into_raw`, so it's safe for the GC to take over.
+        unsafe_raw_call_value!(env, make_user_ptr, Some(finalize::<T>), ptr)
     }
 }
 
@@ -98,13 +97,14 @@ enable_transfers! {
 
 type Finalizer = unsafe extern "C" fn(ptr: *mut os::raw::c_void);
 
-/// Implementation details.
-impl Env {
-    pub(crate) fn get_raw_pointer<T: Transfer>(&self, value: emacs_value) -> Result<*mut T> {
-        match raw_call!(self, get_user_finalizer, value)? {
+impl<'e> Value<'e> {
+    pub(crate) fn get_raw_pointer<T: Transfer>(self) -> Result<*mut T> {
+        let env = self.env;
+        let raw = self.raw;
+        match unsafe_raw_call!(env, get_user_finalizer, raw)? {
             // TODO: Consider using dynamic dispatch for finalize, and core::any for type checking.
             Some::<Finalizer>(fin) if fin == finalize::<T> => {
-                let ptr: *mut os::raw::c_void = raw_call!(self, get_user_ptr, value)?;
+                let ptr: *mut os::raw::c_void = unsafe_raw_call!(env, get_user_ptr, raw)?;
                 Ok(ptr as *mut T)
             }
             _ => {

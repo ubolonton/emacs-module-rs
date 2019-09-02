@@ -44,20 +44,21 @@ impl<'e> Value<'e> {
     #[allow(unused_unsafe)]
     #[doc(hidden)]
     pub unsafe fn new_protected(raw: emacs_value, env: &'e Env) -> Self {
-        env.protected.borrow_mut().push(raw_call_no_exit!(env, make_global_ref, raw));
+        env.protected.borrow_mut().push(unsafe_raw_call_no_exit!(env, make_global_ref, raw));
         Self::new(raw, env)
     }
 
     pub fn is_not_nil(&self) -> bool {
         let env = self.env;
-        raw_call_no_exit!(env, is_not_nil, self.raw)
+        unsafe_raw_call_no_exit!(env, is_not_nil, self.raw)
     }
 
     // TODO: Decide what we want for PartialEq (==, !=): eq vs. eql vs. equal.
     #[allow(clippy::should_implement_trait)]
     pub fn eq(&self, other: Value<'e>) -> bool {
         let env = self.env;
-        raw_call_no_exit!(env, eq, self.raw, other.raw)
+        // Safety: `other` has the same lifetime.
+        unsafe_raw_call_no_exit!(env, eq, self.raw, other.raw)
     }
 
     /// Converts this value into a Rust value of the given type.
@@ -97,6 +98,6 @@ impl<'e> Value<'e> {
     ///
     /// [`into_rust`]: #method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
-        self.env.get_raw_pointer(self.raw).map(|r| &mut *r)
+        self.get_raw_pointer().map(|r| &mut *r)
     }
 }

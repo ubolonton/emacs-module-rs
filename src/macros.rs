@@ -1,23 +1,26 @@
+/// Gets the raw function with the given name.
 macro_rules! raw_fn {
-    ($env:ident, $name:ident) => { {
+    ($env:expr, $name:ident) => { {
         (*$env.raw).$name.expect(stringify!(Required module function does not exist: $name))
     }};
 }
 
-macro_rules! raw_call_no_exit {
-    ($env:ident, $name:ident $(, $args:expr)*) => {
+/// Calls a raw function, without checking for non-local exit afterwards. Use this if the C
+/// implementation never calls `module_non_local_exit_signal_1`.
+/// TODO: Check for situations that `MODULE_HANDLE_NONLOCAL_EXIT` calls `module_out_of_memory`.
+macro_rules! unsafe_raw_call_no_exit {
+    ($env:expr, $name:ident $(, $args:expr)*) => {
         unsafe {
-            // println!("raw_call_no_exit {:?}", stringify!($name));
             let $name = raw_fn!($env, $name);
             $name($env.raw $(, $args)*)
         }
     };
 }
 
-macro_rules! raw_call {
+/// Calls a raw function, then handles any pending non-local exit.
+macro_rules! unsafe_raw_call {
     ($env:expr, $name:ident $(, $args:expr)*) => {
         {
-            // println!("raw_call {:?}", stringify!($name));
             let env = $env;
             let result = unsafe {
                 let $name = raw_fn!(env, $name);
@@ -28,11 +31,11 @@ macro_rules! raw_call {
     };
 }
 
-macro_rules! raw_call_value {
-    ($env:ident, $name:ident $(, $args:expr)*) => {
+/// Calls a raw function that returns an emacs_value, then handles any pending non-local exit.
+macro_rules! unsafe_raw_call_value {
+    ($env:expr, $name:ident $(, $args:expr)*) => {
         {
-            // println!("raw_call_value {:?}", stringify!($name));
-            let result: $crate::Result<$crate::raw::emacs_value> = raw_call!($env, $name $(, $args)*);
+            let result: $crate::Result<$crate::raw::emacs_value> = unsafe_raw_call!($env, $name $(, $args)*);
             result.map(|raw| unsafe {
                 // TODO: In some cases, we can get away without protection. Try optimizing them.
                 $crate::Value::new_protected(raw, $env)

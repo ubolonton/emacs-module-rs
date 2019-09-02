@@ -33,22 +33,25 @@ impl Env {
     }
 
     pub fn intern(&self, name: &str) -> Result<Value<'_>> {
-        raw_call_value!(self, intern, CString::new(name)?.as_ptr())
+        unsafe_raw_call_value!(self, intern, CString::new(name)?.as_ptr())
     }
 
     // TODO: Return an enum?
-    pub fn type_of(&self, value: Value<'_>) -> Result<Value<'_>> {
-        raw_call_value!(self, type_of, value.raw)
+    pub fn type_of<'e>(&'e self, value: Value<'e>) -> Result<Value<'_>> {
+        // Safety: Same lifetimes in type signature.
+        unsafe_raw_call_value!(self, type_of, value.raw)
     }
 
     #[deprecated(since = "0.10.0", note = "Please use `value.is_not_nil()` instead")]
-    pub fn is_not_nil(&self, value: Value<'_>) -> bool {
-        raw_call_no_exit!(self, is_not_nil, value.raw)
+    pub fn is_not_nil<'e>(&'e self, value: Value<'e>) -> bool {
+        // Safety: Same lifetimes in type signature.
+        unsafe_raw_call_no_exit!(self, is_not_nil, value.raw)
     }
 
     #[deprecated(since = "0.10.0", note = "Please use `value1.eq(value2)` instead")]
-    pub fn eq(&self, a: Value<'_>, b: Value<'_>) -> bool {
-        raw_call_no_exit!(self, eq, a.raw, b.raw)
+    pub fn eq<'e>(&'e self, a: Value<'e>, b: Value<'e>) -> bool {
+        // Safety: value is lifetime-constrained by this env.
+        unsafe_raw_call_no_exit!(self, eq, a.raw, b.raw)
     }
 
     pub fn provide(&self, name: &str) -> Result<Value<'_>> {
@@ -67,7 +70,8 @@ impl Drop for Env {
         #[cfg(build = "debug")]
         println!("Unrooting {} values protected by {:?}", self.protected.borrow().len(), self);
         for raw in self.protected.borrow().iter() {
-            raw_call_no_exit!(self, free_global_ref, *raw);
+            // Safety: We assume user code doesn't directly call C function `free_global_ref`.
+            unsafe_raw_call_no_exit!(self, free_global_ref, *raw);
         }
     }
 }
