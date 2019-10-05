@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-lazy_static = "1.3.0"
+lazy_static = "1.4"
 emacs = { path = ".." }
 
 [dev-dependencies]
