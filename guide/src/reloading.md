@@ -27,6 +27,6 @@ emacs-rs-module = { version = "0.7.0" }
 A future version will have tighter integration with `cargo`.
 
 **Notes**:
-- It mainly works on Linux, but potentially because Linux's dynamic loading system is unsafe (i.e. UB-ridden).
-- It doesn't work on macOS 10.13+ (High Sierra and up). See Rust's [issue #28794](https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049).
+- It mainly works on Linux, but potentially because Linux's dynamic loading system is unsafe (i.e. ridden with UB traps).
+- It doesn't work on macOS 10.13+ (High Sierra and up), because macOS doesn't unload dynamic libraries that use TLS (thread-local storage), for safety reason. See Rust's [issue #28794](https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049).
 - It doesn't work on Windows, since loading the dll prevents writing to its file.
