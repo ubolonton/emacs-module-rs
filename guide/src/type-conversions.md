@@ -41,7 +41,7 @@ true.into_lisp(env)?; // t
 false.into_lisp(env)?; // nil
 ```
 
-## Integer conversion
+## Integer Conversion
 
 Integer conversion is lossless by default, which means that a module will signal an "out of range" `rust-error` in cases such as:
 - A `#[defun]` expecting `u8` gets passed `-1`.

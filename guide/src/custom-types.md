@@ -71,3 +71,78 @@ fn init(env: &Env) -> Result<()> {
         Ok(map.get(&key).into_lisp(v.env)?)
     }
     ```
+
+## Lifetime-constrained Types
+
+When a type is constrained by a (non-static) lifetime, its value cannot be embedded unchanged. Before embedding, the lifetime must be **soundly** elided. In other words, static ownership must be correctly given up.
+
+The typical example is a struct holding a reference to another struct:
+
+```rust
+pub struct Tree;
+
+pub struct Node<'t> {
+    pub tree: &'t Tree,
+}
+
+impl Tree {
+    pub fn root_node(&self) -> Node<'_> {
+        ...
+    }
+}
+
+impl<'t> Node<'t> {
+    pub fn child(&self) -> Node<'t> {
+        ...
+    }
+}
+```
+
+In this case, the lifetime can be elided by turning the static reference into a dynamic ref-counted pointer. The [rental crate](https://github.com/jpernst/rental) provides a convenient way to do this:
+
+```rust
+#[macro_use]
+extern crate rental;
+
+use std::{rc::Rc, marker::PhantomData};
+use emacs::{defun, Result};
+
+// PhantomData is need because map_suffix requires a type parameter.
+// See https://github.com/jpernst/rental/issues/35.
+pub struct PhantomNode<'t, T>(Node<'t>, PhantomData<T>);
+
+impl<'t> PhantomNode<'t, ()> {
+    fn child(&self) -> Self {
+        PhantomNode(self.0.child(), PhantomData)
+    }
+}
+
+rental! {
+    pub mod inner {
+        use std::rc::Rc;
+
+        // Self-referential struct that holds both
+        // the actual Node and the ref-counted Tree.
+        #[rental(map_suffix = "T")]
+        pub struct RentingNode<T: 'static> {
+            tree: Rc<super::Tree>,
+            node: super::PhantomNode<'tree, T>
+        }
+    }
+}
+
+type RentingNode = inner::RentingNode<()>;
+
+#[defun(user_ptr)]
+fn root_node(tree: Value) -> Result<RentingNode> {
+    let rc: &Rc<Tree> = tree.into_rust()?;
+    Ok(RentingNode::new(rc.clone(), |tree| tree.root_node()))
+}
+
+#[defun(user_ptr)]
+fn child(node: &RentingNode) -> Result<RentingNode> {
+    node.map(|n| n.child())
+}
+```
+
+Note that there's no `unsafe` involved directly, as the soundness proofs are already encapsulated in `rental` macros.
