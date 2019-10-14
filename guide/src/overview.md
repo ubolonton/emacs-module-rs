@@ -16,6 +16,7 @@ There is a bug (see [issue #1](https://github.com/ubolonton/emacs-module-rs/issu
 ## Setting up
 
 - Install the Rust toolchain with [rustup](https://www.rustup.rs/).
+- Install `clang`. This is needed to generate the raw binding from `emacs-module.h`.
 - Make sure that your Emacs was compiled with module support. Check that `module-file-suffix` is not `nil`, and the function `module-load` is defined.
   + On macOS, the recommended installation method is MacPorts (`emacs-app` and `emacs-mac-app`).
   + On Windows, the recommended installation is `pacman -S mingw-w64-x86_64-emacs` (msys2), as the version on GNU FTP's server is built without module support.
