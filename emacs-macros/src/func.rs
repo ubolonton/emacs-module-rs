@@ -217,7 +217,6 @@ impl LispFunc {
         let mut doc = util::doc(&self.def);
         doc.push_str("\n\n");
         doc.push_str(&lisp_signature(&self.args));
-        lisp_signature(&self.args);
         let path = match &self.opts.mod_in_name {
             None => {
                 let crate_mod_in_name = util::mod_in_name_path();
