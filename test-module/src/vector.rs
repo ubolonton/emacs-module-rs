@@ -8,7 +8,7 @@ struct Vector {
 }
 
 custom_types! {
-    Vector as "Vector";
+    Vector;
 }
 
 #[defun]

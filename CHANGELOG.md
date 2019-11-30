@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added a default implementation for `Transfer::type_name`. This raised the minimum supported Rust version to 1.38 (for `std::any::type_name()`).
 - Added function to copy a Lisp string's content to a buffer `Value::copy_string_contents`.
 - Deprecated `unwrap_or_propagate`, and marked it as `unsafe`.
 
@@ -26,7 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Made `Env::message` take `AsRef<str>`, not just a `&str`.
 
 ## [0.10.0] - 2019-07-17
-- Raise minimum supported Rust version to 1.36 (for `MaybeUninit`).
+- Raised the minimum supported Rust version to 1.36 (for `MaybeUninit`).
 - Added `Vector` type to represent Lisp's vectors.
 - Allowed `Rc` and `Arc` to be embedded in `user-ptr` by marking them as `Transfer`.
 - Removed `libc` dependency.
@@ -47,7 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Return values are now embedded in `user-ptr` objects if `user_ptr` option is specified.
 
 ## [0.7.0] - 2019-04-15
-- Greatly improved ergonomics with attribute macros `#[[emacs::module]` and] `#[defun]`.
+- Greatly improved ergonomics with attribute macros `#[emacs::module]` and `#[defun]`.
 - Deprecated macros with `emacs_` prefix.
 - Made `Value.env` public.
 - Removed the need for user crate to depend directly on `libc`.

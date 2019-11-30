@@ -1,5 +1,6 @@
 use std::{
     os,
+    any,
     cell::RefCell,
     rc::Rc,
     sync::{Mutex, RwLock, Arc},
@@ -39,10 +40,15 @@ use crate::ErrorKind;
 /// }
 /// ```
 pub trait Transfer: Sized + 'static {
-    // TODO: This should be derived automatically. Use `typename` crate or something.
-    /// Returns the name of this type. This is used to report runtime type error, when a function
-    /// expects this type, but some Lisp code passes a different type of "user pointer".
-    fn type_name() -> &'static str;
+    /// Returns the name of this type. This is used to report runtime type errors, when a function
+    /// expects values of this type, but receives values of a different type instead. The default
+    /// implementation defers to the [`type_name`] function in `std::any`, which can be overridden
+    /// for better error reporting.
+    ///
+    /// [`type_name`]: https://doc.rust-lang.org/std/any/fn.type_name.html
+    fn type_name() -> &'static str {
+        any::type_name::<Self>()
+    }
 
     // TODO: Consider using a wrapper struct to carry the type info, to enable better runtime
     // reporting of type error (and to enable something like `rs-module/type-of`).
@@ -59,7 +65,7 @@ impl<'a, 'e: 'a, T: Transfer> FromLisp<'e> for &'a T {
 /// This function also serves as a form of runtime type tag, relying on Rust's mono-morphization.
 unsafe extern "C" fn finalize<T: Transfer>(ptr: *mut os::raw::c_void) {
     #[cfg(build = "debug")]
-    println!("Finalizing {} {:#?}", T::type_name(), ptr);
+    println!("Finalizing {:#?} {}", ptr, T::type_name());
     Box::from_raw(ptr as *mut T);
 }
 
@@ -74,9 +80,7 @@ impl<T: Transfer> IntoLisp<'_> for Box<T> {
 
 macro_rules! enable_transfers {
     ($($name:ident;)*) => {$(
-        impl<T: 'static> Transfer for $name<T> {
-            fn type_name() -> &'static str { stringify!($name) }
-        }
+        impl<T: 'static> Transfer for $name<T> {}
 
         impl<'e, T: 'static> IntoLisp<'e> for $name<T> {
             #[inline]

@@ -66,7 +66,7 @@ struct StringWrapper {
 }
 
 custom_types! {
-    StringWrapper as "StrWrapper";
+    StringWrapper;
 }
 
 #[defun]

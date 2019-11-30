@@ -16,10 +16,8 @@ macro_rules! make_prefix {
 }
 
 macro_rules! custom_types {
-    ($($name:ident as $lisp_name:expr;)*) => {$(
-        impl ::emacs::Transfer for $name {
-            fn type_name() -> &'static str { $lisp_name }
-        }
+    ($($name:ident;)*) => {$(
+        impl ::emacs::Transfer for $name {}
     )*};
 }
 
