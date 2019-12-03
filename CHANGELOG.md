@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Deprecated `unwrap_or_propagate`, and marked it as `unsafe`.
 
 ## [0.11.0] - 2019-08-05
-- Made `env.call` a lot more flexible. Also added `value.call`.
+- Made `Env::call` a lot more flexible. Also added `Value::call`.
 - Added `rust-wrong-type-user-ptr` to `wrong-type-argument` classification.
 - Deprecated `emacs::module_init!` and `emacs::export_functions!`.
 - Replaced`IntoLisp` implementation for `AsRef<str>` with separate implementations for `&str` and `&String`.

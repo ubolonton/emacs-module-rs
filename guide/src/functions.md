@@ -26,7 +26,7 @@ Each parameter must be one of the following:
     #[defun]
     fn maybe_call(lambda: Value) -> Result<()> {
         if some_hidden_native_logic() {
-            lambda.env.call("funcall", &[lambda])?;
+            lambda.call([])?;
         }
         Ok(())
     }
