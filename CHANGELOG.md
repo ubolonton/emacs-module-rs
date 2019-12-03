@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added `Env::make_vector` and `Env::vector` functions.
 - Added a default implementation for `Transfer::type_name`. This raised the minimum supported Rust version to 1.38 (for `std::any::type_name()`).
 - Added function to copy a Lisp string's content to a buffer `Value::copy_string_contents`.
 - Deprecated `unwrap_or_propagate`, and marked it as `unsafe`.
