@@ -15,16 +15,24 @@ matrix:
     - env: EVM_EMACS=emacs-26.3
       os: osx
 
+    # 14.04
     - env: EVM_EMACS=emacs-25.3
       dist: trusty
     - env: EVM_EMACS=emacs-26.3
       dist: trusty
 
+    # 16.04
     - env: EVM_EMACS=emacs-25.3
       dist: xenial
     # https://github.com/ubolonton/emacs-module-rs/issues/1#issuecomment-476049325
     # - env: EVM_EMACS=emacs-26.3
     #   dist: xenial
+
+    # 18.04
+    - env: EVM_EMACS=emacs-25.3
+      dist: bionic
+    - env: EVM_EMACS=emacs-26.3
+      dist: bionic
 
 addons:
   apt:
