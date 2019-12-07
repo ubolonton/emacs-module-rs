@@ -13,7 +13,9 @@ steps:
 - bash: |
     set -e
     sudo apt-get update
-    sudo apt-get install ruby libgtk-3-dev libxpm-dev libgnutls-dev
+    sudo apt-get install ruby libgtk-3-dev libxpm-dev
+    sudo apt-get install libgnutls-dev || echo 'Skipped libgnutls-dev'
+    sudo apt-get install libgnutls28-dev || echo 'Skipped libgnutls28-dev' # XXX: Ubuntu 18.04
   displayName: Install Emacs's pre-requisites (Linux)
   condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
 
