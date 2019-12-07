@@ -2,7 +2,7 @@
 
 trigger:
 - master
-- azure-pipelines
+- ci
 
 pr:
 - master
