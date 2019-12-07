@@ -8,12 +8,22 @@ cache: cargo
 # https://github.com/travis-ci/travis-ci/issues/9073
 sudo: required
 
+addons:
+  apt:
+    update: true
+  homebrew:
+    update: true
+    packages:
+      - make
+
 matrix:
   include:
     - env: EVM_EMACS=emacs-25.3
       os: osx
-    - env: EVM_EMACS=emacs-25.3
-      dist: trusty
+    - env: EVM_EMACS=emacs-26.3
+      os: osx
+
+    # 16.04
     - env: EVM_EMACS=emacs-25.3
       dist: xenial
       addons:
@@ -21,25 +31,9 @@ matrix:
           packages:
             - libgtk-3-dev
             - libxpm-dev
-    - env: EVM_EMACS=emacs-26.1
-      os: osx
-    - env: EVM_EMACS=emacs-26.1
-      dist: trusty
-    # https://github.com/ubolonton/emacs-module-rs/issues/1#issuecomment-476049325
-    # - env: EVM_EMACS=emacs-26.1
-    #   dist: xenial
-    #   addons:
-    #     apt:
-    #       packages:
-    #         - libgtk-3-dev
-    #         - libxpm-dev
-    #         - libgnutls-dev
-    - env: EVM_EMACS=emacs-26.2
-      os: osx
-    - env: EVM_EMACS=emacs-26.2
-      dist: trusty
-    # https://github.com/ubolonton/emacs-module-rs/issues/1#issuecomment-476049325
-    # - env: EVM_EMACS=emacs-26.2
+            - libgnutls-dev
+    # # https://github.com/ubolonton/emacs-module-rs/issues/1#issuecomment-476049325
+    # - env: EVM_EMACS=emacs-26.3
     #   dist: xenial
     #   addons:
     #     apt:
@@ -48,9 +42,27 @@ matrix:
     #         - libxpm-dev
     #         - libgnutls-dev
 
+    # 18.04
+    - env: EVM_EMACS=emacs-25.3
+      dist: bionic
+      addons:
+        apt:
+          packages:
+            - libgtk-3-dev
+            - libxpm-dev
+            - libgnutls28-dev
+    - env: EVM_EMACS=emacs-26.3
+      dist: bionic
+      addons:
+        apt:
+          packages:
+            - libgtk-3-dev
+            - libxpm-dev
+            - libgnutls28-dev
+
 before_install:
   - export PATH="$HOME/.evm/bin:$PATH"
-  - git clone -b max-26.2 https://github.com/ubolonton/evm.git $HOME/.evm
+  - git clone -b master https://github.com/ubolonton/evm.git $HOME/.evm
   - evm config path /tmp
   - evm install $EVM_EMACS --use --skip
 
