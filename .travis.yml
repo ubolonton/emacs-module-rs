@@ -48,6 +48,16 @@ matrix:
     #         - libxpm-dev
     #         - libgnutls-dev
 
+addons:
+  apt:
+    update: true
+    packages:
+      - make
+  homebrew:
+    update: true
+    packages:
+      - make
+
 before_install:
   - export PATH="$HOME/.evm/bin:$PATH"
   - git clone -b max-26.2 https://github.com/ubolonton/evm.git $HOME/.evm
