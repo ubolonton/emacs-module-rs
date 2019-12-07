@@ -31,7 +31,7 @@ steps:
 - bash: |
     set -e
     export PATH="$HOME/.evm/bin:$PATH"
-    git clone -b max-26.2 https://github.com/ubolonton/evm.git $HOME/.evm
+    git clone -b master https://github.com/ubolonton/evm.git $HOME/.evm
     evm config path /tmp
     evm install $EVM_EMACS --use --skip
     echo "##vso[task.setvariable variable=PATH]$PATH"
