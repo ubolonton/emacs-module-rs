@@ -3,7 +3,7 @@ use std::borrow::BorrowMut;
 use emacs_module::emacs_value;
 use emacs_macros;
 
-use crate::{Env, Value, Result, IntoLisp};
+use crate::{Env, Value, Result, IntoLisp, GlobalRef};
 
 // TODO: Seal this trait, for safety reasons.
 pub unsafe trait IntoLispArgs<'e> {
@@ -115,5 +115,12 @@ impl<'e, T: AsRef<str>> IntoLispCallable<'e> for T {
     #[inline(always)]
     fn into_lisp_callable(self, env: &'e Env) -> Result<Value<'e>> {
         env.intern(self.as_ref())
+    }
+}
+
+impl<'e> IntoLispCallable<'e> for &'e GlobalRef {
+    #[inline(always)]
+    fn into_lisp_callable(self, env: &'e Env) -> Result<Value<'e>> {
+        self.within(env).into_lisp_callable(env)
     }
 }
