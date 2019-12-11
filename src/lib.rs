@@ -37,7 +37,7 @@ pub use failure::{self, Error};
 pub use self::{
     env::Env,
     value::Value,
-    types::{FromLisp, IntoLisp, Transfer, Vector},
+    types::{FromLisp, IntoLisp, Transfer, Vector, GlobalRef},
     func::CallEnv,
     error::{ErrorKind, Result, ResultExt},
 };
