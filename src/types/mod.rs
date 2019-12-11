@@ -36,9 +36,9 @@ pub trait IntoLisp<'e> {
     fn into_lisp(self, env: &'e Env) -> Result<Value<'e>>;
 }
 
-impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
+impl<'e> FromLisp<'e> for Value<'e> {
     #[inline(always)]
-    fn from_lisp(value: Value<'e>) -> Result<Value<'a>> {
+    fn from_lisp(value: Value<'e>) -> Result<Value<'_>> {
         Ok(value)
     }
 }

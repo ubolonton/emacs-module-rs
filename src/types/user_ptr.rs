@@ -56,7 +56,7 @@ pub trait Transfer: Sized + 'static {
     // reporting of type error (and to enable something like `rs-module/type-of`).
 }
 
-impl<'a, 'e: 'a, T: Transfer> FromLisp<'e> for &'a T {
+impl<'e, T: Transfer> FromLisp<'e> for &'e T {
     fn from_lisp(value: Value<'e>) -> Result<Self> {
         value.get_raw_pointer().map(|r| unsafe { &*r })
     }

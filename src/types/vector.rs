@@ -54,8 +54,8 @@ impl<'e> Vector<'e> {
     }
 }
 
-impl<'a, 'e: 'a> FromLisp<'e> for Vector<'a> {
-    fn from_lisp(value: Value<'e>) -> Result<Vector<'a>> {
+impl<'e> FromLisp<'e> for Vector<'e> {
+    fn from_lisp(value: Value<'e>) -> Result<Vector<'e>> {
         let vector = Vector(value);
         // TODO: Confirm that this is indeed cheaper than calling vectorp and signaling error.
         vector.size()?;
