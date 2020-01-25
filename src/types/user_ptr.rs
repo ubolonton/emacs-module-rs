@@ -6,6 +6,8 @@ use std::{
     sync::{Mutex, RwLock, Arc},
 };
 
+use emacs_module::emacs_finalizer_function;
+
 use super::*;
 use crate::ErrorKind;
 
@@ -74,7 +76,7 @@ impl<T: Transfer> IntoLisp<'_> for Box<T> {
         let raw = Box::into_raw(self);
         let ptr = raw as *mut os::raw::c_void;
         // Safety: self is forgotten by `into_raw`, so it's safe for the GC to take over.
-        unsafe_raw_call_value!(env, make_user_ptr, Some(finalize::<T>), ptr)
+        unsafe { env.make_user_ptr(Some(finalize::<T>), ptr) }
     }
 }
 
@@ -99,16 +101,55 @@ enable_transfers! {
     Arc;
 }
 
-type Finalizer = unsafe extern "C" fn(ptr: *mut os::raw::c_void);
+impl Env {
+    /// Creates and returns a `user-ptr` object that wraps the raw pointer `ptr`. When the object is
+    /// garbage-collected, `fin` will be called with `ptr` as the only argument. If `fin` is None,
+    /// no finalization will be done.
+    ///
+    /// In general, prefer the `user-ptr` supported provided by the [`defun`] attr macro. Use this
+    /// function only for special `user-ptr` types, such as newtypes wrapping opaque pointers.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must be valid until the finalizer is called. The finalizer itself must finalize
+    /// the pointer in a safe manner.
+    ///
+    /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+    #[allow(unused_unsafe)]
+    #[inline]
+    pub unsafe fn make_user_ptr(&self, fin: emacs_finalizer_function, ptr: *mut os::raw::c_void) -> Result<Value> {
+        unsafe_raw_call_value!(self, make_user_ptr, fin, ptr)
+    }
+}
 
 impl<'e> Value<'e> {
+    /// Returns the raw pointer wrapped in this `user-ptr` object.
+    ///
+    /// In general, prefer the `user-ptr` supported provided by the [`defun`] attr macro. Use this
+    /// function only for special `user-ptr` types, such as newtypes wrapping opaque pointers.
+    ///
+    /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+    #[inline]
+    pub fn get_user_ptr(self) -> Result<*mut os::raw::c_void> {
+        unsafe_raw_call!(self.env, get_user_ptr, self.raw)
+    }
+
+    /// Returns the finalizer function associated with this `user-ptr` object.
+    ///
+    /// In general, prefer the `user-ptr` supported provided by the [`defun`] attr macro. Use this
+    /// function only for special `user-ptr` types, such as newtypes wrapping opaque pointers.
+    ///
+    /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+    #[inline]
+    pub fn get_user_finalizer(self) -> Result<emacs_finalizer_function> {
+        unsafe_raw_call!(self.env, get_user_finalizer, self.raw)
+    }
+
     pub(crate) fn get_raw_pointer<T: Transfer>(self) -> Result<*mut T> {
-        let env = self.env;
-        let raw = self.raw;
-        match unsafe_raw_call!(env, get_user_finalizer, raw)? {
+        match self.get_user_finalizer()? {
             // TODO: Consider using dynamic dispatch for finalize, and core::any for type checking.
-            Some::<Finalizer>(fin) if fin == finalize::<T> => {
-                let ptr: *mut os::raw::c_void = unsafe_raw_call!(env, get_user_ptr, raw)?;
+            Some(fin) if fin == finalize::<T> => {
+                let ptr = self.get_user_ptr()?;
                 Ok(ptr as *mut T)
             }
             _ => {

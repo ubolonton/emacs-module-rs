@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added `Env::make_user_ptr`, `Value::get_user_ptr`, `Value::get_user_finalizer`.
 
 ## [0.12.0] - 2019-12-04
 - Added `Env::make_vector` and `Env::vector` functions.
