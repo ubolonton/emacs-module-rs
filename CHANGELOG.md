@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.12.1] - 2020-01-25
 - Added `Env::make_user_ptr`, `Value::get_user_ptr`, `Value::get_user_finalizer`.
 
 ## [0.12.0] - 2019-12-04
@@ -100,7 +102,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.0...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.1...HEAD
+[0.12.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.3...0.11.0
 [0.10.3]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.2...0.10.3
