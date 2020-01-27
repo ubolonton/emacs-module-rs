@@ -45,8 +45,8 @@ pool:
   vmImage: $(IMAGE_NAME)
 
 steps:
-- template: steps/install-rust.yml
-- template: steps/set-up-llvm.yml
+- template: steps/setup-rust.yml
+- template: steps/setup-llvm.yml
 - template: steps/-build.yml
-- template: steps/install-emacs.yml
+- template: steps/setup-emacs.yml
 - template: steps/-test.yml
