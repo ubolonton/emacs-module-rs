@@ -1,8 +1,13 @@
 # https://aka.ms/yaml
 
 trigger:
-- master
-- ci
+  branches:
+    include:
+    - master
+    - ci
+  paths:
+    exclude:
+    - guide/
 
 pr:
 - master
