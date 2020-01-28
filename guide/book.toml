@@ -7,3 +7,4 @@ src = "src"
 [output.html]
 google-analytics = "UA-138609797-1"
 additional-css = ["custom.css"]
+preferred-dark-theme = "coal"
