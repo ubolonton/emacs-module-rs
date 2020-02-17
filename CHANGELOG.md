@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added `Env::cons`.
 
 ## [0.12.1] - 2020-01-25
 - Added `Env::make_user_ptr`, `Value::get_user_ptr`, `Value::get_user_finalizer`.

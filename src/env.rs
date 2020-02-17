@@ -2,7 +2,7 @@ use std::{cell::RefCell, ffi::CString};
 
 use emacs_module::{emacs_runtime, emacs_env, emacs_value};
 
-use crate::{Value, Result};
+use crate::{Value, Result, IntoLisp};
 
 /// Main point of interaction with the Lisp runtime.
 #[derive(Debug)]
@@ -61,6 +61,10 @@ impl Env {
 
     pub fn message<T: AsRef<str>>(&self, text: T) -> Result<Value<'_>> {
         self.call("message", (text.as_ref(),))
+    }
+
+    pub fn cons<'e, A, B>(&'e self, car: A, cdr: B) -> Result<Value<'_>> where A: IntoLisp<'e>, B: IntoLisp<'e> {
+        self.call("cons", (car, cdr))
     }
 }
 
