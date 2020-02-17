@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.12.2] - 2020-02-17
 - Added `Env::cons`.
 
 ## [0.12.1] - 2020-01-25
@@ -103,7 +105,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.1...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.2...HEAD
+[0.12.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.10.3...0.11.0

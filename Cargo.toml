@@ -1,6 +1,6 @@
 [package]
 name = "emacs"
-version = "0.12.1"
+version = "0.12.2"
 edition = "2018"
 description = "Rust library for creating Emacs's dynamic modules"
 homepage = "https://github.com/ubolonton/emacs-module-rs"
