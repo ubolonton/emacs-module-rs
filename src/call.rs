@@ -85,10 +85,6 @@ impl Env {
     {
         func.into_lisp_callable(self)?.call(args)
     }
-
-    pub fn list<'e, A>(&'e self, args: A) -> Result<Value<'_>> where A: IntoLispArgs<'e> {
-        self.call("list", args)
-    }
 }
 
 // We can implement IntoLispArgs for IntoLisp types (after breaking up this implementation).
