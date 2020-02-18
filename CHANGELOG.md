@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.12.3] - 2020-02-18
 - Added `Value::car`, `Value::cdr`.
 
 ## [0.12.2] - 2020-02-17
@@ -106,7 +108,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.2...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.3...HEAD
+[0.12.3]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.2...0.12.3
 [0.12.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.11.0...0.12.0
