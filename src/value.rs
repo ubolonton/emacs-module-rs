@@ -100,4 +100,12 @@ impl<'e> Value<'e> {
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
         self.get_raw_pointer().map(|r| &mut *r)
     }
+
+    pub fn car<T: FromLisp<'e>>(self) -> Result<T> {
+        self.env.call("car", (self,))?.into_rust()
+    }
+
+    pub fn cdr<T: FromLisp<'e>>(self) -> Result<T> {
+        self.env.call("cdr", (self,))?.into_rust()
+    }
 }
