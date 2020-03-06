@@ -30,6 +30,9 @@ ctor = "0.1.12"
 emacs_module = { path = "emacs-module", version = "0.12.0" }
 emacs-macros = { path = "emacs-macros", version = "0.12.0" }
 
+[build-dependencies]
+rustc_version = "0.2.3"
+
 [features]
 utf-8-validation = []
 lossy-integer-conversion = []
