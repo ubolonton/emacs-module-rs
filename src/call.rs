@@ -121,6 +121,6 @@ impl<'e, T: AsRef<str>> IntoLispCallable<'e> for T {
 impl<'e> IntoLispCallable<'e> for &'e GlobalRef {
     #[inline(always)]
     fn into_lisp_callable(self, env: &'e Env) -> Result<Value<'e>> {
-        self.within(env).into_lisp_callable(env)
+        self.bind(env).into_lisp_callable(env)
     }
 }

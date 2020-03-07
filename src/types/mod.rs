@@ -1,6 +1,6 @@
-use crate::{Env, Value, Result};
+use crate::{symbol, Env, Value, Result};
 
-pub use {user_ptr::Transfer, vector::Vector, global::GlobalRef};
+pub use {user_ptr::Transfer, vector::Vector, global::{GlobalRef, OnceGlobalRef}};
 
 mod integer;
 mod float;
@@ -64,23 +64,23 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
     fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
         match self {
             Some(t) => t.into_lisp(env),
-            None => env.intern("nil"),
+            None => symbol::nil.into_lisp(env),
         }
     }
 }
 
 impl IntoLisp<'_> for () {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-        env.intern("nil")
+        symbol::nil.into_lisp(env)
     }
 }
 
 impl IntoLisp<'_> for bool {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         if self {
-            env.intern("t")
+            symbol::t.into_lisp(env)
         } else {
-            env.intern("nil")
+            symbol::nil.into_lisp(env)
         }
     }
 }

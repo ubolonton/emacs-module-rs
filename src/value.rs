@@ -23,7 +23,7 @@ impl<'e> Value<'e> {
     ///
     /// # Safety
     ///
-    /// The raw value must come from the given [`Env`].
+    /// The raw value must not live longer than the given [`Env`].
     ///
     /// [`Env`]: struct.Env.html
     #[doc(hidden)]

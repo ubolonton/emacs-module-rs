@@ -63,6 +63,7 @@ type InitFn = dyn Fn(&Env) -> Result<()> + Send + 'static;
 
 type FnMap = HashMap<String, Box<InitFn>>;
 
+// TODO: Use once_cell instead of lazy_static
 // TODO: How about defining these in user crate, and requiring #[module] to be at the crate's root?
 // TODO: We probably don't need the mutexes.
 lazy_static! {

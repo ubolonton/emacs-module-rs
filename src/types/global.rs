@@ -1,3 +1,7 @@
+use std::ops::Deref;
+
+use once_cell::sync::OnceCell;
+
 use emacs_module::emacs_value;
 
 use super::*;
@@ -51,7 +55,7 @@ impl GlobalRef {
     /// [`Env`]: struct.Env.html
     /// [`Value`]: struct.Value.html
     #[inline]
-    pub fn within<'e>(&'e self, env: &'e Env) -> Value<'e> {
+    pub fn bind<'e, 'g: 'e>(&'g self, env: &'e Env) -> Value<'e> {
         unsafe { Value::new(self.raw, env) }
     }
 
@@ -75,7 +79,7 @@ impl<'e> FromLisp<'e> for GlobalRef {
 impl<'e> IntoLisp<'e> for &'e GlobalRef {
     #[inline(always)]
     fn into_lisp(self, env: &'e Env) -> Result<Value<'e>> {
-        Ok(self.within(env))
+        Ok(self.bind(env))
     }
 }
 
@@ -86,5 +90,44 @@ impl<'e> Value<'e> {
     #[inline(always)]
     pub fn make_global_ref(self) -> GlobalRef {
         GlobalRef::new(self)
+    }
+}
+
+/// A [`GlobalRef`] that can be initialized once. This is useful for long-lived values that should
+/// be initialized when the module is loaded, such as frequently-used symbols.
+///
+/// [`GlobalRef`]: struct.GlobalRef.html
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct OnceGlobalRef {
+    inner: OnceCell<GlobalRef>
+}
+
+impl OnceGlobalRef {
+    pub(crate) const fn new() -> Self {
+        Self { inner: OnceCell::new() }
+    }
+
+    /// Initializes this global reference with the given function.
+    #[doc(hidden)]
+    pub fn init<F: FnOnce(&Env) -> Result<Value>>(&self, env: &Env, f: F) -> Result<()> {
+        let g = f(env)?.make_global_ref();
+        self.inner.set(g).expect("Cannot initialize a global reference more than once");
+        Ok(())
+    }
+
+    /// Points this global reference to an interned Lisp symbol with the given name.
+    #[doc(hidden)]
+    pub fn init_to_symbol(&self, env: &Env, name: &str) -> Result<()> {
+        self.init(env, |env| env.intern(name))
+    }
+}
+
+impl Deref for OnceGlobalRef {
+    type Target = GlobalRef;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.inner.get().expect("Cannot access an uninitialized global reference")
     }
 }
