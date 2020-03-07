@@ -1,7 +1,7 @@
 //! Machinery for defining and exporting functions to the Lisp runtime. It should be mainly used by
 //! the #[[`defun`]] macro, not module code.
 //!
-//! [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+//! [`defun`]: attr.defun.html
 
 use std::{
     os, panic,
@@ -17,7 +17,7 @@ use crate::{Env, Value, Result, FromLisp, IntoLisp};
 /// Exports Rust functions to the Lisp runtime. #[[`defun`]] is preferred over this low-level
 /// interface.
 ///
-/// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+/// [`defun`]: attr.defun.html
 #[deprecated(since = "0.11.0", note = "Please use `#[defun]` instead")]
 #[macro_export]
 macro_rules! export_functions {

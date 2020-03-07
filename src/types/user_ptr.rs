@@ -114,7 +114,7 @@ impl Env {
     /// The pointer must be valid until the finalizer is called. The finalizer itself must finalize
     /// the pointer in a safe manner.
     ///
-    /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+    /// [`defun`]: attr.defun.html
     #[allow(unused_unsafe)]
     #[inline]
     pub unsafe fn make_user_ptr(&self, fin: emacs_finalizer_function, ptr: *mut os::raw::c_void) -> Result<Value> {
@@ -128,7 +128,7 @@ impl<'e> Value<'e> {
     /// In general, prefer the `user-ptr` supported provided by the [`defun`] attr macro. Use this
     /// function only for special `user-ptr` types, such as newtypes wrapping opaque pointers.
     ///
-    /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+    /// [`defun`]: attr.defun.html
     #[inline]
     pub fn get_user_ptr(self) -> Result<*mut os::raw::c_void> {
         unsafe_raw_call!(self.env, get_user_ptr, self.raw)
@@ -139,7 +139,7 @@ impl<'e> Value<'e> {
     /// In general, prefer the `user-ptr` supported provided by the [`defun`] attr macro. Use this
     /// function only for special `user-ptr` types, such as newtypes wrapping opaque pointers.
     ///
-    /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+    /// [`defun`]: attr.defun.html
     #[inline]
     pub fn get_user_finalizer(self) -> Result<emacs_finalizer_function> {
         unsafe_raw_call!(self.env, get_user_finalizer, self.raw)

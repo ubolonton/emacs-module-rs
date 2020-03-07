@@ -25,7 +25,7 @@ use crate::call::IntoLispArgs;
 /// ```
 ///
 /// [`Value`]: struct.Value.html
-/// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+/// [`defun`]: attr.defun.html
 #[derive(Debug, Clone, Copy)]
 pub struct Vector<'e>(pub Value<'e>);
 

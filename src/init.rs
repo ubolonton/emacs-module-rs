@@ -1,6 +1,6 @@
 //! Initialization machinery. It should be mainly used by the #[[`module`]] macro, not module code.
 //!
-//! [`module`]: /emacs-macros/*/emacs_macros/attr.module.html
+//! [`module`]: attr.module.html
 
 use std::{
     os, panic,
@@ -18,7 +18,7 @@ use crate::{Env, Value, Result};
 /// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
 /// whose signature must be `fn(&Env) -> Result<Value>`.
 ///
-/// [`module`]: /emacs-macros/*/emacs_macros/attr.module.html
+/// [`module`]: attr.module.html
 #[deprecated(since = "0.11.0", note = "Please use `#[emacs::module]` instead")]
 #[macro_export]
 macro_rules! module_init {
@@ -73,13 +73,13 @@ lazy_static! {
     /// instead of [`module_init!`] macro.
     ///
     /// [`module_init!`]: macro.module_init.html
-    /// [`module`]: /emacs-macros/*/emacs_macros/attr.module.html
+    /// [`module`]: attr.module.html
     pub static ref __INIT_FNS__: Mutex<FnMap> = Mutex::new(HashMap::new());
 
     /// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
     /// attribute macro #[[`defun`]].
     ///
-    /// [`defun`]: /emacs-macros/*/emacs_macros/attr.defun.html
+    /// [`defun`]: attr.defun.html
     pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
 
     pub static ref __MOD_IN_NAME__: AtomicBool = AtomicBool::new(true);
