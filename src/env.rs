@@ -2,7 +2,7 @@ use std::{cell::RefCell, ffi::CString};
 
 use emacs_module::{emacs_runtime, emacs_env, emacs_value};
 
-use crate::{Value, Result, IntoLisp, call::IntoLispArgs};
+use crate::{subr, Value, Result, IntoLisp, call::IntoLispArgs};
 
 /// Main point of interaction with the Lisp runtime.
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl Env {
     }
 
     pub fn cons<'e, A, B>(&'e self, car: A, cdr: B) -> Result<Value<'_>> where A: IntoLisp<'e>, B: IntoLisp<'e> {
-        self.call("cons", (car, cdr))
+        self.call(subr::cons, (car, cdr))
     }
 
     pub fn list<'e, A>(&'e self, args: A) -> Result<Value<'_>> where A: IntoLispArgs<'e> {

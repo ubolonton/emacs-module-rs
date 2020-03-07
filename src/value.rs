@@ -2,7 +2,7 @@ use std::cell::{RefCell, Ref, RefMut};
 
 use emacs_module::emacs_value;
 
-use crate::{Env, Result, FromLisp, Transfer};
+use crate::{subr, Env, Result, FromLisp, Transfer};
 
 /// A type that represents Lisp values.
 /// Values of this type can be copied around, but are lifetime-bound to the [`Env`] they come from.
@@ -102,10 +102,10 @@ impl<'e> Value<'e> {
     }
 
     pub fn car<T: FromLisp<'e>>(self) -> Result<T> {
-        self.env.call("car", (self,))?.into_rust()
+        self.env.call(subr::car, (self,))?.into_rust()
     }
 
     pub fn cdr<T: FromLisp<'e>>(self) -> Result<T> {
-        self.env.call("cdr", (self,))?.into_rust()
+        self.env.call(subr::cdr, (self,))?.into_rust()
     }
 }

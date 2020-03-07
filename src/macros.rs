@@ -44,6 +44,16 @@ macro_rules! unsafe_raw_call_value {
     };
 }
 
+/// Declare global references. These should be initialized when the module is loaded.
+macro_rules! global_refs {
+    ($($name:ident)*) => {
+        $(pub static $name: &'static $crate::types::OnceGlobalRef = {
+            static x: $crate::types::OnceGlobalRef = $crate::types::OnceGlobalRef::new();
+            &x
+        };)*
+    }
+}
+
 /// Declares that this module is GPL-compatible. Emacs will not load it otherwise.
 #[macro_export]
 #[allow(non_snake_case)]

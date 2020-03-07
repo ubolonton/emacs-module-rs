@@ -121,6 +121,15 @@ impl OnceGlobalRef {
     pub fn init_to_symbol(&self, env: &Env, name: &str) -> Result<()> {
         self.init(env, |env| env.intern(name))
     }
+
+    /// Points this global reference to the function bound to the Lisp symbol with the given name.
+    #[doc(hidden)]
+    pub fn init_to_function(&self, env: &Env, name: &str) -> Result<()> {
+        self.init(env, |env| {
+            let symbol = env.intern(name)?;
+            env.call("indirect-function", [symbol])
+        })
+    }
 }
 
 impl Deref for OnceGlobalRef {
