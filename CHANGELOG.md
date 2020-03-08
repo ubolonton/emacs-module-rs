@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 - Added `GlobalRef`, which allows keeping Lisp values around without an `Env`.
 - Reduced indirection when calling common built-in subroutines through `Env`.
+- Removed `module_init!`, `export_functions!`,  and their aliases.
 - Replaced `lazy_static` dependency with `once_cell`.
 
 ## [0.12.3] - 2020-02-18
@@ -26,7 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.11.0] - 2019-08-05
 - Made `Env::call` a lot more flexible. Also added `Value::call`.
 - Added `rust-wrong-type-user-ptr` to `wrong-type-argument` classification.
-- Deprecated `emacs::module_init!` and `emacs::export_functions!`.
+- Deprecated `module_init!` and `export_functions!`.
 - Replaced`IntoLisp` implementation for `AsRef<str>` with separate implementations for `&str` and `&String`.
 
 ## [0.10.3] - 2019-07-24

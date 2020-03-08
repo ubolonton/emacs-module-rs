@@ -12,30 +12,6 @@ use once_cell::sync::Lazy;
 
 use crate::{Env, Value, Result};
 
-/// Registers a function as the initialization hook. #[[`module`]] is preferred over this low-level
-/// interface.
-///
-/// This declares `emacs_module_init` and `emacs_rs_module_init`, by wrapping the given function,
-/// whose signature must be `fn(&Env) -> Result<Value>`.
-///
-/// [`module`]: attr.module.html
-#[deprecated(since = "0.11.0", note = "Please use `#[emacs::module]` instead")]
-#[macro_export]
-macro_rules! module_init {
-    ($($inner:tt)*) => {
-        $crate::__module_init!($($inner)*);
-    };
-}
-
-#[deprecated(since = "0.7.0", note = "Please use `#[emacs::module]` instead")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! emacs_module_init {
-    ($($inner:tt)*) => {
-        $crate::__module_init!($($inner)*);
-    };
-}
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __module_init {
