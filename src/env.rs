@@ -59,7 +59,7 @@ impl Env {
     }
 
     pub fn list<'e, A>(&'e self, args: A) -> Result<Value<'_>> where A: IntoLispArgs<'e> {
-        self.call("list", args)
+        self.call(subr::list, args)
     }
 
     pub fn provide(&self, name: &str) -> Result<Value<'_>> {
@@ -68,7 +68,7 @@ impl Env {
     }
 
     pub fn message<T: AsRef<str>>(&self, text: T) -> Result<Value<'_>> {
-        self.call("message", (text.as_ref(),))
+        self.call(subr::message, (text.as_ref(),))
     }
 }
 
