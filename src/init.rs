@@ -8,6 +8,7 @@ use std::{
     sync::{Mutex, atomic::AtomicBool},
 };
 
+use once_cell::sync::Lazy;
 use lazy_static::lazy_static;
 
 use crate::{Env, Value, Result};
@@ -59,9 +60,9 @@ macro_rules! __module_init {
     };
 }
 
-type InitFn = dyn Fn(&Env) -> Result<()> + Send + 'static;
+type InitFn = Box<dyn Fn(&Env) -> Result<()> + Send + 'static>;
 
-type FnMap = HashMap<String, Box<InitFn>>;
+type FnMap = HashMap<String, InitFn>;
 
 // TODO: Use once_cell instead of lazy_static
 // TODO: How about defining these in user crate, and requiring #[module] to be at the crate's root?
@@ -85,6 +86,14 @@ lazy_static! {
 
     pub static ref __MOD_IN_NAME__: AtomicBool = AtomicBool::new(true);
 }
+
+/// Functions to be called first, when the dynamic library is loaded by the OS, before Emacs calls
+/// `emacs_module_init`. These are only called if the attribute macro #[[`module`]] is used, instead
+/// of the [`module_init!`] macro.
+///
+/// [`module_init!`]: macro.module_init.html
+/// [`module`]: attr.module.html
+pub static __PRE_INIT__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
 
 #[inline]
 pub fn initialize<F>(env: &Env, f: F) -> os::raw::c_int
