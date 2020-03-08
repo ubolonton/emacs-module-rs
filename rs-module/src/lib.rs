@@ -3,6 +3,8 @@ use std::{
     sync::Mutex,
 };
 
+use lazy_static::lazy_static;
+
 use emacs::{defun, Env, Value, Result};
 use emacs::raw::emacs_env;
 
@@ -10,7 +12,7 @@ use libloading::{Library, Symbol};
 
 emacs::plugin_is_GPL_compatible!();
 
-emacs::deps::lazy_static::lazy_static! {
+lazy_static! {
     static ref LIBRARIES: Mutex<HashMap<String, Library>> = Mutex::new(HashMap::new());
 }
 

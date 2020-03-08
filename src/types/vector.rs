@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use super::*;
-use crate::call::IntoLispArgs;
+use crate::{subr, call::IntoLispArgs};
 
 /// A type that represents Lisp vectors. This is a newtype wrapper around [`Value`] that provides
 /// vector-specific methods.
@@ -54,8 +54,8 @@ impl<'e> Vector<'e> {
     }
 }
 
-impl<'a, 'e: 'a> FromLisp<'e> for Vector<'a> {
-    fn from_lisp(value: Value<'e>) -> Result<Vector<'a>> {
+impl<'e> FromLisp<'e> for Vector<'e> {
+    fn from_lisp(value: Value<'e>) -> Result<Vector<'e>> {
         let vector = Vector(value);
         // TODO: Confirm that this is indeed cheaper than calling vectorp and signaling error.
         vector.size()?;
@@ -72,10 +72,10 @@ impl<'e> IntoLisp<'e> for Vector<'e> {
 
 impl Env {
     pub fn make_vector<'e, T: IntoLisp<'e>>(&'e self, length: usize, init: T) -> Result<Vector> {
-        self.call("make-vector", (length, init)).map(Vector)
+        self.call(subr::make_vector, (length, init)).map(Vector)
     }
 
     pub fn vector<'e, A: IntoLispArgs<'e>>(&'e self, args: A) -> Result<Vector> {
-        self.call("vector", args).map(Vector)
+        self.call(subr::vector, args).map(Vector)
     }
 }

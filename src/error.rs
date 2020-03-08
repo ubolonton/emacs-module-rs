@@ -205,12 +205,12 @@ impl Env {
     }
 
     fn define_error(&self, name: &str, message: &str, parents: &[&str]) -> Result<Value<'_>> {
-        let mut parent_symbols = vec![];
-        for symbol in parents.iter().map(|p| self.intern(p)) {
-            parent_symbols.push(symbol?)
-        }
-        let parents = self.list(&parent_symbols)?;
-        self.call("define-error", (self.intern(name)?, message, parents))
+        // We can't use self.list here, because subr::list is not yet initialized.
+        let parent_symbols = self.call(
+            "list",
+            &parents.iter().map(|p| self.intern(p)).collect::<Result<Vec<Value>>>()?,
+        )?;
+        self.call("define-error", (self.intern(name)?, message, parent_symbols))
     }
 
     fn non_local_exit_get(

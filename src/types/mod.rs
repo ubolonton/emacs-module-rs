@@ -1,12 +1,14 @@
-use crate::{Env, Value, Result};
+use crate::{symbol, Env, Value, Result};
 
-pub use {user_ptr::Transfer, vector::Vector};
+pub use {user_ptr::Transfer, vector::Vector, global::{GlobalRef, OnceGlobalRef}};
 
 mod integer;
 mod float;
 mod string;
+
 mod user_ptr;
 mod vector;
+mod global;
 
 // XXX: More accurate would be `CloneFromLisp` or `Decode`, but ...
 /// Converting Lisp [`Value`] into a Rust type.
@@ -34,9 +36,9 @@ pub trait IntoLisp<'e> {
     fn into_lisp(self, env: &'e Env) -> Result<Value<'e>>;
 }
 
-impl<'a, 'e: 'a> FromLisp<'e> for Value<'a> {
+impl<'e> FromLisp<'e> for Value<'e> {
     #[inline(always)]
-    fn from_lisp(value: Value<'e>) -> Result<Value<'a>> {
+    fn from_lisp(value: Value<'e>) -> Result<Value<'_>> {
         Ok(value)
     }
 }
@@ -62,23 +64,23 @@ impl<'e, T: IntoLisp<'e>> IntoLisp<'e> for Option<T> {
     fn into_lisp(self, env: &'e Env) -> Result<Value<'_>> {
         match self {
             Some(t) => t.into_lisp(env),
-            None => env.intern("nil"),
+            None => symbol::nil.into_lisp(env),
         }
     }
 }
 
 impl IntoLisp<'_> for () {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-        env.intern("nil")
+        symbol::nil.into_lisp(env)
     }
 }
 
 impl IntoLisp<'_> for bool {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
         if self {
-            env.intern("t")
+            symbol::t.into_lisp(env)
         } else {
-            env.intern("nil")
+            symbol::nil.into_lisp(env)
         }
     }
 }

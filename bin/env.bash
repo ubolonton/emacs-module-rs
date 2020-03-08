@@ -17,7 +17,7 @@ export PROJECT_ROOT
 
 export EXT
 export TARGET=${TARGET:-debug}
-export MODULE_DIR="$PROJECT_ROOT/target/debug"
+export MODULE_DIR="$PROJECT_ROOT/target/$TARGET"
 export MODULE_ORIGINAL=${MODULE_ORIGINAL:-libtest_module.$EXT}
 export MODULE_NAME=${MODULE_NAME:-t}
 export MODULE_RENAMED=${MODULE_NAME}.so

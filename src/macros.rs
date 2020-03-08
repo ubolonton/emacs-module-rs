@@ -44,6 +44,40 @@ macro_rules! unsafe_raw_call_value {
     };
 }
 
+/// Declare global references. These should be initialized when the module is loaded.
+macro_rules! global_refs {
+    ($($name:ident)*) => {
+        $(pub static $name: &'static $crate::types::OnceGlobalRef = {
+            static x: $crate::types::OnceGlobalRef = $crate::types::OnceGlobalRef::new();
+            &x
+        };)*
+    };
+    ($registrator_name:ident ($init_method:ident) =>
+        $(
+            $name:ident $( => $lisp_name:literal )?
+        )*
+    ) => {
+        global_refs! {
+            $($name)*
+        }
+
+        #[$crate::deps::ctor::ctor]
+        fn $registrator_name() {
+            $crate::init::__PRE_INIT__.try_lock()
+                .expect("Failed to acquire a write lock on the list of initializers")
+                .push(Box::new(|env| {
+                    $(
+                        #[allow(unused_variables)]
+                        let name = stringify!($name);
+                        $( let name = $lisp_name; )?
+                        $crate::types::OnceGlobalRef::$init_method(&$name, env, name)?;
+                    )*
+                    Ok(())
+                }));
+        }
+    };
+}
+
 /// Declares that this module is GPL-compatible. Emacs will not load it otherwise.
 #[macro_export]
 #[allow(non_snake_case)]

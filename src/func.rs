@@ -14,27 +14,6 @@ use emacs_module::{emacs_value, EmacsSubr};
 
 use crate::{Env, Value, Result, FromLisp, IntoLisp};
 
-/// Exports Rust functions to the Lisp runtime. #[[`defun`]] is preferred over this low-level
-/// interface.
-///
-/// [`defun`]: attr.defun.html
-#[deprecated(since = "0.11.0", note = "Please use `#[defun]` instead")]
-#[macro_export]
-macro_rules! export_functions {
-    ($($inner:tt)*) => {
-        $crate::__export_functions!($($inner)*)
-    };
-}
-
-#[deprecated(since = "0.7.0", note = "Please use `#[defun]` instead")]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! emacs_export_functions {
-    ($($inner:tt)*) => {
-        $crate::__export_functions!($($inner)*)
-    };
-}
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __export_functions {
