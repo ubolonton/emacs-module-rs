@@ -68,5 +68,4 @@ pub mod raw {
 #[doc(hidden)]
 pub mod deps {
     pub use ctor;
-    pub use lazy_static;
 }

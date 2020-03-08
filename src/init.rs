@@ -9,7 +9,6 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
-use lazy_static::lazy_static;
 
 use crate::{Env, Value, Result};
 
@@ -64,28 +63,9 @@ type InitFn = Box<dyn Fn(&Env) -> Result<()> + Send + 'static>;
 
 type FnMap = HashMap<String, InitFn>;
 
-// TODO: Use once_cell instead of lazy_static
+// NOTE: Keep the lazy statics' names in-sync with those declared in emacs_macros::util.
 // TODO: How about defining these in user crate, and requiring #[module] to be at the crate's root?
 // TODO: We probably don't need the mutexes.
-lazy_static! {
-    // Keep these names in-sync with those declared in emacs_macros::util.
-
-    /// Functions to be called when the dynamic module is loaded by the OS, before Emacs calls
-    /// `emacs_module_init`. These are only called if #[[`module`]] attribute macro is used,
-    /// instead of [`module_init!`] macro.
-    ///
-    /// [`module_init!`]: macro.module_init.html
-    /// [`module`]: attr.module.html
-    pub static ref __INIT_FNS__: Mutex<FnMap> = Mutex::new(HashMap::new());
-
-    /// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
-    /// attribute macro #[[`defun`]].
-    ///
-    /// [`defun`]: attr.defun.html
-    pub static ref __PREFIX__: Mutex<[String; 2]> = Mutex::new(["".to_owned(), "-".to_owned()]);
-
-    pub static ref __MOD_IN_NAME__: AtomicBool = AtomicBool::new(true);
-}
 
 /// Functions to be called first, when the dynamic library is loaded by the OS, before Emacs calls
 /// `emacs_module_init`. These are only called if the attribute macro #[[`module`]] is used, instead
@@ -94,6 +74,23 @@ lazy_static! {
 /// [`module_init!`]: macro.module_init.html
 /// [`module`]: attr.module.html
 pub static __PRE_INIT__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
+
+// Re-explain this. These functions are for exposing #[defun] functions.
+/// Functions to be called when the dynamic module is loaded by the OS, before Emacs calls
+/// `emacs_module_init`. These are only called if #[[`module`]] attribute macro is used,
+/// instead of [`module_init!`] macro.
+///
+/// [`module_init!`]: macro.module_init.html
+/// [`module`]: attr.module.html
+pub static __INIT_FNS__: Lazy<Mutex<FnMap>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
+/// attribute macro #[[`defun`]].
+///
+/// [`defun`]: attr.defun.html
+pub static __PREFIX__: Lazy<Mutex<[String; 2]>> = Lazy::new(|| Mutex::new(["".to_owned(), "-".to_owned()]));
+
+pub static __MOD_IN_NAME__: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(true));
 
 #[inline]
 pub fn initialize<F>(env: &Env, f: F) -> os::raw::c_int
