@@ -47,8 +47,8 @@ macro_rules! unsafe_raw_call_value {
 /// Declare global references. These should be initialized when the module is loaded.
 macro_rules! global_refs {
     ($($name:ident)*) => {
-        $(pub static $name: &'static $crate::types::OnceGlobalRef = {
-            static x: $crate::types::OnceGlobalRef = $crate::types::OnceGlobalRef::new();
+        $(pub static $name: &'static $crate::global::OnceGlobalRef = {
+            static x: $crate::global::OnceGlobalRef = $crate::global::OnceGlobalRef::new();
             &x
         };)*
     };
@@ -70,7 +70,7 @@ macro_rules! global_refs {
                         #[allow(unused_variables)]
                         let name = stringify!($name);
                         $( let name = $lisp_name; )?
-                        $crate::types::OnceGlobalRef::$init_method(&$name, env, name)?;
+                        $crate::global::OnceGlobalRef::$init_method(&$name, env, name)?;
                     )*
                     Ok(())
                 }));

@@ -1,6 +1,6 @@
 use crate::{symbol, Env, Value, Result};
 
-pub use {user_ptr::Transfer, vector::Vector, global::{GlobalRef, OnceGlobalRef}};
+pub use {user_ptr::Transfer, vector::Vector};
 
 mod integer;
 mod float;
@@ -8,7 +8,6 @@ mod string;
 
 mod user_ptr;
 mod vector;
-mod global;
 
 // XXX: More accurate would be `CloneFromLisp` or `Decode`, but ...
 /// Converting Lisp [`Value`] into a Rust type.

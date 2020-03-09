@@ -3,7 +3,7 @@ use std::borrow::BorrowMut;
 use emacs_module::emacs_value;
 use emacs_macros;
 
-use crate::{Env, Value, Result, IntoLisp, GlobalRef, types::OnceGlobalRef};
+use crate::{Env, Value, Result, IntoLisp, global::{GlobalRef, OnceGlobalRef}};
 
 // TODO: Seal this trait, for safety reasons.
 pub unsafe trait IntoLispArgs<'e> {
