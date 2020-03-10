@@ -315,6 +315,8 @@
 (ert-deftest global-ref::free-after-normal-return ()
   (unless t/support-module-assertions-p
     (ert-skip "--module-assertions is not supported"))
+  (when (eq system-type 'windows-nt)
+    (ert-skip "We don't know how to correctly handle failed PowerShell subprocess"))
   (should (string-match-p
            "Emacs value not found in"
            (cadr (t/get-error (t/run-in-sub-process 't/free-global-ref-after-normal-return))))))
@@ -322,6 +324,8 @@
 (ert-deftest global-ref::free-after-error ()
   (unless t/support-module-assertions-p
     (ert-skip "--module-assertions is not supported"))
+  (when (eq system-type 'windows-nt)
+    (ert-skip "We don't know how to correctly handle failed PowerShell subprocess"))
   (should (string-match-p
            "Emacs value not found in"
            (cadr (t/get-error (t/run-in-sub-process 't/free-global-ref-after-error))))))
