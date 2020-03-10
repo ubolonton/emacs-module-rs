@@ -12,9 +12,9 @@ use emacs_module::*;
 
 // We use const instead of enum, in case Emacs add more exit statuses in the future.
 // See https://github.com/rust-lang/rust/issues/36927
-const RETURN: emacs_funcall_exit = emacs_funcall_exit_return;
-const SIGNAL: emacs_funcall_exit = emacs_funcall_exit_signal;
-const THROW: emacs_funcall_exit = emacs_funcall_exit_throw;
+pub(crate) const RETURN: emacs_funcall_exit = emacs_funcall_exit_return;
+pub(crate) const SIGNAL: emacs_funcall_exit = emacs_funcall_exit_signal;
+pub(crate) const THROW: emacs_funcall_exit = emacs_funcall_exit_throw;
 
 #[derive(Debug)]
 pub struct TempValue {
@@ -213,7 +213,7 @@ impl Env {
         self.call("define-error", (self.intern(name)?, message, parent_symbols))
     }
 
-    fn non_local_exit_get(
+    pub(crate) fn non_local_exit_get(
         &self,
         symbol: &mut MaybeUninit<emacs_value>,
         data: &mut MaybeUninit<emacs_value>,
@@ -222,7 +222,7 @@ impl Env {
         unsafe_raw_call_no_exit!(self, non_local_exit_get, symbol.as_mut_ptr(), data.as_mut_ptr())
     }
 
-    fn non_local_exit_clear(&self) {
+    pub(crate) fn non_local_exit_clear(&self) {
         unsafe_raw_call_no_exit!(self, non_local_exit_clear)
     }
 
@@ -230,7 +230,7 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
@@ -239,7 +239,7 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }

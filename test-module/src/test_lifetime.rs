@@ -100,3 +100,23 @@ fn gc_after_catching_1<'e>(env: &'e Env, f: Value<'e>) -> Result<Value<'e>> {
         }
     }, print)
 }
+
+/// Attempt to "double-free" a global reference protecting a temporary value.
+///
+/// This function tries to call FUNC before returning.
+///
+/// With a correct implementation of Drop for Env, this function should crash Emacs
+/// when it is run with the '--module-assertions' flag, regardless of whether FUNC
+/// triggered a non-local exit.
+#[defun(mod_in_name = false)]
+fn trigger_double_free_global_ref<'e>(env: &'e Env, func: Value<'e>) -> Result<()> {
+    eprintln!("0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    let _ = env.list((1, 2))?;
+    eprintln!("1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    unsafe { env.free_last_protected()?; }
+    gc(env)?;
+    eprintln!("2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    env.call("funcall", [func])?;
+    eprintln!("3 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    Ok(())
+}

@@ -4,6 +4,9 @@
 (require 'rs-module)
 (require 't)
 
+;;; ----------------------------------------------------------------------------
+;;; Test helpers.
+
 (defmacro t/get-error (&rest body)
   (declare (indent 0))
   `(condition-case err
@@ -14,6 +17,38 @@
   (let* ((docstring (documentation sym))
          (s (help-split-fundoc docstring sym)))
     (car s)))
+
+(defun t/run-in-sub-process (f-symbol)
+  (let* ((default-directory (getenv "PROJECT_ROOT"))
+         (name (symbol-name f-symbol))
+         (error-file (make-temp-file "destructive-fn"))
+         (exit-code
+          (pcase system-type
+            ((or 'darwin 'gnu/linux)
+             (call-process
+              "bash"
+              ;; If VERBOSE, redirect subprocess's stdout to stderr
+              nil (list (if (getenv "VERBOSE")
+                            '(:file "/dev/stderr")
+                          t)
+                        error-file)
+              nil "./bin/fn" name))
+            ('windows-nt
+             (call-process
+              "powershell"
+              ;; If VERBOSE, redirect subprocess's stdout to stderr
+              nil (list t error-file)
+              nil ".\\bin\\fn.ps1" name))))
+         (error-string
+          (with-temp-buffer
+            (insert-file-contents error-file)
+            (string-trim-right
+             (buffer-substring-no-properties (point-min) (point-max))))))
+    (unless (= exit-code 0)
+      (error "Exit code: %s. Error: %s" exit-code error-string))))
+
+;;; ----------------------------------------------------------------------------
+;;; Type conversion.
 
 (ert-deftest conversion::integers ()
   (should (= (t/inc 3) 4))
@@ -78,6 +113,9 @@
     (should (equal v ["0" "1" "2" "3"]))
     (should-error (t/stringify-num-vector v) :type 'wrong-type-argument)))
 
+;;; ----------------------------------------------------------------------------
+;;; Non-local exits.
+
 (ert-deftest error::propagating-signal ()
   ;; Through Result.
   (should-error (t/error:lisp-divide 1 0) :type 'arith-error)
@@ -116,6 +154,9 @@
   (should-error (t/error:parse-arg 5 "1") :type 'rust-panic)
   (should (equal (t/get-error (t/error:apply #'t/error:panic '("abc")))
                  '(rust-panic "abc"))))
+
+;;; ----------------------------------------------------------------------------
+;;; Functions.
 
 (ert-deftest calling::through-env ()
   (should (equal '(0 1 2) (t/call-list 3))))
@@ -162,6 +203,9 @@
                  "(t/to-lowercase-or-nil INPUT)"))
   (should (equal (t/sig 't/error:catch)
                  "(t/error:catch EXPECTED-TAG LAMBDA)")))
+
+;;; ----------------------------------------------------------------------------
+;;; user-ptr.
 
 (ert-deftest transfer::vector ()
 
@@ -230,46 +274,44 @@
     (should (equal (t/hash-map-set m "a" "2") "1"))
     (should (equal (t/hash-map-get m "a") "2"))))
 
+;;; ----------------------------------------------------------------------------
+;;; Memory safety tests.
+
 ;;; Tests that, if failed, crash the whole process unrecoverably. They will be run under a
 ;;; sub-process Emacs.
 (defmacro destructive-test (name &optional prefix)
   `(ert-deftest ,(intern (if prefix
                              (format "%s::%s" prefix name)
                            (format "%s" name))) ()
-     (let* ((default-directory (getenv "PROJECT_ROOT"))
-            (name ,(format "t/%s" name))
-            (error-file (make-temp-file "destructive-fn"))
-            (exit-code
-             (pcase system-type
-               ((or 'darwin 'gnu/linux)
-                (call-process
-                 "bash"
-                 ;; If VERBOSE, redirect subprocess's stdout to stderr
-                 nil (list (if (getenv "VERBOSE")
-                               '(:file "/dev/stderr")
-                             t)
-                           error-file)
-                 nil "./bin/fn" name))
-               ('windows-nt
-                (call-process
-                 "powershell"
-                 ;; If VERBOSE, redirect subprocess's stdout to stderr
-                 nil (list t error-file)
-                 nil ".\\bin\\fn.ps1" name))))
-            (error-string
-             (with-temp-buffer
-               (insert-file-contents error-file)
-               (string-trim-right
-                (buffer-substring-no-properties (point-min) (point-max))))))
-       (unless (= exit-code 0)
-         (error "Exit code: %s. Error: %s" exit-code error-string)))))
-
-(destructive-test gc-after-new-string lifetime)
-(destructive-test gc-after-uninterning lifetime)
-(destructive-test gc-after-retrieving lifetime)
+     (t/run-in-sub-process (intern ,(format "t/%s" name)))))
 
 ;;; TODO: The way this test is called is a bit convoluted.
 (defun t/gc-after-catching ()
   (t/gc-after-catching-1
    (lambda () (error "abc"))))
+
+(destructive-test gc-after-new-string lifetime)
+(destructive-test gc-after-uninterning lifetime)
+(destructive-test gc-after-retrieving lifetime)
 (destructive-test gc-after-catching lifetime)
+
+;;; ----------------------------------------------------------------------------
+;;; Memory leak tests.
+
+(defun t/free-global-ref-after-normal-return ()
+  (t/trigger-double-free-global-ref
+   (lambda ())))
+
+(defun t/free-global-ref-after-error ()
+  (t/trigger-double-free-global-ref
+   (lambda () (error "This should not show up because Emacs should crash when run with --module-assertions"))))
+
+(ert-deftest global-ref::free-after-normal-return ()
+  (should (string-match-p
+           "Emacs value not found in"
+           (cadr (t/get-error (t/run-in-sub-process 't/free-global-ref-after-normal-return))))))
+
+(ert-deftest global-ref::free-after-error ()
+  (should (string-match-p
+           "Emacs value not found in"
+           (cadr (t/get-error (t/run-in-sub-process 't/free-global-ref-after-error))))))

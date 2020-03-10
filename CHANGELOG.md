@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Reduced indirection when calling common built-in subroutines through `Env`.
 - Removed `module_init!`, `export_functions!`,  and their aliases.
 - Replaced `lazy_static` dependency with `once_cell`.
+- Fixed memory leaks caused by the memory safety [fix](https://github.com/ubolonton/emacs-module-rs/pull/3) for [#2](https://github.com/ubolonton/emacs-module-rs/issues/2).
 
 ## [0.12.3] - 2020-02-18
 - Added `Value::car`, `Value::cdr`.
@@ -74,7 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Upgraded to Rust 2018 edition.
 
 ## [0.5.2] - 2018-09-15
-- New values obtained from `Env` are now GC-protected. This fixes memory issue #2.
+- New values obtained from `Env` are now GC-protected. This fixes memory issue [#2](https://github.com/ubolonton/emacs-module-rs/issues/2).
 
 ## [0.5.1] - 2018-03-03
 - Added `FromLisp` implementation for `Option`.

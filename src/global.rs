@@ -28,6 +28,7 @@ use super::*;
 /// [`free`]: #method.free
 /// [`drop`]: https://doc.rust-lang.org/std/mem/fn.drop.html
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct GlobalRef {
     raw: emacs_value
 }
@@ -40,12 +41,18 @@ impl GlobalRef {
         let env = value.env;
         // TODO: Check whether this really is `no_exit`.
         let raw = unsafe_raw_call_no_exit!(env, make_global_ref, value.raw);
-        // TODO: Check whether raw == self.raw
+        // NOTE: raw != value.raw
+        Self { raw }
+    }
+
+    // For testing.
+    pub(crate) unsafe fn from_raw(raw: emacs_value) -> Self {
         Self { raw }
     }
 
     /// Frees this global reference.
     pub fn free(self, env: &Env) -> Result<()> {
+        // Safety: We assume user code doesn't directly call C function `free_global_ref`.
         unsafe_raw_call!(env, free_global_ref, self.raw)?;
         Ok(())
     }
