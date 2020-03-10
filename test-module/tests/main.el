@@ -7,6 +7,8 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Test helpers.
 
+(defvar t/support-module-assertions-p (> emacs-major-version 25))
+
 (defmacro t/get-error (&rest body)
   (declare (indent 0))
   `(condition-case err
@@ -32,13 +34,17 @@
                             '(:file "/dev/stderr")
                           t)
                         error-file)
-              nil "./bin/fn" name))
+              nil (if t/support-module-assertions-p
+                      "./bin/fn-module-assertions"
+                    "./bin/fn") name))
             ('windows-nt
              (call-process
               "powershell"
               ;; If VERBOSE, redirect subprocess's stdout to stderr
               nil (list t error-file)
-              nil ".\\bin\\fn.ps1" name))))
+              nil (if t/support-module-assertions-p
+                      ".\\bin\\fn-module-assertions.ps1"
+                    ".\\bin\\fn.ps1") name))))
          (error-string
           (with-temp-buffer
             (insert-file-contents error-file)
@@ -307,11 +313,15 @@
    (lambda () (error "This should not show up because Emacs should crash when run with --module-assertions"))))
 
 (ert-deftest global-ref::free-after-normal-return ()
+  (unless t/support-module-assertions-p
+    (ert-skip "--module-assertions is not supported"))
   (should (string-match-p
            "Emacs value not found in"
            (cadr (t/get-error (t/run-in-sub-process 't/free-global-ref-after-normal-return))))))
 
 (ert-deftest global-ref::free-after-error ()
+  (unless t/support-module-assertions-p
+    (ert-skip "--module-assertions is not supported"))
   (should (string-match-p
            "Emacs value not found in"
            (cadr (t/get-error (t/run-in-sub-process 't/free-global-ref-after-error))))))

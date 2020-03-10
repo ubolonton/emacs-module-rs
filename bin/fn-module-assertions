@@ -8,4 +8,5 @@ source "$here/env.bash"
 FN=$1
 
 $EMACS --batch --directory "$MODULE_DIR" \
+       --module-assertions \
        -l "$PROJECT_ROOT/test-module/tests/main.el" -f "$FN"
