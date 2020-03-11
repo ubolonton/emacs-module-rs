@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.13.0] - 2020-03-11
 - Added `GlobalRef`, which allows keeping Lisp values around without an `Env`.
 - Reduced indirection when calling common built-in subroutines through `Env`.
 - Removed `module_init!`, `export_functions!`,  and their aliases.
@@ -113,7 +115,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.3...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.13.0...HEAD
+[0.13.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.3...0.13.0
 [0.12.3]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.2...0.12.3
 [0.12.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.0...0.12.1
