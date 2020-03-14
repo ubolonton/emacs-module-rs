@@ -42,7 +42,7 @@ fn init(env: &Env) -> Result<()> {
 }
 ```
 
-```emacs-lisp
+```lisp
 (let ((m (rs-hash-map/make)))
   (rs-hash-map/get m "a")     ; -> nil
 

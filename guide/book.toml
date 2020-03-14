@@ -7,4 +7,5 @@ src = "src"
 [output.html]
 google-analytics = "UA-138609797-1"
 additional-css = ["custom.css"]
+additional-js = ["hljs-load-langs.js"]
 preferred-dark-theme = "coal"

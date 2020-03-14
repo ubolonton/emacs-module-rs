@@ -55,7 +55,7 @@ ln -s libgreeting.dylib greeting.so
 ```
 
 Add `target/debug` to your Emacs's `load-path`, then load the module:
-```emacs-lisp
+```lisp
 (add-to-list 'load-path "/path/to/target/debug")
 (require 'greeting)
 (greeting-say-hello "Emacs")

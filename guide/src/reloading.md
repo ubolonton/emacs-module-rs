@@ -4,13 +4,13 @@ Live code reloading is very useful during development. However, Emacs does not s
 
 To use it, load it in Emacs:
 
-```emacs-lisp
+```lisp
 (require 'rs-module)
 ```
 
 Then use it to load other modules instead of `require` or `module-load`:
 
-```emacs-lisp
+```lisp
 ;; Will unload the old version of the module first.
 (rs-module/load "full/path/to/module.so")
 ```
