@@ -43,8 +43,7 @@ fn value<'e>(function: Value<'e>, arg: Value) -> Result<Value<'e>> {
 
 #[defun]
 fn mapc_vec(function: Value, vector: emacs::Vector) -> Result<()> {
-    for i in 0..vector.size()? as usize {
-        let elem: Value = vector.get(i)?;
+    for (i, elem) in vector.into_iter().enumerate() {
         function.call((i, elem))?;
     }
     Ok(())
