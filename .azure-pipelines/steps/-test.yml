@@ -1,10 +1,13 @@
 steps:
 - powershell: |
+    cargo test --all
     .\bin\test.ps1
   displayName: Run tests (Windows)
   condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
 
 - bash: |
+    set -e
+    cargo test --all
     ./bin/test
   displayName: Run tests
   condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))

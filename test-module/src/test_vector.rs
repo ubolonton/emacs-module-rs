@@ -3,8 +3,8 @@
 use emacs::{defun, Result, Value, Vector};
 
 #[defun(mod_in_name = false)]
-fn vec_size(v: Vector) -> Result<i64> {
-    v.size().map(|s| s as i64)
+fn vec_size(v: Vector) -> Result<usize> {
+    Ok(v.len())
 }
 
 #[defun(mod_in_name = false)]
@@ -24,7 +24,7 @@ fn identity_if_vector(v: Vector) -> Result<Vector> {
 
 #[defun(mod_in_name = false)]
 fn stringify_num_vector(v: Vector) -> Result<Vector> {
-    for i in 0..v.size()? {
+    for i in 0..v.len() {
         let x: i64 = v.get(i)?;
         v.set(i, format!("{}", x))?;
     }

@@ -34,8 +34,8 @@ Each parameter must be one of the following:
     #[defun(user_ptr)]
     fn to_rust_vec_string(input: Vector) -> Result<Vec<String>> {
         let mut vec = vec![];
-        for i in 0..input.size()? {
-            vec.push(input.get(i)?.into_rust()?);
+        for e in input {
+            vec.push(e.into_rust()?);
         }
         Ok(vec)
     }

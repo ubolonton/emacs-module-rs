@@ -50,8 +50,8 @@ env.call("add-hook", [
 #[defun]
 fn listify_vec(vector: Vector) -> Result<Value> {
     let mut args = vec![];
-    for i in 0..vector.size()? {
-        args.push(vector.get(i)?)
+    for e in vector {
+        args.push(e)
     }
     vector.0.env.call("list", &args)
 }

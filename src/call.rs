@@ -25,8 +25,7 @@ impl<'e> Value<'e> {
     /// # use emacs::{defun, Value, Result, Vector};
     /// #[defun]
     /// fn mapc_enumerate_vec(function: Value, vector: Vector) -> Result<()> {
-    ///     for nth in 0..vector.size()? {
-    ///         let elem: Value = vector.get(nth)?;
+    ///     for (nth, elem) in vector.into_iter().enumerate() {
     ///         function.call((nth, elem))?;
     ///     }
     ///     Ok(())
@@ -65,10 +64,10 @@ impl Env {
     /// # use emacs::{defun, Value, Result, Vector};
     /// #[defun]
     /// fn listify_vec(vector: Vector) -> Result<Value> {
-    ///     let env = vector.0.env;
+    ///     let env = vector.value().env;
     ///     let mut args = vec![];
-    ///     for i in 0..vector.size()? {
-    ///         args.push(vector.get(i)?)
+    ///     for elem in vector {
+    ///         args.push(elem)
     ///     }
     ///     env.call("list", &args)
     /// }
