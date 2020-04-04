@@ -133,7 +133,7 @@ impl Env {
         Ok(Vector::from_value_unchecked(value, length))
     }
 
-    pub fn vector<'e, A: IntoLispArgs<'e>>(&'e self, args: A) -> Result<Vector> {
-        self.call(subr::vector, args).and_then(|v| v.into_rust())
+    pub fn vector<'e, A: IntoLispArgs<'e>>(&'e self, args: A) -> Result<Value> {
+        self.call(subr::vector, args)
     }
 }
