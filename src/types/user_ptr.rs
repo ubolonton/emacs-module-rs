@@ -4,6 +4,7 @@ use std::{
     cell::RefCell,
     rc::Rc,
     sync::{Mutex, RwLock, Arc},
+    mem::drop,
 };
 
 use emacs_module::emacs_finalizer_function;
@@ -68,7 +69,7 @@ impl<'e, T: Transfer> FromLisp<'e> for &'e T {
 unsafe extern "C" fn finalize<T: Transfer>(ptr: *mut os::raw::c_void) {
     #[cfg(build = "debug")]
     println!("Finalizing {:#?} {}", ptr, T::type_name());
-    Box::from_raw(ptr as *mut T);
+    drop(Box::from_raw(ptr as *mut T));
 }
 
 impl<T: Transfer> IntoLisp<'_> for Box<T> {
