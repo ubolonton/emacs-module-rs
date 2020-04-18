@@ -20,6 +20,10 @@ use super::*;
 /// accessing interned symbols and Lisp functions, this is a non-issue, as the values are
 /// supposed to be "static" anyway.
 ///
+/// The above is a shortcoming in the design of emacs-module. There are 2 possible ways to fix it:
+/// - Make [`free_global_ref`] work without an env, like Erlang's `enif_release_resource`.
+/// - Allow `user_ptr`'s finalizer to access the env, to properly free associated global refs.
+///
 /// [`Env`]: struct.Env.html
 /// [`Value`]: struct.Value.html
 /// [`defun`]: attr.defun.html
