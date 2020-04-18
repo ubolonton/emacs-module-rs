@@ -33,7 +33,25 @@ impl<'e> Value<'e> {
     /// ```
     ///
     /// [`IntoLisp`]: trait.IntoLisp.html
+    #[inline]
     pub fn call<A>(self, args: A) -> Result<Value<'e>> where A: IntoLispArgs<'e> {
+        // Safety: The returned value is explicitly protected.
+        unsafe { self.call_unprotected(args).map(|v| v.protect()) }
+    }
+
+    /// Like [`call`], except that the returned `Value` is not protected against
+    /// Emacs GC's [bug #31238], which caused [issue #2].
+    ///
+    /// # Safety
+    ///
+    /// This can be used as an optimization, in situations when the returned `Value` is unused,
+    /// or when its usage is shorter than the lifespan of the underlying Lisp object.
+    ///
+    /// [`call`]: #method.call
+    /// [bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
+    /// [issue #2]: https://github.com/ubolonton/emacs-module-rs/issues/2
+    #[allow(unused_unsafe)]
+    pub unsafe fn call_unprotected<A>(self, args: A) -> Result<Value<'e>> where A: IntoLispArgs<'e> {
         let env = self.env;
         let mut lisp_args = args.into_lisp_args(env)?;
         let lisp_args: &mut [emacs_value] = lisp_args.borrow_mut();
@@ -42,7 +60,7 @@ impl<'e> Value<'e> {
         // Safety:
         // - ptr comes from a locally-owned value.
         // - length is ensured to be valid by IntoLispArgs implementation.
-        unsafe_raw_call_value!(env, funcall, self.raw, length, ptr)
+        unsafe_raw_call_value_unprotected!(env, funcall, self.raw, length, ptr)
     }
 }
 
@@ -78,11 +96,32 @@ impl Env {
     /// [`IntoLisp`]: trait.IntoLisp.html
     #[inline]
     pub fn call<'e, F, A>(&'e self, func: F, args: A) -> Result<Value<'_>>
-    where
-        F: IntoLispCallable<'e>,
-        A: IntoLispArgs<'e>,
+        where
+            F: IntoLispCallable<'e>,
+            A: IntoLispArgs<'e>,
     {
         func.into_lisp_callable(self)?.call(args)
+    }
+
+    /// Like [`call`], except that the returned [`Value`] is not protected against
+    /// Emacs GC's [bug #31238], which caused [issue #2].
+    ///
+    /// # Safety
+    ///
+    /// This can be used as an optimization, in situations when the returned [`Value`] is unused,
+    /// or when its usage is shorter than the lifespan of the underlying Lisp object.
+    ///
+    /// [`call`]: #method.call
+    /// [`Value`]: struct.Value.html
+    /// [bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
+    /// [issue #2]: https://github.com/ubolonton/emacs-module-rs/issues/2
+    #[inline]
+    pub unsafe fn call_unprotected<'e, F, A>(&'e self, func: F, args: A) -> Result<Value<'_>>
+        where
+            F: IntoLispCallable<'e>,
+            A: IntoLispArgs<'e>,
+    {
+        func.into_lisp_callable(self)?.call_unprotected(args)
     }
 }
 
@@ -100,6 +139,26 @@ impl GlobalRef {
             A: IntoLispArgs<'e>,
     {
         self.bind(env).call(args)
+    }
+
+    /// Like [`call`], except that the returned [`Value`] is not protected against
+    /// Emacs GC's [bug #31238], which caused [issue #2].
+    ///
+    /// # Safety
+    ///
+    /// This can be used as an optimization, in situations when the returned [`Value`] is unused,
+    /// or when its usage is shorter than the lifespan of the underlying Lisp object.
+    ///
+    /// [`call`]: #method.call
+    /// [`Value`]: struct.Value.html
+    /// [bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
+    /// [issue #2]: https://github.com/ubolonton/emacs-module-rs/issues/2
+    #[inline]
+    pub unsafe fn call_unprotected<'e, A>(&'e self, env: &'e Env, args: A) -> Result<Value<'_>>
+        where
+            A: IntoLispArgs<'e>,
+    {
+        self.bind(env).call_unprotected(args)
     }
 }
 

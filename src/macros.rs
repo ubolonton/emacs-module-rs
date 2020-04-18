@@ -32,13 +32,33 @@ macro_rules! unsafe_raw_call {
 }
 
 /// Calls a raw function that returns an emacs_value, then handles any pending non-local exit.
+/// Returns a [`Value`].
+///
+/// [`Value`]: struct.Value.html
 macro_rules! unsafe_raw_call_value {
+    ($env:expr, $name:ident $(, $args:expr)*) => {
+        unsafe_raw_call_value_unprotected!($env, $name $(, $args)*).map(|v| v.protect())
+    };
+}
+
+/// Like [`unsafe_raw_call_value!`], except that the returned [`Value`] is not protected against
+/// Emacs GC's [bug #31238], which caused [issue #2].
+///
+/// # Safety
+///
+/// This can be used as an optimization, in situations when the returned [`Value`] is unused,
+/// or when its usage is shorter than the lifespan of the underlying Lisp object.
+///
+/// [`unsafe_raw_call_value!`]: macro.unsafe_raw_call_value.html
+/// [`Value`]: struct.Value.html
+/// [bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
+/// [issue #2]: https://github.com/ubolonton/emacs-module-rs/issues/2
+macro_rules! unsafe_raw_call_value_unprotected {
     ($env:expr, $name:ident $(, $args:expr)*) => {
         {
             let result: $crate::Result<$crate::raw::emacs_value> = unsafe_raw_call!($env, $name $(, $args)*);
             result.map(|raw| unsafe {
-                // TODO: In some cases, we can get away without protection. Try optimizing them.
-                $crate::Value::new_protected(raw, $env)
+                $crate::Value::new(raw, $env)
             })
         }
     };

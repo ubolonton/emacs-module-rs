@@ -95,7 +95,7 @@ impl TempValue {
     ///
     /// [`Env`]: struct.Env.html
     pub unsafe fn value<'e>(&self, env: &'e Env) -> Value<'e> {
-        Value::new_protected(self.raw, env)
+        Value::new(self.raw, env).protect()
     }
 }
 
