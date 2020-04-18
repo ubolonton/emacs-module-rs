@@ -96,13 +96,13 @@ fn lisp_name(s: &str) -> String {
     s.replace("_", "-")
 }
 
-pub fn lisp_pkg(module_path: &str) -> String {
-    let crate_name = module_path.split("::").nth(0).expect("module_path is empty!");
+pub fn lisp_pkg(mod_path: &str) -> String {
+    let crate_name = mod_path.split("::").nth(0).expect("mod_path is empty!");
     lisp_name(&crate_name)
 }
 
-pub fn lisp_path(module_path: &str) -> String {
-    let split = module_path.split("::");
+pub fn lisp_path(mod_path: &str) -> String {
+    let split = mod_path.split("::");
     let mut path =
         __PREFIX__.try_lock().expect("Failed to acquire read lock of module prefix").join("");
     for segment in split.skip(1) {

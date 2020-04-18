@@ -62,7 +62,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.9.0] - 2019-07-11
 - `ResultExt` is now a collection of Emacs-specific extension methods for `Result`, instead of a re-export of `failure::ResultExt`.
-- Added `failure` as a re-exported sub-module.
+- Added `failure` as a re-exported sub-mod.
 - Added `unwrap_or_propagate` for better panic handling: propagation of non-local exits without `Result`, and improved error messages.
 
 ## [0.8.0] - 2019-04-20

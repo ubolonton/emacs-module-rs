@@ -1,6 +1,6 @@
 # Writing Functions
 
-You can use the attribute macro `#[defun]` to export Rust functions to the Lisp runtime, so that Lisp code can call them. The exporting process happens when the module is loaded, even if the definitions are inside another function that is never called, or inside a private module.
+You can use the attribute macro `#[defun]` to export Rust functions to the Lisp runtime, so that Lisp code can call them. The exporting process happens when the module is loaded, even if the definitions are inside another function that is never called, or inside a private `mod`.
 
 ## Input Parameters
 
@@ -81,7 +81,7 @@ See [Custom Types](./custom-types.md) for more details on embedding Rust data st
 
 By default, the function's Lisp name has the form `<feature-prefix>[mod-prefix]<base-name>`.
 - `feature-prefix` is the feature name followed by `-`. This can be customized by the `name`, `defun_prefix`, and `separator` [options](./module.md#options) on `#[emacs::module]`.
-- `mod-prefix` is constructed from the function's Rust module path (with `_` and `::` replaced by `-`). This can be turned off crate-wide, or for individual function, using the option `mod_in_name`.
+- `mod-prefix` is constructed from the function's Rust `mod` path (with `_` and `::` replaced by `-`). This can be turned off crate-wide, or for individual function, using the option `mod_in_name`.
 - `base-name` is the function's Rust name (with `_` replaced by `-`). This can be overridden with the option `name`.
 
 Examples:

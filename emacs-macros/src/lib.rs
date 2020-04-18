@@ -90,7 +90,7 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// - `crate-prefix` is the feature name followed by `-`. This can be customized by the `name`,
 /// `defun_prefix`, and `separator` options on #[[`module`]].
 ///
-/// - `mod-prefix` is constructed from the function's Rust module path (with `_` and `::` replaced
+/// - `mod-prefix` is constructed from the function's Rust `mod` path (with `_` and `::` replaced
 /// by `-`). This can be turned off crate-wide, or for individual function, using the option
 /// `mod_in_name`.
 ///
