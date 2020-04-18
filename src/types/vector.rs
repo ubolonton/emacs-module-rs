@@ -41,8 +41,11 @@ impl<'e> Vector<'e> {
     pub fn get<T: FromLisp<'e>>(&self, i: usize) -> Result<T> {
         let v = self.value;
         let env = v.env;
-        // Safety: Same lifetime. Emacs does bound checking.
-        unsafe_raw_call_value!(env, vec_get, v.raw, i as isize)?.into_rust()
+        // Safety:
+        // - Same lifetime.
+        // - Emacs does bound checking.
+        // - Value doesn't need protection because we are done with it while the vector still lives.
+        unsafe_raw_call_value_unprotected!(env, vec_get, v.raw, i as isize)?.into_rust()
     }
 
     pub fn set<T: IntoLisp<'e>>(&self, i: usize, value: T) -> Result<()> {

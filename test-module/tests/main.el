@@ -297,6 +297,8 @@
    (lambda () (error "abc"))))
 
 (destructive-test gc-after-new-string lifetime)
+(destructive-test gc-after-new-int lifetime)
+(destructive-test gc-after-new-float lifetime)
 (destructive-test gc-after-uninterning lifetime)
 (destructive-test gc-after-retrieving lifetime)
 (destructive-test gc-after-catching lifetime)

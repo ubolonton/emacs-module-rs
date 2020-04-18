@@ -39,7 +39,7 @@ int_from_lisp!(usize);
 
 impl IntoLisp<'_> for i64 {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-        unsafe_raw_call_value!(env, make_integer, self)
+        unsafe_raw_call_value_unprotected!(env, make_integer, self)
     }
 }
 
