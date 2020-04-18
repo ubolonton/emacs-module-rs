@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.14.0] - 2020-04-18
 - Reworked `Vector`, making it iterable.
 - Changed `Env::vector` to return a `Value`.
 - Added `call_unprotected` variants to `Value::call`, `Env::call`, `GlobalRef::call`, to enable certain optimizations.
@@ -118,7 +120,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.13.0...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.0...HEAD
+[0.14.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.3...0.13.0
 [0.12.3]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.2...0.12.3
 [0.12.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.1...0.12.2
