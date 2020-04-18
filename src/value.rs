@@ -23,7 +23,9 @@ impl<'e> Value<'e> {
     ///
     /// # Safety
     ///
-    /// The raw value must not live longer than the given [`Env`].
+    /// The raw value must be valid for as long as the returned `Value` is used. This usually means
+    /// "as long as [`Env`] is alive", but can be shorter, depending on how the returned `Value` is
+    /// used at call site.
     ///
     /// [`Env`]: struct.Env.html
     #[doc(hidden)]
@@ -31,21 +33,21 @@ impl<'e> Value<'e> {
         Self { raw, env }
     }
 
-    /// Constructs a new `Value` and "roots" its underlying raw value (GC-managed) during the
-    /// lifetime of the given [`Env`]. Module code should not call this directly. It is public only
-    /// for some internal macros to use.
+    /// Protects this value by registering with its [`Env`], effectively "rooting" the underlying
+    /// Lisp object during the lifetime of the [`Env`].
     ///
-    /// # Safety
-    ///
-    /// The raw value must still be alive. This function is needed to protect new values returned
-    /// from Emacs runtime, due to [this issue](https://github.com/ubolonton/emacs-module-rs/issues/2).
+    /// Module code should not call this directly. It is public only for certain internal macros and
+    /// functions to work around Emacs GC's [bug #31238], which caused [issue #2].
     ///
     /// [`Env`]: struct.Env.html
-    #[allow(unused_unsafe)]
+    /// [bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
+    /// [issue #2]: https://github.com/ubolonton/emacs-module-rs/issues/2
     #[doc(hidden)]
-    pub unsafe fn new_protected(raw: emacs_value, env: &'e Env) -> Self {
+    #[inline]
+    pub fn protect(self) -> Self {
+        let Self { env, raw } = self;
         env.protected.borrow_mut().push(unsafe_raw_call_no_exit!(env, make_global_ref, raw));
-        Self::new(raw, env)
+        self
     }
 
     pub fn is_not_nil(&self) -> bool {

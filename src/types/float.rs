@@ -8,6 +8,6 @@ impl FromLisp<'_> for f64 {
 
 impl IntoLisp<'_> for f64 {
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-        unsafe_raw_call_value!(env, make_float, self)
+        unsafe_raw_call_value_unprotected!(env, make_float, self)
     }
 }

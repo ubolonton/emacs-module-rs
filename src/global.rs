@@ -63,6 +63,7 @@ impl GlobalRef {
     /// [`Value`]: struct.Value.html
     #[inline]
     pub fn bind<'e, 'g: 'e>(&'g self, env: &'e Env) -> Value<'e> {
+        // Safety: This global ref keeps the underlying Lisp object alive.
         unsafe { Value::new(self.raw, env) }
     }
 

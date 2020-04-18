@@ -57,6 +57,22 @@ fn gc_after_new_string(env: &Env) -> Result<Value<'_>> {
     }, print)
 }
 
+// Primitive types supposedly have no issue.
+#[defun(mod_in_name = false)]
+fn gc_after_new_int(env: &Env) -> Result<Value<'_>> {
+    create_collect_use(env, 2, || {
+        5.into_lisp(env)
+    }, print)
+}
+
+// Primitive types supposedly have no issue.
+#[defun(mod_in_name = false)]
+fn gc_after_new_float(env: &Env) -> Result<Value<'_>> {
+    create_collect_use(env, 2, || {
+        5.8.into_lisp(env)
+    }, print)
+}
+
 // Before fixing:
 // - macOS: Segmentation fault
 // - Linux: Segmentation fault

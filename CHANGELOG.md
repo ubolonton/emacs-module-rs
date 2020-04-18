@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 - Reworked `Vector`, making it iterable.
 - Changed `Env::vector` to return a `Value`.
+- Added `call_unprotected` variants to `Value::call`, `Env::call`, `GlobalRef::call`, to enable certain optimizations.
 
 ## [0.13.0] - 2020-03-11
 - Added `GlobalRef`, which allows keeping Lisp values around without an `Env`.
