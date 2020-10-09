@@ -144,12 +144,13 @@ impl LispFunc {
         let mut args = TokenStream2::new();
         // Inlined references do not live long enough. We need bindings for them.
         let mut bindings = TokenStream2::new();
+        let env = Ident::new("env", Span::call_site());
         for arg in &self.args {
             match *arg {
                 Arg::Env { span } => {
                     // TODO: Find a way not to define inner function, somehow, otherwise the reported
                     // error is confusing (i.e expecting Env, found &Env).
-                    args.append_all(quote_spanned!(span=> &**env,))
+                    args.append_all(quote_spanned!(span=> &**#env,))
                 }
                 Arg::Val { span, access, nth, .. } => {
                     let name = util::arg("arg", nth);
@@ -157,16 +158,16 @@ impl LispFunc {
                     // using `get_arg`, which creates a slice each call.
                     bindings.append_all(match access {
                         Access::Owned => quote_spanned! {span=>
-                            let #name = env.get_arg(#nth).into_rust()?;
+                            let #name = #env.get_arg(#nth).into_rust()?;
                         },
                         // TODO: Support RwLock/Mutex (for the use case of sharing data with
                         // background Rust threads).
                         // TODO: Support direct access.
                         Access::Ref => quote_spanned! {span=>
-                            let #name = &*env.get_arg(#nth).into_ref()?;
+                            let #name = &*#env.get_arg(#nth).into_ref()?;
                         },
                         Access::RefMut => quote_spanned! {span=>
-                            let #name = &mut *env.get_arg(#nth).into_ref_mut()?;
+                            let #name = &mut *#env.get_arg(#nth).into_ref_mut()?;
                         },
                     });
                     args.append_all(quote_spanned!(span=> #name,));
@@ -193,12 +194,12 @@ impl LispFunc {
         // XXX: output can be (), but we can't easily know when.
         let into_lisp = quote_spanned! {self.output_span=>
             #[allow(clippy::unit_arg)]
-            ::emacs::IntoLisp::into_lisp(output, env)
+            ::emacs::IntoLisp::into_lisp(output, #env)
         };
         let inner = &self.def.sig.ident;
         let wrapper = self.wrapper_ident();
         quote! {
-            fn #wrapper(env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
+            fn #wrapper(#env: &::emacs::CallEnv) -> ::emacs::Result<::emacs::Value<'_>> {
                 #bindings
                 let output = #inner(#args)?;
                 #maybe_embed
