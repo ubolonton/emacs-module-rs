@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.14.1] - 2020-10-14
+- Fixed proc macro's hygiene issues, for compatibility with Rust 1.47. Example: `emacs-tree-sitter` [fails to compile](https://github.com/ubolonton/emacs-tree-sitter/issues/62).
+For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.47.0/RELEASES.md#compatibility-notes) and [PR that introduced this change](https://github.com/rust-lang/rust/pull/73084/).
+
 ## [0.14.0] - 2020-04-18
 - Reworked `Vector`, making it iterable.
 - Changed `Env::vector` to return a `Value`.
@@ -120,7 +124,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.0...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.1...HEAD
+[0.14.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.0...0.14.1
 [0.14.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.3...0.13.0
 [0.12.3]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.2...0.12.3
