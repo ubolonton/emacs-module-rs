@@ -65,10 +65,10 @@ fn init(env: &Env) -> Result<()> {
     }
 
     #[defun]
-    fn process(v: Value<'_>) -> Result<Value<'_>> {
+    fn get(v: Value<'_>, key: String) -> Result<Value<'_>> {
         let lock: &RwLock<Map> = v.into_rust()?;
-        let map = lock.try_read().map_err(|_| failure::err_msg("map is busy"))?;
-        Ok(map.get(&key).into_lisp(v.env)?)
+        let map = lock.try_read().map_err(|_| Error::msg("map is busy"))?;
+        map.get(&key).into_lisp(v.env)
     }
     ```
 

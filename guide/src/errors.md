@@ -2,10 +2,10 @@
 
 Emacs Lisp's [error handling mechanism](https://www.gnu.org/software/emacs/manual/html_node/elisp/Handling-Errors.html) uses [non-local exits](https://www.gnu.org/software/emacs/manual/html_node/elisp/Nonlocal-Exits.html). Rust uses `Result` enum. `emacs-module-rs` converts between the 2 at the Rust-Lisp boundaries (more precisely, Rust-C).
 
-The chosen error type is the `Error` struct from [`failure` crate](https://github.com/withoutboats/failure):
+The chosen error type is the `Error` struct from [`anyhow` crate](https://github.com/dtolnay/anyhow):
 
 ```rust
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 ```
 
 ## Handling Lisp Errors in Rust
@@ -32,7 +32,7 @@ match env.call("insert", &[some_text]) {
 }
 ```
 
-Note the use of `unsafe` to extract the error symbol as a `Value`. The reason is that, `ErrorKind::Signal` is marked `Send+Sync`, for compatibility with `failure`, while `Value` is lifetime-bound by `env`. The `unsafe` contract here requires the error being handled (and its `TempValue`) to come from this `env`, not from another thread, or from a global/thread-local storage.
+Note the use of `unsafe` to extract the error symbol as a `Value`. The reason is that, `ErrorKind::Signal` is marked `Send+Sync`, for compatibility with `anyhow`, while `Value` is lifetime-bound by `env`. The `unsafe` contract here requires the error being handled (and its `TempValue`) to come from this `env`, not from another thread, or from a global/thread-local storage.
 
 ### Catching Values Thrown by Lisp
 

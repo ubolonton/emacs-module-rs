@@ -1,10 +1,10 @@
 #[doc(no_inline)]
-pub use failure::Error;
-use failure_derive::Fail;
+pub use anyhow::{self, Error};
 use std::mem::MaybeUninit;
 use std::result;
 use std::thread;
 use std::any::Any;
+use thiserror::Error;
 
 use super::IntoLisp;
 use super::{Env, Value};
@@ -29,18 +29,18 @@ const PANIC: &str = "rust-panic";
 ///
 /// This list is intended to grow over time and it is not recommended to exhaustively match against
 /// it.
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum ErrorKind {
     /// An [error] signaled by Lisp code.
     ///
     /// [error]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Signaling-Errors.html
-    #[fail(display = "Non-local signal: symbol={:?} data={:?}", symbol, data)]
+    #[error("Non-local signal: symbol={symbol:?} data={data:?}")]
     Signal { symbol: TempValue, data: TempValue },
 
     /// A [non-local exit] thrown by Lisp code.
     ///
     /// [non-local exit]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Catch-and-Throw.html
-    #[fail(display = "Non-local throw: tag={:?} value={:?}", tag, value)]
+    #[error("Non-local throw: tag={tag:?} value={value:?}")]
     Throw { tag: TempValue, value: TempValue },
 
     /// An error indicating that the given value is not a `user-ptr` of the expected type.
@@ -71,7 +71,7 @@ pub enum ErrorKind {
     /// (unwrap (wrap 7))   ; 7
     /// (unwrap (wrap-f 7)) ; *** Eval error ***  Wrong type user-ptr: "expected: RefCell"
     /// ```
-    #[fail(display = "expected: {}", expected)]
+    #[error("expected: {expected}")]
     WrongTypeUserPtr { expected: &'static str },
 }
 
