@@ -23,6 +23,7 @@ if ($args[0] -eq "watch") {
     $ErrorActionPreference = 'Continue'
     $env:PROJECT_ROOT = $project_root
     $env:MODULE_DIR = $module_dir
+    $env:EMACS_MODULE_RS_DEBUG = 1
     emacs --version
     emacs --batch --directory "$module_dir" `
       -l ert `

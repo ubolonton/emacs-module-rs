@@ -46,7 +46,9 @@ impl<'e> Value<'e> {
     #[inline]
     pub fn protect(self) -> Self {
         let Self { env, raw } = self;
-        env.protected.borrow_mut().push(unsafe_raw_call_no_exit!(env, make_global_ref, raw));
+        if let Some(protected) = &env.protected {
+            protected.borrow_mut().push(unsafe_raw_call_no_exit!(env, make_global_ref, raw));
+        }
         self
     }
 
