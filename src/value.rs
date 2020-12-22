@@ -13,7 +13,7 @@ use crate::{subr, Env, Result, FromLisp, Transfer};
 /// [`Env`]: struct.Env.html
 #[derive(Debug, Clone, Copy)]
 pub struct Value<'e> {
-    pub(crate) raw: emacs_value,
+    pub raw: emacs_value,
     pub env: &'e Env,
 }
 

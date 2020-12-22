@@ -208,6 +208,20 @@ struct emacs_env_25
 /* Every module should define a function as follows.  */
 extern int emacs_module_init (struct emacs_runtime *ert);
 
+void module_access_buffer_contents(emacs_env *env,
+                                   char **before_gap,
+                                   ptrdiff_t *before_gap_size,
+                                   char **after_gap,
+                                   ptrdiff_t *after_gap_size);
+
+void module_buffer_substring_no_properties(emacs_env *env,
+                                           int start,
+                                           int end,
+                                           char **before_gap,
+                                           ptrdiff_t *before_gap_size,
+                                           char **after_gap,
+                                           ptrdiff_t *after_gap_size);
+
 #ifdef __cplusplus
 }
 #endif

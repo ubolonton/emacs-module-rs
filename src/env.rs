@@ -8,7 +8,7 @@ use std::mem::MaybeUninit;
 /// Main point of interaction with the Lisp runtime.
 #[derive(Debug)]
 pub struct Env {
-    pub(crate) raw: *mut emacs_env,
+    pub raw: *mut emacs_env,
     /// Raw values "rooted" during the lifetime of this `Env`.
     pub(crate) protected: RefCell<Vec<emacs_value>>,
 }

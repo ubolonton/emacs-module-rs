@@ -9,6 +9,7 @@ fn main() {
         .header("./include/emacs-module.h")
         .whitelist_type("^emacs.*")
         .whitelist_function("^emacs.*")
+        .whitelist_function("^module.*")
         .whitelist_var("^emacs.*")
         .prepend_enum_name(false)
         .generate()
