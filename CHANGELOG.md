@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Disabled the [workaround](https://github.com/ubolonton/emacs-module-rs/pull/3) for Emacs's [GC bug #31238](https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238) if possible (i.e. in Emacs 27+, where the bug was fixed). This should speed up module code in newer Emacs versions.
 
 ## [0.14.1] - 2020-10-14
 - Fixed proc macro's hygiene issues, for compatibility with Rust 1.47. Example: `emacs-tree-sitter` [fails to compile](https://github.com/ubolonton/emacs-tree-sitter/issues/62).
@@ -19,7 +20,7 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 - Reduced indirection when calling common built-in subroutines through `Env`.
 - Removed `module_init!`, `export_functions!`,  and their aliases.
 - Replaced `lazy_static` dependency with `once_cell`.
-- Fixed memory leaks caused by the memory safety [fix](https://github.com/ubolonton/emacs-module-rs/pull/3) for [#2](https://github.com/ubolonton/emacs-module-rs/issues/2).
+- Fixed memory leaks caused by the [workaround](https://github.com/ubolonton/emacs-module-rs/pull/3) for Emacs's [GC bug #31238](https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238), which caused [issue #2](https://github.com/ubolonton/emacs-module-rs/issues/2).
 
 ## [0.12.3] - 2020-02-18
 - Added `Value::car`, `Value::cdr`.

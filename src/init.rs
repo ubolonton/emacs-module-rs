@@ -68,13 +68,36 @@ pub static __PREFIX__: Lazy<Mutex<[String; 2]>> = Lazy::new(|| Mutex::new(["".to
 
 pub static __MOD_IN_NAME__: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(true));
 
+fn debugging() -> bool {
+    std::env::var("EMACS_MODULE_RS_DEBUG").unwrap_or_default() == "1"
+}
+
+fn check_gc_bug_31238(env: &Env) -> Result<()> {
+    let version = env.call("default-value", [env.intern("emacs-version")?])?;
+    let fixed = env.call("version<=", ("27", version))?.is_not_nil();
+    if debugging() {
+        env.call("set", (
+            env.intern("module-rs-disable-gc-bug-31238-workaround")?,
+            // Can't use true/false directly because symbol mod's globals have not been initialized.
+            env.intern(match fixed {
+                true => "t",
+                false => "nil",
+            })?
+        ))?;
+    }
+    crate::env::HAS_FIXED_GC_BUG_31238.get_or_init(|| fixed);
+    Ok(())
+}
+
 #[inline]
 pub fn initialize<F>(env: &Env, f: F) -> os::raw::c_int
 where
     F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe,
 {
     let env = panic::AssertUnwindSafe(env);
-    let result = panic::catch_unwind(|| match env.define_errors().and_then(|_| f(&env)) {
+    let result = panic::catch_unwind(|| match env.define_errors()
+        .and_then(|_| check_gc_bug_31238(&env))
+        .and_then(|_| f(&env)) {
         Ok(_) => 0,
         Err(e) => {
             env.message(format!("Error during initialization: {:#?}", e))
