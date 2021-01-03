@@ -13,4 +13,4 @@ license = "BSD-3-Clause"
 build = "build.rs"
 
 [build-dependencies]
-bindgen = "0.51.1"
+bindgen = "0.56.0"
