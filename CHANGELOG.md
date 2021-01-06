@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.15.1] - 2021-01-06
 - Fixed compilation errors on new versions of `syn`, which removed the `export` module.
 
 ## [0.15.0] - 2020-12-27
@@ -128,8 +130,9 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.0...HEAD
-[0.15.01]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.1...0.15.0
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.1...HEAD
+[0.15.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.0...0.15.1
+[0.15.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.1...0.15.0
 [0.14.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.0...0.14.1
 [0.14.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.13.0...0.14.0
 [0.13.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.12.3...0.13.0
