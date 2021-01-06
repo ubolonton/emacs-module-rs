@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
-    export::{Span, TokenStream2},
     ext::IdentExt,
     Ident, ItemFn,
 };

@@ -1,10 +1,10 @@
 use std::ops::Range;
 
 use darling::FromMeta;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, TokenStreamExt};
 use syn::{
     self,
-    export::{Span, TokenStream2},
     spanned::Spanned,
     AttributeArgs, FnArg, Signature, Ident, ItemFn, Pat, PatType, Type, TypeReference, ReturnType,
     TypePath,

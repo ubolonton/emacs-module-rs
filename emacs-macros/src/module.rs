@@ -1,6 +1,7 @@
 use darling::{self, FromMeta};
+use proc_macro2::{TokenStream as TokenStream2};
 use quote::quote;
-use syn::{export::TokenStream2, AttributeArgs, ItemFn};
+use syn::{AttributeArgs, ItemFn};
 
 use crate::util;
 

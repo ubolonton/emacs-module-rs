@@ -1,5 +1,6 @@
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{quote, TokenStreamExt};
-use syn::{export::{TokenStream2, Span}, Ident, Index};
+use syn::{Ident, Index};
 
 pub fn impl_for_tuples(max_arity: usize) -> TokenStream2 {
     let mut impls = TokenStream2::new();

@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Fixed compilation errors on new versions of `syn`, which removed the `export` module.
 
 ## [0.15.0] - 2020-12-27
 - Disabled the [workaround](https://github.com/ubolonton/emacs-module-rs/pull/3) for Emacs's [GC bug #31238](https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238) if possible (i.e. in Emacs 27+, where the bug was fixed). This should speed up module code in newer Emacs versions.
