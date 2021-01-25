@@ -9,6 +9,7 @@ use thiserror::Error;
 use super::IntoLisp;
 use super::{Env, Value};
 use emacs_module::*;
+use crate::{symbol, GlobalRef};
 
 // We use const instead of enum, in case Emacs add more exit statuses in the future.
 // See https://github.com/rust-lang/rust/issues/36927
@@ -21,9 +22,9 @@ pub struct TempValue {
     raw: emacs_value,
 }
 
-const WRONG_TYPE_USER_PTR: &str = "rust-wrong-type-user-ptr";
-const ERROR: &str = "rust-error";
-const PANIC: &str = "rust-panic";
+pub const WRONG_TYPE_USER_PTR: &str = "rust-wrong-type-user-ptr";
+pub const ERROR: &str = "rust-error";
+pub const PANIC: &str = "rust-panic";
 
 /// Error types generic to all Rust dynamic modules.
 ///
@@ -142,7 +143,7 @@ impl Env {
             Err(error) => match error.downcast_ref::<ErrorKind>() {
                 Some(err) => self.handle_known(err),
                 _ => self
-                    .signal_str(ERROR, &format!("{}", error))
+                    .signal_internal(symbol::rust_error, &format!("{}", error))
                     .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
             },
         }
@@ -168,7 +169,7 @@ impl Env {
                 if let Err(error) = m {
                     m = Ok(format!("{:#?}", error));
                 }
-                self.signal_str(PANIC, &m.expect("Logic error")).expect("Fail to signal panic")
+                self.signal_internal(symbol::rust_panic, &m.expect("Logic error")).expect("Fail to signal panic")
             }
         }
     }
@@ -191,17 +192,15 @@ impl Env {
             ErrorKind::Signal { symbol, data } => self.signal(symbol.raw, data.raw),
             ErrorKind::Throw { tag, value } => self.throw(tag.raw, value.raw),
             ErrorKind::WrongTypeUserPtr { .. } => self
-                .signal_str(WRONG_TYPE_USER_PTR, &format!("{}", err))
+                .signal_internal(symbol::rust_wrong_type_user_ptr, &format!("{}", err))
                 .unwrap_or_else(|_| panic!("Failed to signal {}", err)),
         }
     }
 
-    // TODO: Prepare static values for the symbols.
-    fn signal_str(&self, symbol: &str, message: &str) -> Result<emacs_value> {
+    fn signal_internal(&self, symbol: &GlobalRef, message: &str) -> Result<emacs_value> {
         let message = message.into_lisp(&self)?;
         let data = self.list([message])?;
-        let symbol = self.intern(symbol)?;
-        unsafe { Ok(self.signal(symbol.raw, data.raw)) }
+        unsafe { Ok(self.signal(symbol.bind(self).raw, data.raw)) }
     }
 
     fn define_error(&self, name: &str, message: &str, parents: &[&str]) -> Result<Value<'_>> {
