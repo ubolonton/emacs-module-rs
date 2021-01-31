@@ -30,9 +30,6 @@
 #[doc(inline)]
 pub use emacs_macros::{defun, module};
 
-#[doc(no_inline)]
-pub use failure::{self, Error};
-
 #[doc(inline)]
 pub use self::{
     env::Env,
@@ -40,7 +37,7 @@ pub use self::{
     global::GlobalRef,
     types::{FromLisp, IntoLisp, Transfer, Vector},
     func::CallEnv,
-    error::{ErrorKind, Result, ResultExt},
+    error::{ErrorKind, Result, ResultExt, Error},
 };
 
 #[macro_use] mod macros;

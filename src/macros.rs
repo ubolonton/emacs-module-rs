@@ -74,7 +74,7 @@ macro_rules! global_refs {
     };
     ($registrator_name:ident ($init_method:ident) =>
         $(
-            $name:ident $( => $lisp_name:literal )?
+            $name:ident $( => $lisp_name:expr )?
         )*
     ) => {
         global_refs! {

@@ -23,8 +23,8 @@ include = [
 ]
 
 [dependencies]
-failure = { version = "0.1.5", features = ["std"] }
-failure_derive = "0.1.5"
+thiserror = "1.0"
+anyhow = "1.0"
 ctor = "0.1.12"
 once_cell = "1.2.0"
 emacs_module = { path = "emacs-module", version = "0.12.0" }
