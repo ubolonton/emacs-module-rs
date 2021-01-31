@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.16.0] - 2021-01-31
 - Replaced `failure` with `anyhow` and `thiserror`. Re-export `anyhow` as `emacs::error::anyhow`.
 
 ## [0.15.1] - 2021-01-06
@@ -131,7 +133,8 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.1...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.0...HEAD
+[0.16.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.1...0.16.0
 [0.15.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.0...0.15.1
 [0.15.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.1...0.15.0
 [0.14.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.0...0.14.1
