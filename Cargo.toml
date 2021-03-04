@@ -1,6 +1,6 @@
 [package]
 name = "emacs"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2018"
 description = "Rust library for creating Emacs's dynamic modules"
 homepage = "https://github.com/ubolonton/emacs-module-rs"
@@ -27,7 +27,7 @@ thiserror = "1.0"
 anyhow = "1.0"
 ctor = "0.1.12"
 once_cell = "1.2.0"
-emacs_module = { path = "emacs-module", version = "0.12.0" }
+emacs_module = { path = "emacs-module", version = "0.16.2" }
 emacs-macros = { path = "emacs-macros", version = "0.15.1" }
 
 [build-dependencies]

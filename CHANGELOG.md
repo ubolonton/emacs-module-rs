@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [0.16.1] - 2021-03-01
+## [0.16.2] - 2021-03-04
 - Fixed compilation on `aarch64-apple-darwin` (Apple Silicon).
 
 ## [0.16.0] - 2021-01-31
@@ -136,8 +136,8 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.1...HEAD
-[0.16.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.0...0.16.1
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.2...HEAD
+[0.16.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.0...0.16.2
 [0.16.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.1...0.16.0
 [0.15.1]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.0...0.15.1
 [0.15.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.14.1...0.15.0
