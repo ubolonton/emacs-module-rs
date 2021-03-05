@@ -10,6 +10,7 @@ use super::IntoLisp;
 use super::{Env, Value};
 use emacs_module::*;
 use crate::{symbol, GlobalRef};
+use crate::call::IntoLispArgs;
 
 // We use const instead of enum, in case Emacs add more exit statuses in the future.
 // See https://github.com/rust-lang/rust/issues/36927
@@ -149,6 +150,9 @@ impl Env {
         }
     }
 
+    /// Converts a caught unwinding panic into a non-local exit in Lisp.
+    ///
+    /// If there was no error, return the raw `emacs_value`.
     #[inline]
     pub(crate) fn handle_panic(&self, result: thread::Result<emacs_value>) -> emacs_value {
         match result {
@@ -159,6 +163,7 @@ impl Env {
                 if let Err(error) = m {
                     m = error.downcast::<String>().map(|v| *v);
                 }
+                // TODO: Remove this when we remove `unwrap_or_propagate`.
                 if let Err(error) = m {
                     m = match error.downcast::<ErrorKind>() {
                         // TODO: Explain safety.
@@ -189,8 +194,8 @@ impl Env {
 
     unsafe fn handle_known(&self, err: &ErrorKind) -> emacs_value {
         match err {
-            ErrorKind::Signal { symbol, data } => self.signal(symbol.raw, data.raw),
-            ErrorKind::Throw { tag, value } => self.throw(tag.raw, value.raw),
+            ErrorKind::Signal { symbol, data } => self.non_local_exit_signal(symbol.raw, data.raw),
+            ErrorKind::Throw { tag, value } => self.non_local_exit_throw(tag.raw, value.raw),
             ErrorKind::WrongTypeUserPtr { .. } => self
                 .signal_internal(symbol::rust_wrong_type_user_ptr, &format!("{}", err))
                 .unwrap_or_else(|_| panic!("Failed to signal {}", err)),
@@ -200,16 +205,28 @@ impl Env {
     fn signal_internal(&self, symbol: &GlobalRef, message: &str) -> Result<emacs_value> {
         let message = message.into_lisp(&self)?;
         let data = self.list([message])?;
-        unsafe { Ok(self.signal(symbol.bind(self).raw, data.raw)) }
+        unsafe { Ok(self.non_local_exit_signal(symbol.bind(self).raw, data.raw)) }
     }
 
-    fn define_error(&self, name: &str, message: &str, parents: &[&str]) -> Result<Value<'_>> {
-        // We can't use self.list here, because subr::list is not yet initialized.
+    /// Defines a new Lisp error signal. This is the equivalent of the Lisp function's [`define-error`].
+    ///
+    /// [`define-error`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Error-Symbols.html
+    pub fn define_error(&self, name: &str, message: &str, parents: &[&str]) -> Result<Value<'_>> {
+        // We can't use self.list here, because subr::list may be uninitialized.
         let parent_symbols = self.call(
             "list",
             &parents.iter().map(|p| self.intern(p)).collect::<Result<Vec<Value>>>()?,
         )?;
         self.call("define-error", (self.intern(name)?, message, parent_symbols))
+    }
+
+    /// Signals a Lisp error. This is the equivalent of the Lisp function's [`signal`].
+    ///
+    /// [`signal`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Signaling-Errors.html#index-signal
+    pub fn signal<'e, S, D>(&'e self, symbol: S, data: D) -> Result<()> where S: IntoLisp<'e>, D: IntoLispArgs<'e> {
+        let symbol = TempValue { raw: symbol.into_lisp(self)?.raw };
+        let data = TempValue { raw: self.list(data)?.raw };
+        Err(ErrorKind::Signal { symbol, data }.into())
     }
 
     pub(crate) fn non_local_exit_get(
@@ -229,7 +246,7 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    pub(crate) unsafe fn throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn non_local_exit_throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
@@ -238,7 +255,7 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    pub(crate) unsafe fn signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn non_local_exit_signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }

@@ -76,6 +76,11 @@ fn panic(message: String) -> Result<()> {
     panic!(message)
 }
 
+#[defun(mod_in_name = false, name = "error:signal")]
+fn signal(env: &Env, symbol: Value, message: String) -> Result<()> {
+    env.signal(symbol, (message,))
+}
+
 fn parse_arg(env: &CallEnv) -> Result<String> {
     let i: i64 = env.parse_arg(0)?;
     let s: String = env.parse_arg(i as usize)?;
