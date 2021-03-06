@@ -89,19 +89,18 @@ fn check_gc_bug_31238(env: &Env) -> Result<()> {
 
 #[inline]
 pub fn initialize<F>(env: &Env, f: F) -> os::raw::c_int
-where
-    F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe,
+    where
+        F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe,
 {
     let env = panic::AssertUnwindSafe(env);
-    let result = panic::catch_unwind(|| match env.define_errors()
-        .and_then(|_| {
-            for f in __PRE_INIT__.try_lock().expect("Failed to acquire a read lock on the list of initializers").iter() {
-                f(&env)?;
-            }
-            Ok(())
-        })
-        .and_then(|_| check_gc_bug_31238(&env))
-        .and_then(|_| f(&env)) {
+    let result = panic::catch_unwind(|| match (|| {
+        for f in __PRE_INIT__.try_lock().expect("Failed to acquire a read lock on the list of initializers").iter() {
+            f(&env)?;
+        }
+        env.define_errors()?;
+        check_gc_bug_31238(&env)?;
+        f(&env)
+    })() {
         Ok(_) => 0,
         Err(e) => {
             env.message(format!("Error during initialization: {:#?}", e))
