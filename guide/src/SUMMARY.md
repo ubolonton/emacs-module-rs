@@ -8,6 +8,6 @@
 - [Calling Lisp Functions](./calling-lisp.md)
 - [Type Conversions](./type-conversions.md)
 - [Custom Types](./custom-types.md)
-- [Error Handling](./errors.md)
+- [Error Handling and Signaling](./errors.md)
 - [Testing](./testing.md)
 - [Live Reloading](./reloading.md)

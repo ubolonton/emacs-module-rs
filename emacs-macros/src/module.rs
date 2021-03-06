@@ -113,16 +113,6 @@ impl Module {
     pub fn gen_init(&self) -> TokenStream2 {
         let init = Self::init_ident();
         let env = quote!(env);
-        let pre_init_fns = util::pre_init_path();
-        let pre_init = quote! {
-            {
-                let funcs = #pre_init_fns.try_lock()
-                    .expect("Failed to acquire a read lock on the list of initializers");
-                for func in funcs.iter() {
-                    func(#env)?
-                }
-            }
-        };
         let separator = &self.opts.separator;
         let hook = &self.def.sig.ident;
         let init_fns = util::init_fns_path();
@@ -163,7 +153,6 @@ impl Module {
         quote! {
             #[allow(non_snake_case)]
             fn #init(#env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
-                #pre_init
                 let feature = #feature;
                 #set_prefix
                 #configure_mod_in_name

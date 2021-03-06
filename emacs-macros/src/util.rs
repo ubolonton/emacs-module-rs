@@ -40,10 +40,6 @@ pub fn doc(fn_item: &ItemFn) -> String {
     doc.join("\n")
 }
 
-pub fn pre_init_path() -> TokenStream2 {
-    quote!(::emacs::init::__PRE_INIT__)
-}
-
 pub fn init_fns_path() -> TokenStream2 {
     quote!(::emacs::init::__INIT_FNS__)
 }

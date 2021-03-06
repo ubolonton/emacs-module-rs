@@ -1,4 +1,4 @@
-# Error Handling
+# Error Handling and Signaling
 
 Emacs Lisp's [error handling mechanism](https://www.gnu.org/software/emacs/manual/html_node/elisp/Handling-Errors.html) uses [non-local exits](https://www.gnu.org/software/emacs/manual/html_node/elisp/Nonlocal-Exits.html). Rust uses `Result` enum. `emacs-module-rs` converts between the 2 at the Rust-Lisp boundaries (more precisely, Rust-C).
 
@@ -38,7 +38,32 @@ Note the use of `unsafe` to extract the error symbol as a `Value`. The reason is
 
 This is similar to handling Lisp errors. The only difference is `ErrorKind::Throw` being used instead of `ErrorKind::Signal`.
 
-## Handling Rust errors in Lisp
+## Signaling Lisp Errors from Rust
+
+The function `env.signal` allows signaling a Lisp error from Rust code. The error symbol must have been defined, e.g. by calling `env.define_error`:
+
+```rust
+pub static my_custom_error: OnceCell<GlobalRef> = OnceCell::new();
+
+#[emacs::module]
+fn init(env: &Env) -> Result<Value<'_>> {
+    env.define_error(
+        my_custom_error.get_or_try_init(|| env.intern("my-custom-error").map(GlobalRef::new))?,
+        "This number should not be negative",
+        [env.intern("error")?]
+    )
+}
+
+#[defun]
+fn signal_if_negative(env: &Env, x: i16) -> Result<()> {
+    if (x < 0) {
+        return env.signal(my_custom_error.get().unwrap(), ("associated", "DATA", 7))
+    }
+    Ok(())
+}
+```
+
+## Handling Rust Errors in Lisp
 
 In addition to [standard errors](https://www.gnu.org/software/emacs/manual/html_node/elisp/Standard-Errors.html), Rust module functions can signal Rust-specific errors, which can also be handled by `condition-case`:
 

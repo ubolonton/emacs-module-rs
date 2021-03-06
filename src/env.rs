@@ -124,8 +124,8 @@ impl Drop for Env {
                 unsafe_raw_call_no_exit!(self, free_global_ref, *raw);
             }
             match status {
-                error::SIGNAL => unsafe { self.signal(symbol.assume_init(), data.assume_init()); }
-                error::THROW => unsafe { self.throw(symbol.assume_init(), data.assume_init()); }
+                error::SIGNAL => unsafe { self.non_local_exit_signal(symbol.assume_init(), data.assume_init()); }
+                error::THROW => unsafe { self.non_local_exit_throw(symbol.assume_init(), data.assume_init()); }
                 _ => ()
             }
         }

@@ -95,6 +95,13 @@ impl<'e> IntoLisp<'e> for &'e GlobalRef {
     }
 }
 
+impl<'e> IntoLisp<'e> for &'e OnceGlobalRef {
+    #[inline(always)]
+    fn into_lisp(self, env: &'e Env) -> Result<Value<'e>> {
+        Ok(self.bind(env))
+    }
+}
+
 impl<'e> Value<'e> {
     /// Creates a new [`GlobalRef`] for this value.
     ///

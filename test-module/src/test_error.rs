@@ -1,8 +1,10 @@
 //! Testing error reporting and handling.
 
-use emacs::{defun, CallEnv, Env, Result, Value};
+use emacs::{defun, CallEnv, Env, Result, Value, GlobalRef};
 use emacs::ErrorKind::{self, Signal, Throw};
 use emacs::ResultExt;
+
+use once_cell::sync::OnceCell;
 
 use super::MODULE_PREFIX;
 
@@ -76,6 +78,11 @@ fn panic(message: String) -> Result<()> {
     panic!(message)
 }
 
+#[defun(mod_in_name = false, name = "error:signal")]
+fn signal(env: &Env, symbol: Value, message: String) -> Result<()> {
+    env.signal(symbol, (message,))
+}
+
 fn parse_arg(env: &CallEnv) -> Result<String> {
     let i: i64 = env.parse_arg(0)?;
     let s: String = env.parse_arg(i as usize)?;
@@ -88,6 +95,20 @@ pub fn init(env: &Env) -> Result<()> {
             "parse-arg"   => (parse_arg   , 2..5),
         }
     }
+
+    #[allow(non_upper_case_globals)]
+    static custom_error: OnceCell<GlobalRef> = OnceCell::new();
+
+    #[defun(mod_in_name = false, name = "error:signal-custom")]
+    fn signal_custom(env: &Env) -> Result<()> {
+        env.signal(custom_error.get().unwrap(), [])
+    }
+
+    env.define_error(
+        custom_error.get_or_try_init(|| env.intern("emacs-module-rs-test-error").map(GlobalRef::new))?,
+        "Hello",
+        [env.intern("rust-error")?]
+    )?;
 
     Ok(())
 }

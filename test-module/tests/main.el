@@ -161,6 +161,16 @@
   (should (equal (t/get-error (t/error:apply #'t/error:panic '("abc")))
                  '(rust-panic "abc"))))
 
+(ert-deftest error::signal ()
+  (should-error (t/error:signal 'rust-error "BAZ") :type 'rust-error)
+  (condition-case err
+      (t/error:signal 'rust-error "abc")
+    (rust-error (should (equal err '(rust-error . ("abc"))))))
+  (should-error (t/error:signal-custom) :type 'emacs-module-rs-test-error)
+  (condition-case err
+      (t/error:signal 'emacs-module-rs-test-error "abc")
+    (rust-error (should (equal err '(emacs-module-rs-test-error . ("abc")))))))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Functions.
 
