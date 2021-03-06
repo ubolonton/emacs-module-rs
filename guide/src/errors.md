@@ -43,20 +43,21 @@ This is similar to handling Lisp errors. The only difference is `ErrorKind::Thro
 The function `env.signal` allows signaling a Lisp error from Rust code. The error symbol must have been defined, e.g. by calling `env.define_error`:
 
 ```rust
-
-pub static my_negative_error: OnceCell<GlobalRef> = OnceCell::new();
+pub static my_custom_error: OnceCell<GlobalRef> = OnceCell::new();
 
 #[emacs::module]
 fn init(env: &Env) -> Result<Value<'_>> {
-    let name = "my-negative-error";
-    my_negative_error.get_or_try_init(env.intern(name)?.make_global_ref()).expect("Could not intern error symbol");
-    env.define_error(name, "This number should not be negative", &["error"])
+    env.define_error(
+        my_custom_error.get_or_try_init(|| env.intern("my-custom-error").map(GlobalRef::new))?,
+        "This number should not be negative",
+        [env.intern("error")?]
+    )
 }
 
 #[defun]
 fn signal_if_negative(env: &Env, x: i16) -> Result<()> {
     if (x < 0) {
-        return env.signal(my_negative_error, ("associated", "DATA", 7))
+        return env.signal(my_custom_error.get().unwrap(), ("associated", "DATA", 7))
     }
     Ok(())
 }

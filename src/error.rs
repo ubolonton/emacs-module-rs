@@ -9,7 +9,7 @@ use thiserror::Error;
 use super::IntoLisp;
 use super::{Env, Value};
 use emacs_module::*;
-use crate::{symbol, GlobalRef};
+use crate::{symbol::{self, IntoLispSymbol}, GlobalRef};
 use crate::call::IntoLispArgs;
 
 // We use const instead of enum, in case Emacs add more exit statuses in the future.
@@ -22,10 +22,6 @@ pub(crate) const THROW: emacs_funcall_exit = emacs_funcall_exit_throw;
 pub struct TempValue {
     raw: emacs_value,
 }
-
-pub const WRONG_TYPE_USER_PTR: &str = "rust-wrong-type-user-ptr";
-pub const ERROR: &str = "rust-error";
-pub const PANIC: &str = "rust-panic";
 
 /// Error types generic to all Rust dynamic modules.
 ///
@@ -182,12 +178,12 @@ impl Env {
     pub(crate) fn define_errors(&self) -> Result<()> {
         // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
         // not a sub-type of 'error.
-        self.define_error(PANIC, "Rust panic", &["error"])?;
-        self.define_error(ERROR, "Rust error", &["error"])?;
+        self.define_error(symbol::rust_panic, "Rust panic", (symbol::error,))?;
+        self.define_error(symbol::rust_error, "Rust error", (symbol::error,))?;
         self.define_error(
-            WRONG_TYPE_USER_PTR,
+            symbol::rust_wrong_type_user_ptr,
             "Wrong type user-ptr",
-            &[ERROR, "wrong-type-argument"],
+            (symbol::rust_error, self.intern("wrong-type-argument")?)
         )?;
         Ok(())
     }
@@ -210,14 +206,12 @@ impl Env {
 
     /// Defines a new Lisp error signal. This is the equivalent of the Lisp function's [`define-error`].
     ///
+    /// The error name can be either a string, a [`Value`], or a [`GlobalRef`].
+    ///
     /// [`define-error`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Error-Symbols.html
-    pub fn define_error(&self, name: &str, message: &str, parents: &[&str]) -> Result<Value<'_>> {
-        // We can't use self.list here, because subr::list may be uninitialized.
-        let parent_symbols = self.call(
-            "list",
-            &parents.iter().map(|p| self.intern(p)).collect::<Result<Vec<Value>>>()?,
-        )?;
-        self.call("define-error", (self.intern(name)?, message, parent_symbols))
+    pub fn define_error<'e, N, P>(&'e self, name: N, message: &str, parents: P) -> Result<Value<'e>>
+        where N: IntoLispSymbol<'e>, P: IntoLispArgs<'e> {
+        self.call("define-error", (name.into_lisp_symbol(self)?, message, self.list(parents)?))
     }
 
     /// Signals a Lisp error. This is the equivalent of the Lisp function's [`signal`].
