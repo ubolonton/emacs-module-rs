@@ -39,25 +39,28 @@ type InitFn = Box<dyn Fn(&Env) -> Result<()> + Send + 'static>;
 
 type FnMap = HashMap<String, InitFn>;
 
-// NOTE: Keep the lazy statics' names in-sync with those declared in emacs_macros::util.
 // TODO: How about defining these in user crate, and requiring #[module] to be at the crate's root?
 // TODO: We probably don't need the mutexes.
 
-/// Functions to be called first, when the dynamic library is loaded by the OS, before Emacs calls
-/// `emacs_module_init`. These are only called if the attribute macro #[[`module`]] is used, instead
-/// of the [`module_init!`] macro.
+/// Functions that will be called by [`emacs_module_init`] to initialize global references to
+/// frequently used Lisp values.
 ///
-/// [`module_init!`]: macro.module_init.html
-/// [`module`]: attr.module.html
+/// They are called before loading module metadata, e.g. module name, function prefix.
+///
+/// This list is populated when the OS loads the dynamic library, before Emacs calls
+/// [`emacs_module_init`].
+///
+/// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
 pub static __PRE_INIT__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
 
-// Re-explain this. These functions are for exposing #[defun] functions.
-/// Functions to be called when the dynamic module is loaded by the OS, before Emacs calls
-/// `emacs_module_init`. These are only called if #[[`module`]] attribute macro is used,
-/// instead of [`module_init!`] macro.
+/// Functions that will be called by [`emacs_module_init`] to define the module functions.
 ///
-/// [`module_init!`]: macro.module_init.html
-/// [`module`]: attr.module.html
+/// They are called after loading module metadata, e.g. module name, function prefix.
+///
+/// This map is populated when the OS loads the dynamic library, before Emacs calls
+/// [`emacs_module_init`].
+///
+/// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
 pub static __INIT_FNS__: Lazy<Mutex<FnMap>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
@@ -77,12 +80,7 @@ fn check_gc_bug_31238(env: &Env) -> Result<()> {
     let fixed = env.call("version<=", ("27", version))?.is_not_nil();
     if debugging() {
         env.call("set", (
-            env.intern("module-rs-disable-gc-bug-31238-workaround")?,
-            // Can't use true/false directly because symbol mod's globals have not been initialized.
-            env.intern(match fixed {
-                true => "t",
-                false => "nil",
-            })?
+            env.intern("module-rs-disable-gc-bug-31238-workaround")?, fixed
         ))?;
     }
     crate::env::HAS_FIXED_GC_BUG_31238.get_or_init(|| fixed);
@@ -96,6 +94,12 @@ where
 {
     let env = panic::AssertUnwindSafe(env);
     let result = panic::catch_unwind(|| match env.define_errors()
+        .and_then(|_| {
+            for f in __PRE_INIT__.try_lock().expect("Failed to acquire a read lock on the list of initializers").iter() {
+                f(&env)?;
+            }
+            Ok(())
+        })
         .and_then(|_| check_gc_bug_31238(&env))
         .and_then(|_| f(&env)) {
         Ok(_) => 0,
