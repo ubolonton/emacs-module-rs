@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
-- Added `Env::define_error` and `Env::signal` to simplify the process of signaling Lisp errors.
 - Added `OnceGlobalRef`, which eases the initialization of static references to long-lived Lisp values.
-- Added `use_symbols!`, which enables module code to use Lisp symbols without repeatedly interning them.
+  + Added `use_symbols!`, which enables module code to use Lisp symbols without repeatedly interning them.
+  + Added `define_errors!` and `Env::signal` to simplify the process of defining and signaling custom Lisp errors.
 - Raised the minimum supported Rust version to 1.45.
 
 ## [0.16.2] - 2021-03-04

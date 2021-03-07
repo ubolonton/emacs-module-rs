@@ -130,8 +130,8 @@ macro_rules! global_refs {
 
         #[$crate::deps::ctor::ctor]
         fn $registrator_name() {
-            $crate::init::__PRE_INIT__.try_lock()
-                .expect("Failed to acquire a write lock on the list of initializers")
+            $crate::init::__GLOBAL_REFS__.try_lock()
+                .expect("Failed to acquire a write lock on the list of initializers for global refs")
                 .push(::std::boxed::Box::new(|env| {
                     $(
                         #[allow(unused_variables)]

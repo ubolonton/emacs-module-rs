@@ -23,6 +23,38 @@ pub struct TempValue {
     raw: emacs_value,
 }
 
+/// Defines new error signals.
+///
+/// TODO: Document this properly.
+///
+/// This macro can be used only once per Rust `mod`.
+#[macro_export]
+macro_rules! define_errors {
+    ($( $name:ident $message:literal $( ( $( $parent:ident )+ ) )? )*) => {
+        $crate::global_refs! {__emrs_init_global_refs_to_error_symbols__(init_to_symbol) =>
+            $( $name )*
+        }
+
+        #[$crate::deps::ctor::ctor]
+        fn __emrs_define_errors__() {
+            $crate::init::__CUSTOM_ERRORS__.try_lock()
+                .expect("Failed to acquire a write lock on the list of initializers for custom error signals")
+                .push(::std::boxed::Box::new(|env| {
+                    $(
+                        env.define_error($name, $message, [
+                            $(
+                                $(
+                                    env.intern($crate::deps::emacs_macros::lisp_name!($parent))?
+                                ),+
+                            )?
+                        ])?;
+                    )*
+                    Ok(())
+                }));
+        }
+    }
+}
+
 /// Error types generic to all Rust dynamic modules.
 ///
 /// This list is intended to grow over time and it is not recommended to exhaustively match against
@@ -175,7 +207,7 @@ impl Env {
         }
     }
 
-    pub(crate) fn define_errors(&self) -> Result<()> {
+    pub(crate) fn define_core_errors(&self) -> Result<()> {
         // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
         // not a sub-type of 'error.
         self.define_error(symbol::rust_panic, "Rust panic", (symbol::error,))?;

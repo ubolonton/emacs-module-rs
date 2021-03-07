@@ -168,9 +168,12 @@
       (t/error:signal 'rust-error "abc")
     (rust-error (should (equal err '(rust-error . ("abc"))))))
   (should-error (t/error:signal-custom) :type 'emacs-module-rs-test-error)
+  (should-error (t/error:signal-custom) :type 'rust-error)
+  (should-error (t/error:signal-custom) :type 'error)
   (condition-case err
       (t/error:signal 'emacs-module-rs-test-error "abc")
-    (rust-error (should (equal err '(emacs-module-rs-test-error . ("abc")))))))
+    (rust-error (should (equal err '(emacs-module-rs-test-error . ("abc"))))))
+  (should-error (signal 'error-defined-without-parent nil) :type 'error))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Functions.

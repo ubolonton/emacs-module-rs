@@ -51,7 +51,17 @@ type FnMap = HashMap<String, InitFn>;
 /// [`emacs_module_init`].
 ///
 /// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
-pub static __PRE_INIT__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
+pub static __GLOBAL_REFS__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
+
+/// Functions that will be called by [`emacs_module_init`] to define custom error signals.
+///
+/// They are called before loading module metadata, e.g. module name, function prefix.
+///
+/// This list is populated when the OS loads the dynamic library, before Emacs calls
+/// [`emacs_module_init`].
+///
+/// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
+pub static __CUSTOM_ERRORS__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
 
 /// Functions that will be called by [`emacs_module_init`] to define the module functions.
 ///
@@ -94,11 +104,16 @@ pub fn initialize<F>(env: &Env, init: F) -> os::raw::c_int
 {
     let env = panic::AssertUnwindSafe(env);
     let result = panic::catch_unwind(|| match (|| {
-        for pre_init in __PRE_INIT__.try_lock().expect("Failed to acquire a read lock on the list of initializers").iter() {
-            pre_init(&env)?;
+        for init_global_ref in __GLOBAL_REFS__.try_lock()
+            .expect("Failed to acquire a read lock on the list of initializers for global-refs").iter() {
+            init_global_ref(&env)?;
         }
-        env.define_errors()?;
+        env.define_core_errors()?;
         check_gc_bug_31238(&env)?;
+        for define_error in __CUSTOM_ERRORS__.try_lock()
+            .expect("Failed to acquire a read lock on the list of initializers for custom error signals").iter() {
+            define_error(&env)?;
+        }
         init(&env)
     })() {
         Ok(_) => 0,

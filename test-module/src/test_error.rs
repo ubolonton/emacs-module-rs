@@ -1,6 +1,6 @@
 //! Testing error reporting and handling.
 
-use emacs::{defun, CallEnv, Env, Result, Value, OnceGlobalRef};
+use emacs::{defun, CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
 use emacs::ResultExt;
 
@@ -87,6 +87,11 @@ fn parse_arg(env: &CallEnv) -> Result<String> {
     Ok(s)
 }
 
+emacs::define_errors! {
+    emacs_module_rs_test_error "Hello" (rust_error)
+    error_defined_without_parent "No error message"
+}
+
 pub fn init(env: &Env) -> Result<()> {
     emacs::__export_functions! {
         env, format!("{}error:", *MODULE_PREFIX), {
@@ -94,22 +99,10 @@ pub fn init(env: &Env) -> Result<()> {
         }
     }
 
-    #[allow(non_upper_case_globals)]
-    static custom_error: &'static OnceGlobalRef = {
-        static custom_error: OnceGlobalRef = OnceGlobalRef::new();
-        &custom_error
-    };
-
     #[defun(mod_in_name = false, name = "error:signal-custom")]
     fn signal_custom(env: &Env) -> Result<()> {
-        env.signal(custom_error, [])
+        env.signal(emacs_module_rs_test_error, [])
     }
-
-    env.define_error(
-        custom_error.init_to_symbol(env, "emacs-module-rs-test-error")?,
-        "Hello",
-        [env.intern("rust-error")?]
-    )?;
 
     Ok(())
 }
