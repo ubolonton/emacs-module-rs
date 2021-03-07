@@ -217,8 +217,8 @@ impl Env {
     /// Signals a Lisp error. This is the equivalent of the Lisp function's [`signal`].
     ///
     /// [`signal`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Signaling-Errors.html#index-signal
-    pub fn signal<'e, S, D>(&'e self, symbol: S, data: D) -> Result<()> where S: IntoLisp<'e>, D: IntoLispArgs<'e> {
-        let symbol = TempValue { raw: symbol.into_lisp(self)?.raw };
+    pub fn signal<'e, S, D, T>(&'e self, symbol: S, data: D) -> Result<T> where S: IntoLispSymbol<'e>, D: IntoLispArgs<'e> {
+        let symbol = TempValue { raw: symbol.into_lisp_symbol(self)?.raw };
         let data = TempValue { raw: self.list(data)?.raw };
         Err(ErrorKind::Signal { symbol, data }.into())
     }
