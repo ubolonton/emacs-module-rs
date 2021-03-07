@@ -10,7 +10,7 @@ use std::{
 
 use once_cell::sync::Lazy;
 
-use crate::{Env, Value, Result};
+use crate::{Env, Value, Result, ErrorKind};
 
 #[doc(hidden)]
 #[macro_export]
@@ -88,23 +88,31 @@ fn check_gc_bug_31238(env: &Env) -> Result<()> {
 }
 
 #[inline]
-pub fn initialize<F>(env: &Env, f: F) -> os::raw::c_int
+pub fn initialize<F>(env: &Env, init: F) -> os::raw::c_int
     where
         F: Fn(&Env) -> Result<Value<'_>> + panic::RefUnwindSafe,
 {
     let env = panic::AssertUnwindSafe(env);
     let result = panic::catch_unwind(|| match (|| {
-        for f in __PRE_INIT__.try_lock().expect("Failed to acquire a read lock on the list of initializers").iter() {
-            f(&env)?;
+        for pre_init in __PRE_INIT__.try_lock().expect("Failed to acquire a read lock on the list of initializers").iter() {
+            pre_init(&env)?;
         }
         env.define_errors()?;
         check_gc_bug_31238(&env)?;
-        f(&env)
+        init(&env)
     })() {
         Ok(_) => 0,
         Err(e) => {
-            env.message(format!("Error during initialization: {:#?}", e))
-                .expect("Fail to message Emacs about error");
+            if let Some(ErrorKind::Signal { symbol, data }) = e.downcast_ref::<ErrorKind>() {
+                env.call("message", (
+                    "Error during initialization: symbol: %s data: %s",
+                    unsafe { symbol.value(&env) },
+                    unsafe { data.value(&env) },
+                ))
+            } else {
+                env.message(format!("Error during initialization: {:#?}", e))
+            }
+                .expect("Failed to message Emacs about initialization error");
             1
         }
     });
@@ -112,7 +120,7 @@ pub fn initialize<F>(env: &Env, f: F) -> os::raw::c_int
         Ok(v) => v,
         Err(e) => {
             env.message(format!("Panic during initialization: {:#?}", e))
-                .expect("Fail to message Emacs about panic");
+                .expect("Failed to message Emacs about initialization panic");
             2
         }
     }
