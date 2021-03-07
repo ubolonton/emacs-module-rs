@@ -88,7 +88,7 @@ macro_rules! global_refs {
                 .push(Box::new(|env| {
                     $(
                         #[allow(unused_variables)]
-                        let name = stringify!($name);
+                        let name = ::emacs_macros::lisp_name!($name);
                         $( let name = $lisp_name; )?
                         $crate::global::OnceGlobalRef::$init_method(&$name, env, name)?;
                     )*

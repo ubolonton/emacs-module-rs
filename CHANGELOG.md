@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 - Added `Env::define_error` and `Env::signal` to simplify the process of signaling Lisp errors.
 - Added `OnceGlobalRef`, which eases the initialization of static references to long-lived Lisp values.
+- Raised the minimum supported Rust version to 1.45.
 
 ## [0.16.2] - 2021-03-04
 - Fixed compilation on `aarch64-apple-darwin` (Apple Silicon).

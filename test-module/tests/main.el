@@ -103,6 +103,7 @@
   (should-error (t/to-lowercase-or-nil 1) :type 'wrong-type-argument))
 
 (ert-deftest conversion::vector-functions ()
+  (should (equal (t/make-vector 5 nil) (make-vector 5 nil)))
   (let ((v [0 1 2 3]))
     (should (= 4 (t/vec-size v)))
     (t/vec-set v 2 'a)

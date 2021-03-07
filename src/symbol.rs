@@ -5,9 +5,9 @@ use crate::{Env, Result, Value, global::{GlobalRef, OnceGlobalRef}};
 global_refs! {common(init_to_symbol) =>
     nil t
     error
-    rust_error => "rust-error"
-    rust_panic => "rust-panic"
-    rust_wrong_type_user_ptr => "rust-wrong-type-user-ptr"
+    rust_error
+    rust_panic
+    rust_wrong_type_user_ptr
 }
 
 pub trait IntoLispSymbol<'e> {
