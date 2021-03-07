@@ -95,12 +95,6 @@ impl<'e> IntoLisp<'e> for &'e GlobalRef {
     }
 }
 
-impl<'e> IntoLisp<'e> for &'e OnceGlobalRef {
-    #[inline(always)]
-    fn into_lisp(self, env: &'e Env) -> Result<Value<'e>> {
-        Ok(self.bind(env))
-    }
-}
 
 impl<'e> Value<'e> {
     /// Creates a new [`GlobalRef`] for this value.
@@ -112,10 +106,50 @@ impl<'e> Value<'e> {
     }
 }
 
+/// Declares global references. These will be initialized when the module is loaded.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! global_refs {
+    ($($name:ident)*) => {
+        $(
+            #[allow(non_upper_case_globals)]
+            pub static $name: &'static $crate::OnceGlobalRef = {
+                static X: $crate::OnceGlobalRef = $crate::OnceGlobalRef::new();
+                &X
+            };
+        )*
+    };
+    ($registrator_name:ident ($init_method:ident) =>
+        $(
+            $name:ident $( => $lisp_name:expr )?
+        )*
+    ) => {
+        $crate::global_refs! {
+            $($name)*
+        }
+
+        #[$crate::deps::ctor::ctor]
+        fn $registrator_name() {
+            $crate::init::__PRE_INIT__.try_lock()
+                .expect("Failed to acquire a write lock on the list of initializers")
+                .push(::std::boxed::Box::new(|env| {
+                    $(
+                        #[allow(unused_variables)]
+                        let name = $crate::deps::emacs_macros::lisp_name!($name);
+                        $( let name = $lisp_name; )?
+                        $crate::OnceGlobalRef::$init_method(&$name, env, name)?;
+                    )*
+                    Ok(())
+                }));
+        }
+    };
+}
+
 /// A [`GlobalRef`] that can be initialized once. This is useful for long-lived values that should
-/// be initialized when the module is loaded, such as frequently-used symbols.
+/// be initialized when the dynamic module is loaded. A typical use case is specifying
+/// frequently-used symbols, which can be done with the help of the macro [`use_symbols!`].
 ///
-/// [`GlobalRef`]: struct.GlobalRef.html
+/// [`use_symbols`]: crate::use_symbols
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct OnceGlobalRef {
@@ -155,6 +189,13 @@ impl OnceGlobalRef {
             let symbol = env.intern(name)?;
             env.call("indirect-function", [symbol])
         })
+    }
+}
+
+impl<'e> IntoLisp<'e> for &'e OnceGlobalRef {
+    #[inline(always)]
+    fn into_lisp(self, env: &'e Env) -> Result<Value<'e>> {
+        Ok(self.bind(env))
     }
 }
 

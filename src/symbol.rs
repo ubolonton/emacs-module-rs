@@ -1,8 +1,23 @@
-#![allow(non_upper_case_globals)]
-
 use crate::{Env, Result, Value, global::{GlobalRef, OnceGlobalRef}};
 
-global_refs! {common(init_to_symbol) =>
+/// Defines static [`&OnceGlobalRef`] variables that point to corresponding Lisp symbols.
+///
+/// This macro accepts a space-separated list of identifiers, and determine the Lisp symbol names by
+/// replacing underscores with hyphens.
+///
+/// It can be used only once per Rust `mod`.
+///
+/// [`&OnceGlobalRef`]: OnceGlobalRef
+#[macro_export]
+macro_rules! use_symbols {
+    ($( $name:ident $( => $lisp_name:expr )? )*) => {
+        $crate::global_refs! {__emrs_init_global_refs_to_symbols__(init_to_symbol) =>
+            $( $name $( => $lisp_name )? )*
+        }
+    }
+}
+
+use_symbols! {
     nil t
     error
     rust_error
