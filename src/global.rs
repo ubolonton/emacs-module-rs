@@ -123,27 +123,34 @@ pub struct OnceGlobalRef {
 }
 
 impl OnceGlobalRef {
-    pub(crate) const fn new() -> Self {
+    pub const fn new() -> Self {
         Self { inner: OnceCell::new() }
     }
 
     /// Initializes this global reference with the given function.
     #[doc(hidden)]
-    pub fn init<F: FnOnce(&Env) -> Result<Value>>(&self, env: &Env, f: F) -> Result<()> {
+    pub fn init<F: FnOnce(&Env) -> Result<Value>>(&self, env: &Env, f: F) -> Result<&GlobalRef> {
         let g = f(env)?.make_global_ref();
         self.inner.set(g).expect("Cannot initialize a global reference more than once");
-        Ok(())
+        Ok(self.inner.get().expect("Failed to get an initialized OnceGlobalRef"))
     }
 
     /// Points this global reference to an interned Lisp symbol with the given name.
+    ///
+    /// This should be called once, during module initialization.
     #[doc(hidden)]
-    pub fn init_to_symbol(&self, env: &Env, name: &str) -> Result<()> {
+    pub fn init_to_symbol(&self, env: &Env, name: &str) -> Result<&GlobalRef> {
         self.init(env, |env| env.intern(name))
     }
 
     /// Points this global reference to the function bound to the Lisp symbol with the given name.
+    ///
+    /// This should be called once, during module initialization.
+    ///
+    /// If the symbol is later bound to another function, this global reference will still point to
+    /// the old function. Therefore, this is best used for built-in and primitive functions.
     #[doc(hidden)]
-    pub fn init_to_function(&self, env: &Env, name: &str) -> Result<()> {
+    pub fn init_to_function(&self, env: &Env, name: &str) -> Result<&GlobalRef> {
         self.init(env, |env| {
             let symbol = env.intern(name)?;
             env.call("indirect-function", [symbol])

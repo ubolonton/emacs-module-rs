@@ -1,10 +1,8 @@
 //! Testing error reporting and handling.
 
-use emacs::{defun, CallEnv, Env, Result, Value, GlobalRef};
+use emacs::{defun, CallEnv, Env, Result, Value, OnceGlobalRef};
 use emacs::ErrorKind::{self, Signal, Throw};
 use emacs::ResultExt;
-
-use once_cell::sync::OnceCell;
 
 use super::MODULE_PREFIX;
 
@@ -97,15 +95,18 @@ pub fn init(env: &Env) -> Result<()> {
     }
 
     #[allow(non_upper_case_globals)]
-    static custom_error: OnceCell<GlobalRef> = OnceCell::new();
+    static custom_error: &'static OnceGlobalRef = {
+        static custom_error: OnceGlobalRef = OnceGlobalRef::new();
+        &custom_error
+    };
 
     #[defun(mod_in_name = false, name = "error:signal-custom")]
     fn signal_custom(env: &Env) -> Result<()> {
-        env.signal(custom_error.get().unwrap(), [])
+        env.signal(custom_error, [])
     }
 
     env.define_error(
-        custom_error.get_or_try_init(|| env.intern("emacs-module-rs-test-error").map(GlobalRef::new))?,
+        custom_error.init_to_symbol(env, "emacs-module-rs-test-error")?,
         "Hello",
         [env.intern("rust-error")?]
     )?;

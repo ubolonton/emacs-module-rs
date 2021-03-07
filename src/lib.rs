@@ -34,7 +34,7 @@ pub use emacs_macros::{defun, module};
 pub use self::{
     env::Env,
     value::Value,
-    global::GlobalRef,
+    global::{GlobalRef, OnceGlobalRef},
     types::{FromLisp, IntoLisp, Transfer, Vector},
     func::CallEnv,
     error::{ErrorKind, Result, ResultExt, Error},

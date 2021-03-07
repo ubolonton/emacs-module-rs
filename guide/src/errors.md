@@ -43,12 +43,12 @@ This is similar to handling Lisp errors. The only difference is `ErrorKind::Thro
 The function `env.signal` allows signaling a Lisp error from Rust code. The error symbol must have been defined, e.g. by calling `env.define_error`:
 
 ```rust
-pub static my_custom_error: OnceCell<GlobalRef> = OnceCell::new();
+pub static my_custom_error: OnceGlobalRef = OnceGlobalRef::new();
 
 #[emacs::module]
 fn init(env: &Env) -> Result<Value<'_>> {
     env.define_error(
-        my_custom_error.get_or_try_init(|| env.intern("my-custom-error").map(GlobalRef::new))?,
+        my_custom_error.init_to_symbol("my-custom-error")?,
         "This number should not be negative",
         [env.intern("error")?]
     )
@@ -57,7 +57,7 @@ fn init(env: &Env) -> Result<Value<'_>> {
 #[defun]
 fn signal_if_negative(env: &Env, x: i16) -> Result<()> {
     if (x < 0) {
-        return env.signal(my_custom_error.get().unwrap(), ("associated", "DATA", 7))
+        return env.signal(&my_custom_error., ("associated", "DATA", 7))
     }
     Ok(())
 }
