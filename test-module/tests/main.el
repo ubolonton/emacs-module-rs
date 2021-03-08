@@ -103,6 +103,7 @@
   (should-error (t/to-lowercase-or-nil 1) :type 'wrong-type-argument))
 
 (ert-deftest conversion::vector-functions ()
+  (should (equal (t/make-vector 5 nil) (make-vector 5 nil)))
   (let ((v [0 1 2 3]))
     (should (= 4 (t/vec-size v)))
     (t/vec-set v 2 'a)
@@ -143,6 +144,10 @@
                    nil))
                 msg))))
 
+(ert-deftest error::wrap-signal ()
+  (should (> (length (t/read-file "Cargo.toml")) 0))
+  (should-error (t/read-file "!@#%%&") :type 'emrs-file-error))
+
 (ert-deftest error::handling-signal ()
   (should (eq (t/error:get-type (lambda () (error "?"))) 'error))
   (should (eq (t/error:get-type (lambda () (user-error "?"))) 'user-error)))
@@ -167,9 +172,12 @@
       (t/error:signal 'rust-error "abc")
     (rust-error (should (equal err '(rust-error . ("abc"))))))
   (should-error (t/error:signal-custom) :type 'emacs-module-rs-test-error)
+  (should-error (t/error:signal-custom) :type 'rust-error)
+  (should-error (t/error:signal-custom) :type 'error)
   (condition-case err
       (t/error:signal 'emacs-module-rs-test-error "abc")
-    (rust-error (should (equal err '(emacs-module-rs-test-error . ("abc")))))))
+    (rust-error (should (equal err '(emacs-module-rs-test-error . ("abc"))))))
+  (should-error (signal 'error-defined-without-parent nil) :type 'error))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Functions.

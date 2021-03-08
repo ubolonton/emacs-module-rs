@@ -1,10 +1,10 @@
 //! Testing error reporting and handling.
 
-use emacs::{defun, CallEnv, Env, Result, Value, GlobalRef};
+use std::fs;
+
+use emacs::{defun, CallEnv, Env, Result, Value};
 use emacs::ErrorKind::{self, Signal, Throw};
 use emacs::ResultExt;
-
-use once_cell::sync::OnceCell;
 
 use super::MODULE_PREFIX;
 
@@ -60,17 +60,16 @@ fn catch<'e>(expected_tag: Value<'e>, lambda: Value<'e>) -> Result<Value<'e>> {
     }
 }
 
-#[allow(deprecated)]
-unsafe fn apply_inner(lambda: Value<'_>, args: Value<'_>) {
+/// Call `apply` on LAMBDA and ARGS, propagating any signaled error.
+#[defun(mod_in_name = false, name = "error:apply")]
+fn apply<'e>(lambda: Value<'e>, args: Value<'e>) -> Result<Value<'e>> {
     let env = lambda.env;
-    env.call("apply", (lambda, args)).unwrap_or_propagate();
+    env.call("apply", (lambda, args))
 }
 
-/// Call `apply` on LAMBDA and ARGS, using panics instead of Result to propagate errors.
-#[defun(mod_in_name = false, name = "error:apply")]
-fn apply(lambda: Value<'_>, args: Value<'_>) -> Result<()> {
-    unsafe { apply_inner(lambda, args); }
-    Ok(())
+#[defun(mod_in_name = false)]
+fn read_file<'e>(env: &Env, path: String) -> Result<String> {
+    fs::read_to_string(path).or_signal(env, emrs_file_error)
 }
 
 #[defun(mod_in_name = false, name = "error:panic")]
@@ -89,6 +88,12 @@ fn parse_arg(env: &CallEnv) -> Result<String> {
     Ok(s)
 }
 
+emacs::define_errors! {
+    emrs_file_error "File error"
+    emacs_module_rs_test_error "Hello" (rust_error)
+    error_defined_without_parent "Error"
+}
+
 pub fn init(env: &Env) -> Result<()> {
     emacs::__export_functions! {
         env, format!("{}error:", *MODULE_PREFIX), {
@@ -96,19 +101,10 @@ pub fn init(env: &Env) -> Result<()> {
         }
     }
 
-    #[allow(non_upper_case_globals)]
-    static custom_error: OnceCell<GlobalRef> = OnceCell::new();
-
     #[defun(mod_in_name = false, name = "error:signal-custom")]
     fn signal_custom(env: &Env) -> Result<()> {
-        env.signal(custom_error.get().unwrap(), [])
+        env.signal(emacs_module_rs_test_error, [])
     }
-
-    env.define_error(
-        custom_error.get_or_try_init(|| env.intern("emacs-module-rs-test-error").map(GlobalRef::new))?,
-        "Hello",
-        [env.intern("rust-error")?]
-    )?;
 
     Ok(())
 }

@@ -34,7 +34,7 @@ pub use emacs_macros::{defun, module};
 pub use self::{
     env::Env,
     value::Value,
-    global::GlobalRef,
+    global::{GlobalRef, OnceGlobalRef},
     types::{FromLisp, IntoLisp, Transfer, Vector},
     func::CallEnv,
     error::{ErrorKind, Result, ResultExt, Error},
@@ -52,6 +52,7 @@ mod value;
 mod types;
 mod error;
 mod call;
+#[macro_use]
 mod global;
 mod symbol;
 mod subr;
@@ -66,5 +67,6 @@ pub mod raw {
 /// External dependencies that are mostly used by macros instead of user code.
 #[doc(hidden)]
 pub mod deps {
+    pub use emacs_macros;
     pub use ctor;
 }

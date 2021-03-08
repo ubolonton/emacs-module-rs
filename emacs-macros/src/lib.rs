@@ -9,6 +9,7 @@ extern crate proc_macro2;
 use proc_macro::TokenStream;
 
 use syn::{self, AttributeArgs, ItemFn, LitInt, parse_macro_input};
+use quote::quote;
 
 mod util;
 mod module;
@@ -128,4 +129,14 @@ pub fn impl_lisp_args_for_tuples(arity: TokenStream) -> TokenStream {
 pub fn impl_lisp_args_for_arrays(length: TokenStream) -> TokenStream {
     let length: LitInt = parse_macro_input!(length);
     lisp_args::impl_for_arrays(length.base10_parse::<usize>().unwrap()).into()
+}
+
+/// Converts an identifier into a Lisp name, as a string literal.
+///
+/// This replaces underscores with hyphens.
+#[doc(hidden)]
+#[proc_macro]
+pub fn lisp_name(ident: TokenStream) -> TokenStream {
+    let name = util::lisp_name(&parse_macro_input!(ident));
+    quote!(#name).into()
 }

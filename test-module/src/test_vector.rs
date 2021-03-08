@@ -30,3 +30,8 @@ fn stringify_num_vector(v: Vector) -> Result<Vector> {
     }
     Ok(v)
 }
+
+#[defun(mod_in_name = false)]
+fn make_vector(length: usize, init: Value) -> Result<Vector> {
+    init.env.make_vector(length, init)
+}
