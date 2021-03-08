@@ -1,16 +1,17 @@
 #[doc(no_inline)]
+use std::{any::Any, fmt::Display, mem::MaybeUninit, result, thread};
+
 pub use anyhow::{self, Error};
-use std::mem::MaybeUninit;
-use std::result;
-use std::thread;
-use std::any::Any;
 use thiserror::Error;
 
-use super::IntoLisp;
-use super::{Env, Value};
 use emacs_module::*;
-use crate::{symbol::{self, IntoLispSymbol}, GlobalRef};
-use crate::call::IntoLispArgs;
+
+use crate::{
+    Env, Value, IntoLisp,
+    GlobalRef,
+    symbol::{self, IntoLispSymbol},
+    call::IntoLispArgs,
+};
 
 // We use const instead of enum, in case Emacs add more exit statuses in the future.
 // See https://github.com/rust-lang/rust/issues/36927
@@ -132,6 +133,7 @@ impl TempValue {
 // XXX: Technically these are unsound, but they are necessary to use the `Fail` trait. We ensure
 // safety by marking TempValue methods as unsafe.
 unsafe impl Send for TempValue {}
+
 unsafe impl Sync for TempValue {}
 
 impl Env {
@@ -149,16 +151,14 @@ impl Env {
                 Err(ErrorKind::Signal {
                     symbol: unsafe { TempValue::new(symbol.assume_init()) },
                     data: unsafe { TempValue::new(data.assume_init()) },
-                }
-                .into())
+                }.into())
             }
             (THROW, tag, value) => {
                 self.non_local_exit_clear();
                 Err(ErrorKind::Throw {
                     tag: unsafe { TempValue::new(tag.assume_init()) },
                     value: unsafe { TempValue::new(value.assume_init()) },
-                }
-                .into())
+                }.into())
             }
             _ => panic!("Unexpected non local exit status {}", status),
         }
@@ -195,7 +195,7 @@ impl Env {
                 if let Err(error) = m {
                     m = match error.downcast::<ErrorKind>() {
                         // TODO: Explain safety.
-                        Ok(err) => unsafe { return self.handle_known(&*err) },
+                        Ok(err) => unsafe { return self.handle_known(&*err); },
                         Err(error) => Err(error),
                     }
                 }
@@ -210,12 +210,12 @@ impl Env {
     pub(crate) fn define_core_errors(&self) -> Result<()> {
         // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
         // not a sub-type of 'error.
-        self.define_error(symbol::rust_panic, "Rust panic", (symbol::error,))?;
-        self.define_error(symbol::rust_error, "Rust error", (symbol::error,))?;
+        self.define_error(symbol::rust_panic, "Rust panic", (symbol::error, ))?;
+        self.define_error(symbol::rust_error, "Rust error", (symbol::error, ))?;
         self.define_error(
             symbol::rust_wrong_type_user_ptr,
             "Wrong type user-ptr",
-            (symbol::rust_error, self.intern("wrong-type-argument")?)
+            (symbol::rust_error, self.intern("wrong-type-argument")?),
         )?;
         Ok(())
     }
@@ -287,46 +287,21 @@ impl Env {
     }
 }
 
-/// Emacs-specific extension methods for [`Result`].
+/// Emacs-specific extension methods for the standard library's [`Result`].
 ///
-/// [`Result`]: type.Result.html
+/// [`Result`]: result::Result
 pub trait ResultExt<T, E> {
-    /// Unwraps a result, yielding the content of an [`Ok`].
+    /// Converts the error into a Lisp signal if this result is an [`Err`]. The first element of the
+    /// associated signal data will be a string formatted with [`Display::fmt`].
     ///
-    /// # Panics
-    ///
-    /// Panics if the value is an [`Err`], using a sensible panic value.
-    ///
-    /// If the underlying error is an [`ErrorKind`], it will be used as the value of the panic,
-    /// which makes the `#[defun]` behave as if the corresponding non-local exit was propagated.
-    /// Otherwise, tries to use [`Display`] to get a descriptive error message.
-    ///
-    /// This is useful when errors cannot be propagated using [`Result`], e.g. callbacks whose types
-    /// are dictated by 3rd-party libraries.
-    ///
-    /// # Safety
-    ///
-    /// The panic must not propagate across an FFI boundary, e.g. this must not be used in callbacks
-    /// that will be called by C code. See Rust's [`issue #52652`].
-    ///
-    /// [`Ok`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`ErrorKind`]: enum.ErrorKind.html
-    /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
-    /// [`Result`]: type.Result.html
-    /// [`issue #52652`]: https://github.com/rust-lang/rust/issues/52652
-    #[deprecated(since = "0.12.0", note = "Use Result or a variable to track error instead")]
-    unsafe fn unwrap_or_propagate(self) -> T;
+    /// If the result is an [`Ok`], it is returned unchanged.
+    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T> where S: IntoLispSymbol<'e>;
 }
 
-impl<T> ResultExt<T, Error> for Result<T> {
-    #[inline]
-    unsafe fn unwrap_or_propagate(self) -> T {
-        self.unwrap_or_else(|error| {
-            match error.downcast::<ErrorKind>() {
-                Ok(err) => panic!(err),
-                Err(error) => panic!("{}", error),
-            };
-        })
+impl<T, E: Display> ResultExt<T, E> for result::Result<T, E> {
+    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T> where S: IntoLispSymbol<'e> {
+        self.or_else(|err| env.signal(symbol, (
+            format!("{}", err),
+        )))
     }
 }

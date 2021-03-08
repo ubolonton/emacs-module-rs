@@ -144,6 +144,10 @@
                    nil))
                 msg))))
 
+(ert-deftest error::wrap-signal ()
+  (should (> (length (t/read-file "Cargo.toml")) 0))
+  (should-error (t/read-file "!@#%%&") :type 'emrs-file-error))
+
 (ert-deftest error::handling-signal ()
   (should (eq (t/error:get-type (lambda () (error "?"))) 'error))
   (should (eq (t/error:get-type (lambda () (user-error "?"))) 'user-error)))
