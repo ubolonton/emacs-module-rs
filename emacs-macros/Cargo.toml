@@ -1,6 +1,6 @@
 [package]
 name = "emacs-macros"
-version = "0.15.1"
+version = "0.17.0"
 edition = "2018"
 description = "Proc macros for emacs modules"
 homepage = "https://github.com/ubolonton/emacs-module-rs"

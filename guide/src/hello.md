@@ -17,7 +17,7 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-emacs = "0.16"
+emacs = "0.17"
 ```
 
 Write code in `src/lib.rs`:
