@@ -56,6 +56,10 @@ jobs:
         if: runner.os == 'Windows'
         run: .\bin\build.ps1
 
+      - name: Find syspolicyd
+        if: runner.os == 'macOS'
+        run: bash -c 'ps aux | grep syspolicy'
+
       # XXX: Please don't use homebrew!
       - name: Install Emacs's pre-requisites (macOS)
         if: runner.os == 'macOS'
@@ -74,6 +78,10 @@ jobs:
           sudo apt-get install ruby libgtk-3-dev libxpm-dev
           sudo apt-get install libgnutls-dev || echo 'Skipped libgnutls-dev'
           sudo apt-get install libgnutls28-dev || echo 'Skipped libgnutls28-dev' # XXX: Ubuntu 18.04
+
+      - name: Find syspolicydd
+        if: runner.os == 'macOS'
+        run: bash -c 'ps aux | grep syspolicy'
 
       - name: Install Emacs ${{ matrix.emacs_version }}
         if: runner.os != 'Windows'
@@ -94,13 +102,13 @@ jobs:
           echo "$env:MSYS_PATH\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf-8 -Append
 
       - name: Run tests
-        if: runner.os != 'macOS'
+        # if: runner.os != 'macOS'
         run: |
           cargo test --all
           ./bin/test
 
-      - name: Setup tmate session
-        if: runner.os == 'macOS'
-        uses: mxschmitt/action-tmate@v3
-        # with:
-        #   limit-access-to-actor: true
+      # - name: Setup tmate session
+      #   if: runner.os == 'macOS'
+      #   uses: mxschmitt/action-tmate@v3
+      #   # with:
+      #   #   limit-access-to-actor: true
