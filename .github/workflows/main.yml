@@ -83,11 +83,11 @@ jobs:
       - name: Install Emacs (Windows)
         if: runner.os == 'Windows'
         run: |
-          set MSYS_PATH=%CD%\ci-tools\msys2
-          choco install msys2 --params="/InstallDir:%MSYS_PATH% /NoPath"
-          set PATH=%MSYS_PATH%\usr\bin;%PATH%
+          $env:MSYS_PATH = "$env:CD\ci-tools\msys2"
+          choco install msys2 --params="/InstallDir:$env:MSYS_PATH /NoPath"
+          $env:PATH = "$env:MSYS_PATH\usr\bin;" + $env:PATH
           pacman -S --noconfirm --needed mingw-w64-x86_64-emacs
-          echo "%MSYS_PATH%\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf-8 -Append
+          echo "$env:MSYS_PATH\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf-8 -Append
 
       - name: Run tests
         run: |
