@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - ci
+      - github-actions
+    paths-ignore:
+      - guide/**
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - guide/**
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - macos-10.15
+          - ubuntu-18.04
+        emacs_version:
+          - '25.3'
+          - '26.3'
+          - '27.2'
+        include:
+          - os: windows-2016
+          - os: windows-2019
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Set up Rust
+        run: |
+          rustup install stable
+          rustc -Vv
+          cargo -V
+      - name: Set up LLVM
+        if: runner.os == 'Windows'
+        run: |
+          choco install llvm --version 8.0.0
