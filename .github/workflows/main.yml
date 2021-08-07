@@ -88,3 +88,8 @@ jobs:
           set PATH=%MSYS_PATH%\usr\bin;%PATH%
           pacman -S --noconfirm --needed mingw-w64-x86_64-emacs
           echo "%MSYS_PATH%\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf-8 -Append
+
+      - name: Run tests
+        run: |
+          cargo test --all
+          ./bin/test
