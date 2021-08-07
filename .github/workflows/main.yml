@@ -43,6 +43,10 @@ jobs:
           choco install llvm --version 8.0.0
           echo "LIBCLANG_PATH=$env:SystemDrive\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Kill syspolicyd
+        if: runner.os == 'macOS'
+        run: sudo pkill syspolicyd
+
       - uses: actions/checkout@v2
 
       - name: Build
