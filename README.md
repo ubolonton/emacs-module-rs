@@ -1,5 +1,5 @@
 # Emacs Module in Rust
-[![crates.io](https://meritbadge.herokuapp.com/emacs)](https://crates.io/crates/emacs)
+[![crates.io](https://img.shields.io/crates/v/emacs)](https://crates.io/crates/emacs)
 [![doc.rs](https://docs.rs/emacs/badge.svg)](https://docs.rs/emacs/)
 [![Azure Pipelines](https://dev.azure.com/ubolonton/emacs-module-rs/_apis/build/status/ci?branchName=master&label=build&api-version=6.0-preview.1)](https://dev.azure.com/ubolonton/emacs-module-rs/_build/latest?definitionId=1&branchName=master)
 [![GitHub Actions](https://github.com/ubolonton/emacs-module-rs/actions/workflows/main.yml/badge.svg)](https://github.com/ubolonton/emacs-module-rs/actions/workflows/main.yml)
