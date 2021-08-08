@@ -43,30 +43,39 @@ jobs:
           choco install llvm --version 8.0.0
           echo "LIBCLANG_PATH=$env:SystemDrive\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Kill syspolicyd
+      - name: Kill syspolicyd 0
         if: runner.os == 'macOS'
-        run: sudo pkill syspolicyd
+        run: |
+          ps aux | grep syspolicy
+          sudo pkill syspolicyd || true
+          ps aux | grep syspolicy
 
       - uses: actions/checkout@v2
+
+      - name: Kill syspolicyd 1
+        if: runner.os == 'macOS'
+        run: |
+          ps aux | grep syspolicy
+          sudo pkill syspolicyd || true
+          ps aux | grep syspolicy
 
       - name: Build
         if: runner.os != 'Windows'
         run: |
+          ps aux | grep syspolicy
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           ./bin/build
       - name: Build (Windows)
         if: runner.os == 'Windows'
         run: .\bin\build.ps1
 
-      - name: Find syspolicyd
-        if: runner.os == 'macOS'
-        run: |
-          ps aux | grep syspolicy
-
       # XXX: Please don't use homebrew!
       - name: Install Emacs's pre-requisites (macOS)
         if: runner.os == 'macOS'
         run: |
+          ps aux | grep syspolicy
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           set -e
           brew install pkg-config gnutls libxml2
@@ -84,14 +93,18 @@ jobs:
           sudo apt-get install libgnutls-dev || echo 'Skipped libgnutls-dev'
           sudo apt-get install libgnutls28-dev || echo 'Skipped libgnutls28-dev' # XXX: Ubuntu 18.04
 
-      - name: Find syspolicydd
+      - name: Kill syspolicyd 2
         if: runner.os == 'macOS'
         run: |
+          ps aux | grep syspolicy
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
 
       - name: Install Emacs ${{ matrix.emacs_version }}
         if: runner.os != 'Windows'
         run: |
+          ps aux | grep syspolicy
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           set -e
           export PATH="$HOME/.evm/bin:$PATH"
@@ -110,12 +123,19 @@ jobs:
           echo "$env:MSYS_PATH\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf-8 -Append
 
       - name: Run tests
-        # if: runner.os != 'macOS'
+        if: runner.os != 'macOS'
         run: |
+          cargo test --all
+          ./bin/test
+
+      - name: Run tests (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ps aux | grep syspolicy
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           cargo test --all
           ./bin/test
-          ps aux | grep syspolicy
 
       # - name: Setup tmate session
       #   if: runner.os == 'macOS'
