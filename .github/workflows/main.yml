@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - ci
+      - github-actions
+    paths-ignore:
+      - guide/**
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - guide/**
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-18.04
+          - ubuntu-20.04
+        emacs_version:
+          - '25.3'
+          - '26.3'
+          - '27.1'
+        include:
+          # XXX: There's no easy way to make evm-built binaries of old Emacs versions work on macOS
+          # 10.15 (Catalina). They get `Killed: 9`. Basically syspolicyd got a lot more shitty
+          # (checking notarization of unsigned executables by connecting to Apple servers), and
+          # there's no easy way to disable it. So we just don't test these cases.
+          #
+          # Example troubleshooting commands:
+          #
+          # syslog -f /var/log/DiagnosticMessages/2021.08.07.asl
+          #
+          # See also:
+          # - https://github.com/rust-lang/cargo/issues/7821#issuecomment-584469149
+          # - https://lapcatsoftware.com/articles/catalina-executables.html
+          # - https://news.ycombinator.com/item?id=23281564
+          # - https://kittywhiskers.eu/disable-syspolicyd-on-your-hackintosh/
+          # - https://knight.sc/reverse%20engineering/2019/02/20/syspolicyd-internals.html
+          # - https://www.naut.ca/blog/2020/11/13/forbidden-commands-to-liberate-macos/
+          - os: macos-10.15
+            emacs_version: '27.1'
+          # XXX: We use msys2 to install Emacs on Windows, and don't know how to specify the version
+          - os: windows-2016
+          - os: windows-2019
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Set up Rust
+        run: |
+          rustup install stable
+          rustc -Vv
+          cargo -V
+
+      - name: Set up LLVM
+        if: runner.os == 'Windows'
+        run: |
+          choco install llvm --version 8.0.0
+          echo "LIBCLANG_PATH=$env:SystemDrive\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - uses: actions/checkout@v2
+
+      - name: Build
+        run: ./bin/build
+
+      # XXX: Find a way to do away with homebrew!
+      - name: Install Emacs's pre-requisites (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -e
+          brew install pkg-config gnutls libxml2
+          # https://github.com/remacs/remacs/issues/155 (pkg-config)
+          brew outdated pkg-config || brew upgrade pkg-config
+          # https://github.com/remacs/remacs/issues/886 (libxml2, macOS 10.14)
+          echo PKG_CONFIG_PATH=/usr/local/opt/libxml2/lib/pkgconfig >> $GITHUB_ENV
+      - name: Install Emacs's pre-requisites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install ruby libgtk-3-dev libxpm-dev
+          sudo apt-get install libgnutls-dev || echo 'Skipped libgnutls-dev'
+          sudo apt-get install libgnutls28-dev || echo 'Skipped libgnutls28-dev' # XXX: Ubuntu 18.04
+
+      - name: Install Emacs ${{ matrix.emacs_version }}
+        if: runner.os != 'Windows'
+        run: |
+          set -e
+          export PATH="$HOME/.evm/bin:$PATH"
+          echo "$HOME/.evm/bin" >> $GITHUB_PATH
+          git clone -b master https://github.com/ubolonton/evm.git $HOME/.evm
+          evm config path /tmp
+          evm install emacs-${{ matrix.emacs_version }} --use --skip
+      - name: Install Emacs (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $env:MSYS_PATH = "$env:CD\ci-tools\msys2"
+          choco install msys2 --params="/InstallDir:$env:MSYS_PATH /NoPath"
+          $env:PATH = "$env:MSYS_PATH\usr\bin;" + $env:PATH
+          pacman -S --noconfirm --needed mingw-w64-x86_64-emacs
+          echo "$env:MSYS_PATH\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf-8 -Append
+
+      - name: Run tests
+        run: |
+          cargo test --all
+          ./bin/test
