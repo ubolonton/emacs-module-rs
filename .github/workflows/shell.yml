@@ -21,5 +21,3 @@ jobs:
         ref: ${{ github.event.inputs.revision }}
     - uses: mxschmitt/action-tmate@v3
       name: Setup tmate session
-      with:
-        limit-access-to-actor: true
