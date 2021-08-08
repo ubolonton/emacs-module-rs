@@ -19,6 +19,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # XXX: There's no easy way to make evm-built binaries of old Emacs versions work on macOS
+        # 10.15 (Catalina). They get `Killed: 9`. Basically syspolicyd got a lot more shitty
+        # (checking notarization of unsigned executables by connecting to Apple servers), and
+        # there's no easy way to disable it. So we just don't test these cases.
+        #
+        # Example troubleshooting commands:
+        #
+        # syslog -f /var/log/DiagnosticMessages/2021.08.07.asl
+        #
+        # See also:
+        # - https://github.com/rust-lang/cargo/issues/7821#issuecomment-584469149
+        # - https://lapcatsoftware.com/articles/catalina-executables.html
+        # - https://news.ycombinator.com/item?id=23281564
+        # - https://kittywhiskers.eu/disable-syspolicyd-on-your-hackintosh/
+        # - https://knight.sc/reverse%20engineering/2019/02/20/syspolicyd-internals.html
+        # - https://www.naut.ca/blog/2020/11/13/forbidden-commands-to-liberate-macos/
         os:
           - macos-10.15
           - ubuntu-18.04
