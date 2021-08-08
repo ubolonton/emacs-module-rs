@@ -49,6 +49,7 @@ jobs:
           ps aux | grep syspolicy
           echo "~~~~~~~~~~~~~~~~~~~~"
           sudo spctl --master-disable || true
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
 
       - uses: actions/checkout@v2
@@ -59,6 +60,7 @@ jobs:
           ps aux | grep syspolicy
           echo "~~~~~~~~~~~~~~~~~~~~"
           sudo spctl --master-disable || true
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
 
       - name: Build
@@ -67,6 +69,7 @@ jobs:
           ps aux | grep syspolicy
           echo "~~~~~~~~~~~~~~~~~~~~"
           sudo spctl --master-disable || true
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           ./bin/build
       - name: Build (Windows)
@@ -80,6 +83,7 @@ jobs:
           ps aux | grep syspolicy
           echo "~~~~~~~~~~~~~~~~~~~~"
           sudo spctl --master-disable || true
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           set -e
           brew install pkg-config gnutls libxml2
@@ -103,6 +107,7 @@ jobs:
           ps aux | grep syspolicy
           echo "~~~~~~~~~~~~~~~~~~~~"
           sudo spctl --master-disable || true
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
 
       - name: Install Emacs ${{ matrix.emacs_version }}
@@ -111,6 +116,7 @@ jobs:
           ps aux | grep syspolicy
           echo "~~~~~~~~~~~~~~~~~~~~"
           sudo spctl --master-disable || true
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           set -e
           export PATH="$HOME/.evm/bin:$PATH"
@@ -140,6 +146,7 @@ jobs:
           ps aux | grep syspolicy
           echo "~~~~~~~~~~~~~~~~~~~~"
           sudo spctl --master-disable || true
+          sudo pkill syspolicyd || true
           ps aux | grep syspolicy
           cargo test --all
           ./bin/test
