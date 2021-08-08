@@ -47,7 +47,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ps aux | grep syspolicy
-          sudo pkill syspolicyd || true
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          sudo spctl --master-disable || true
           ps aux | grep syspolicy
 
       - uses: actions/checkout@v2
@@ -56,14 +57,16 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ps aux | grep syspolicy
-          sudo pkill syspolicyd || true
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          sudo spctl --master-disable || true
           ps aux | grep syspolicy
 
       - name: Build
         if: runner.os != 'Windows'
         run: |
           ps aux | grep syspolicy
-          sudo pkill syspolicyd || true
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          sudo spctl --master-disable || true
           ps aux | grep syspolicy
           ./bin/build
       - name: Build (Windows)
@@ -75,7 +78,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ps aux | grep syspolicy
-          sudo pkill syspolicyd || true
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          sudo spctl --master-disable || true
           ps aux | grep syspolicy
           set -e
           brew install pkg-config gnutls libxml2
@@ -97,14 +101,16 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ps aux | grep syspolicy
-          sudo pkill syspolicyd || true
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          sudo spctl --master-disable || true
           ps aux | grep syspolicy
 
       - name: Install Emacs ${{ matrix.emacs_version }}
         if: runner.os != 'Windows'
         run: |
           ps aux | grep syspolicy
-          sudo pkill syspolicyd || true
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          sudo spctl --master-disable || true
           ps aux | grep syspolicy
           set -e
           export PATH="$HOME/.evm/bin:$PATH"
@@ -132,7 +138,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ps aux | grep syspolicy
-          sudo pkill syspolicyd || true
+          echo "~~~~~~~~~~~~~~~~~~~~"
+          sudo spctl --master-disable || true
           ps aux | grep syspolicy
           cargo test --all
           ./bin/test
