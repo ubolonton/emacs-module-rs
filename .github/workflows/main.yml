@@ -51,25 +51,30 @@ jobs:
 
       - name: Build
         if: runner.os != 'Windows'
-        run: ./bin/build
+        run: |
+          ps aux | grep syspolicy
+          ./bin/build
       - name: Build (Windows)
         if: runner.os == 'Windows'
         run: .\bin\build.ps1
 
       - name: Find syspolicyd
         if: runner.os == 'macOS'
-        run: bash -c 'ps aux | grep syspolicy'
+        run: |
+          ps aux | grep syspolicy
 
       # XXX: Please don't use homebrew!
       - name: Install Emacs's pre-requisites (macOS)
         if: runner.os == 'macOS'
         run: |
+          ps aux | grep syspolicy
           set -e
           brew install pkg-config gnutls libxml2
           # https://github.com/remacs/remacs/issues/155 (pkg-config)
           brew outdated pkg-config || brew upgrade pkg-config
           # https://github.com/remacs/remacs/issues/886 (libxml2, macOS 10.14)
           echo PKG_CONFIG_PATH=/usr/local/opt/libxml2/lib/pkgconfig >> $GITHUB_ENV
+          ps aux | grep syspolicy
       - name: Install Emacs's pre-requisites (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -81,17 +86,20 @@ jobs:
 
       - name: Find syspolicydd
         if: runner.os == 'macOS'
-        run: bash -c 'ps aux | grep syspolicy'
+        run: |
+          ps aux | grep syspolicy
 
       - name: Install Emacs ${{ matrix.emacs_version }}
         if: runner.os != 'Windows'
         run: |
+          ps aux | grep syspolicy
           set -e
           export PATH="$HOME/.evm/bin:$PATH"
           echo "$HOME/.evm/bin" >> $GITHUB_PATH
           git clone -b master https://github.com/ubolonton/evm.git $HOME/.evm
           evm config path /tmp
           evm install emacs-${{ matrix.emacs_version }} --use --skip
+          ps aux | grep syspolicy
       - name: Install Emacs (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -104,8 +112,10 @@ jobs:
       - name: Run tests
         # if: runner.os != 'macOS'
         run: |
+          ps aux | grep syspolicy
           cargo test --all
           ./bin/test
+          ps aux | grep syspolicy
 
       # - name: Setup tmate session
       #   if: runner.os == 'macOS'
