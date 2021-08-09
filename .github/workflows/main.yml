@@ -20,34 +20,19 @@ jobs:
       fail-fast: false
       matrix:
         os:
+          - macos-10.15
           - ubuntu-18.04
           - ubuntu-20.04
-        emacs_version:
+        emacs-version:
           - '25.3'
           - '26.3'
-          - '27.1'
+          - '27.2'
         include:
-          # XXX: There's no easy way to make evm-built binaries of old Emacs versions work on macOS
-          # 10.15 (Catalina). They get `Killed: 9`. Basically syspolicyd got a lot more shitty
-          # (checking notarization of unsigned executables by connecting to Apple servers), and
-          # there's no easy way to disable it. So we just don't test these cases.
-          #
-          # Example troubleshooting commands:
-          #
-          # syslog -f /var/log/DiagnosticMessages/2021.08.07.asl
-          #
-          # See also:
-          # - https://github.com/rust-lang/cargo/issues/7821#issuecomment-584469149
-          # - https://lapcatsoftware.com/articles/catalina-executables.html
-          # - https://news.ycombinator.com/item?id=23281564
-          # - https://kittywhiskers.eu/disable-syspolicyd-on-your-hackintosh/
-          # - https://knight.sc/reverse%20engineering/2019/02/20/syspolicyd-internals.html
-          # - https://www.naut.ca/blog/2020/11/13/forbidden-commands-to-liberate-macos/
-          - os: macos-10.15
-            emacs_version: '27.1'
-          # XXX: We use msys2 to install Emacs on Windows, and don't know how to specify the version
+          # Older Emacs binaries for Windows don't have dynamic modules enabled.
           - os: windows-2016
+            emacs-version: '27.2'
           - os: windows-2019
+            emacs-version: '27.2'
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
@@ -67,44 +52,16 @@ jobs:
       - name: Build
         run: ./bin/build
 
-      # XXX: Find a way to do away with homebrew!
-      - name: Install Emacs's pre-requisites (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          set -e
-          brew install pkg-config gnutls libxml2
-          # https://github.com/remacs/remacs/issues/155 (pkg-config)
-          brew outdated pkg-config || brew upgrade pkg-config
-          # https://github.com/remacs/remacs/issues/886 (libxml2, macOS 10.14)
-          echo PKG_CONFIG_PATH=/usr/local/opt/libxml2/lib/pkgconfig >> $GITHUB_ENV
-      - name: Install Emacs's pre-requisites (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          set -e
-          sudo apt-get update
-          sudo apt-get install ruby libgtk-3-dev libxpm-dev
-          sudo apt-get install libgnutls-dev || echo 'Skipped libgnutls-dev'
-          sudo apt-get install libgnutls28-dev || echo 'Skipped libgnutls28-dev' # XXX: Ubuntu 18.04
+      - run: cargo test --all
 
-      - name: Install Emacs ${{ matrix.emacs_version }}
+      - uses: purcell/setup-emacs@v3.0
         if: runner.os != 'Windows'
-        run: |
-          set -e
-          export PATH="$HOME/.evm/bin:$PATH"
-          echo "$HOME/.evm/bin" >> $GITHUB_PATH
-          git clone -b master https://github.com/ubolonton/evm.git $HOME/.evm
-          evm config path /tmp
-          evm install emacs-${{ matrix.emacs_version }} --use --skip
-      - name: Install Emacs (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          $env:MSYS_PATH = "$env:CD\ci-tools\msys2"
-          choco install msys2 --params="/InstallDir:$env:MSYS_PATH /NoPath"
-          $env:PATH = "$env:MSYS_PATH\usr\bin;" + $env:PATH
-          pacman -S --noconfirm --needed mingw-w64-x86_64-emacs
-          echo "$env:MSYS_PATH\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf-8 -Append
+        with:
+          version: ${{ matrix.emacs-version }}
 
-      - name: Run tests
-        run: |
-          cargo test --all
-          ./bin/test
+      - uses: jcs090218/setup-emacs-windows@v4
+        if: runner.os == 'Windows'
+        with:
+          version: ${{ matrix.emacs-version }}
+
+      - run: ./bin/test
