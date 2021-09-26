@@ -34,8 +34,13 @@ emacs-macros = { path = "emacs-macros", version = "0.17.0" }
 rustc_version = "0.2.3"
 
 [features]
+default = []
 utf-8-validation = []
 lossy-integer-conversion = []
+# This feature is intended as a workaround when building on new untested platforms. If the crate
+# cannot be built without this feature, please report the issue at
+# https://github.com/ubolonton/emacs-module-rs/issues/new.
+bindgen = ["emacs_module/bindgen"]
 
 [workspace]
 members = [

@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Eliminated the build-time dependency on LLVM by putting the raw Rust bindings in source, instead of generating them at build time. This would also make builds faster.
 
 ## [0.17.0] - 2021-03-09
 - Added `OnceGlobalRef`, which eases the initialization of static references to long-lived Lisp values.

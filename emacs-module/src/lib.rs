@@ -9,6 +9,12 @@
 
 use std::os;
 
+#[cfg(not(feature = "bindgen"))]
+include!("./emacs-module.rs");
+
+#[cfg(feature = "bindgen")]
+include!(concat!(env!("OUT_DIR"), "/emacs-module.rs"));
+
 /// The type of all Emacs subroutines.
 pub type EmacsSubr = unsafe extern "C" fn(
     env: *mut emacs_env,
@@ -16,5 +22,3 @@ pub type EmacsSubr = unsafe extern "C" fn(
     args: *mut emacs_value,
     data: *mut os::raw::c_void,
 ) -> emacs_value;
-
-include!(concat!(env!("OUT_DIR"), "/emacs_module.rs"));

@@ -68,7 +68,6 @@ pool:
 
 steps:
 - template: steps/setup-rust.yml
-- template: steps/setup-llvm.yml
 - template: steps/-build.yml
 - template: steps/setup-emacs.yml
 - template: steps/-test.yml
