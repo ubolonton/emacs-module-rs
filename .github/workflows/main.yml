@@ -59,3 +59,20 @@ jobs:
           version: ${{ matrix.emacs-version }}
 
       - run: ./bin/test
+
+  ci-aarch64:
+    runs-on: macos-11
+    steps:
+      - name: Set up Rust
+        run: |
+          rustup install stable
+          rustup target add aarch64-apple-darwin
+          rustc -Vv
+          cargo -V
+
+      - uses: actions/checkout@v2
+
+      - name: Build
+        run: ./bin/build
+        env:
+          CARGO_BUILD_TARGET: aarch64-apple-darwin
