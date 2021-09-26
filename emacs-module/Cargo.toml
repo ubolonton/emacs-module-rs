@@ -10,3 +10,10 @@ authors = [
     "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
 ]
 license = "BSD-3-Clause"
+build = "build.rs"
+
+[build-dependencies]
+bindgen = { version = "0.59.0", optional = true }
+
+[features]
+default = []
