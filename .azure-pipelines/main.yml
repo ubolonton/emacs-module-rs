@@ -5,6 +5,7 @@ trigger:
     include:
     - master
     - ci
+    - azure-pipelines
   paths:
     exclude:
     - guide/
@@ -68,6 +69,8 @@ pool:
 
 steps:
 - template: steps/setup-rust.yml
+  parameters:
+    version: '1.45.0'
 - template: steps/-build.yml
 - template: steps/setup-emacs.yml
 - template: steps/-test.yml
