@@ -74,7 +74,7 @@ fn read_file<'e>(env: &Env, path: String) -> Result<String> {
 
 #[defun(mod_in_name = false, name = "error:panic")]
 fn panic(message: String) -> Result<()> {
-    panic!(message)
+    panic!("{}", message)
 }
 
 #[defun(mod_in_name = false, name = "error:signal")]

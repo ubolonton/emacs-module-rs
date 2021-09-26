@@ -61,6 +61,7 @@ fn to_uppercase(s: String) -> Result<String> {
     Ok(s.to_uppercase())
 }
 
+#[allow(dead_code)]
 struct StringWrapper {
     pub s: String
 }

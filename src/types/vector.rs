@@ -107,7 +107,9 @@ impl<'e> Iterator for IntoIter<'e> {
             None
         } else {
             self.i += 1;
-            Some(self.vector.get(i).unwrap_or_else(|err| panic!(err)))
+            Some(self.vector.get(i).unwrap_or_else(|err| {
+                panic!("Unable to get Emacs vector's element at index {}: {}", i, err)
+            }))
         }
     }
 
