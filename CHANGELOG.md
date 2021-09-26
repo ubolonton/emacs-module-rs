@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.18.0] - 2021-09-26
 - Eliminated the build-time dependency on LLVM by putting the raw Rust bindings in source, instead of generating them at build time. This would also make builds faster.
 
 ## [0.17.0] - 2021-03-09
@@ -145,7 +147,8 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.17.0...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.18.0...HEAD
+[0.18.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.17.0...0.18.0
 [0.17.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.2...0.17.0
 [0.16.2]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.0...0.16.2
 [0.16.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.15.1...0.16.0
