@@ -49,6 +49,12 @@ To disable this behavior, use the `lossy-integer-conversion` feature:
 features = ["lossy-integer-conversion"]
 ```
 
+Support for Rust's `NonZero` integer types is disabled by default. To enable it, use the `nonzero-integer-conversion` feature:
+```toml
+[dependencies.emacs]
+features = ["nonzero-integer-conversion"]
+```
+
 ## Strings
 
 By default, no utf-8 validation is done when converting Lisp strings into Rust strings, because the string data returned by Emacs is guaranteed to be valid utf-8 sequence. If you think you've otherwise encountered an Emacs bug, utf-8 validation can be enabled through a feature:
