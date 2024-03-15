@@ -41,7 +41,7 @@ jobs:
           rustc -Vv
           cargo -V
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Build
         run: ./bin/build
@@ -70,7 +70,7 @@ jobs:
           rustc -Vv
           cargo -V
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Build
         run: ./bin/build
