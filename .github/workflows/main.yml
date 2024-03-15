@@ -48,12 +48,12 @@ jobs:
 
       - run: cargo test --all
 
-      - uses: purcell/setup-emacs@v3.0
+      - uses: purcell/setup-emacs@v6.0
         if: runner.os != 'Windows'
         with:
           version: ${{ matrix.emacs-version }}
 
-      - uses: jcs090218/setup-emacs-windows@v4
+      - uses: jcs090218/setup-emacs-windows@master
         if: runner.os == 'Windows'
         with:
           version: ${{ matrix.emacs-version }}
