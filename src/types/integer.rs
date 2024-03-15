@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use super::*;
 
 impl FromLisp<'_> for i64 {
