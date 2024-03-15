@@ -20,19 +20,21 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-10.15
-          - ubuntu-18.04
+          - macos-11
+          - macos-12
           - ubuntu-20.04
+          - ubuntu-22.04
+          - windows-2019
+          - windows-2022
         emacs-version:
-          - '25.3'
-          - '26.3'
           - '27.2'
+          - '28.2'
+          - '29.2'
         include:
-          # Older Emacs binaries for Windows don't have dynamic modules enabled.
-          - os: windows-2016
-            emacs-version: '27.2'
-          - os: windows-2019
-            emacs-version: '27.2'
+          - os: macos-11
+            emacs-version: '26.3'
+          - os: ubuntu-20.04
+            emacs-version: '26.3'
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
