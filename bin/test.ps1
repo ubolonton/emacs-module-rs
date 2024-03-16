@@ -5,8 +5,11 @@ $module_dir = "$project_root\target\$target"
 
 if ($args[0] -eq "watch") {
     Push-Location $project_root
-    cargo watch -s "powershell bin\build.ps1" -s "powershell bin\test.ps1"
-    Pop-Location
+    try {
+        cargo watch -s "powershell bin\build.ps1" -s "powershell bin\test.ps1"
+    } finally {
+        Pop-Location
+    }
 } else {
     # XXX: It seems that Emacs writes to stderr, so PowerShell thinks it's an error. Redirecting to
     # stdout alone doesn't help, because it's the processed stderr, which contain error records, not

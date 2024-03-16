@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Upgraded to Rust 2021 edition.
+    - This also raised the minimum supported Rust version to 1.56.
+- Added support for Rust's non-zero integer types.
 
 ## [0.18.0] - 2021-09-26
 - Eliminated the build-time dependency on LLVM by putting the raw Rust bindings in source, instead of generating them at build time. This would also make builds faster.

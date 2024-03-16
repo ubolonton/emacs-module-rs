@@ -22,7 +22,7 @@ steps:
 # XXX: Please don't use homebrew!
 - bash: |
     set -e
-    brew install pkg-config gnutls libxml2
+    brew install pkg-config gnutls
     # https://github.com/remacs/remacs/issues/155 (pkg-config)
     brew outdated pkg-config || brew upgrade pkg-config
     # https://github.com/remacs/remacs/issues/886 (libxml2, macOS 10.14)

@@ -15,31 +15,55 @@ pr:
 
 strategy:
   matrix:
-    vs2017-win2016:
-      IMAGE_NAME: 'vs2017-win2016'
+    # ----------------------------------------------------------------
+
+    # Latest Emacs version on Windows.
     windows-2019:
       IMAGE_NAME: 'windows-2019'
+    windows-2022:
+      IMAGE_NAME: 'windows-2022'
 
-    macos-10.14-emacs-25.3:
-      IMAGE_NAME: 'macos-10.14'
-      EVM_EMACS: emacs-25.3
-    macos-10.14-emacs-26.3:
-      IMAGE_NAME: 'macos-10.14'
-      EVM_EMACS: emacs-26.3
-    macos-10.14-emacs-27.1:
-      IMAGE_NAME: 'macos-10.14'
-      EVM_EMACS: emacs-27.1
+    # ----------------------------------------------------------------
 
-    # Emacs is getting "Killed 9" on these agents, probably due to macOS 10.15 updates.
-    # macos-10.15-emacs-25.3:
-    #   IMAGE_NAME: 'macos-10.15'
-    #   EVM_EMACS: emacs-25.3
-    # macos-10.15-emacs-26.3:
-    #   IMAGE_NAME: 'macos-10.15'
-    #   EVM_EMACS: emacs-26.3
-    macos-10.15-emacs-27.1:
-      IMAGE_NAME: 'macos-10.15'
-      EVM_EMACS: emacs-27.1
+    # XXX: There's no easy way to make evm-built binaries of Emacs 26- work on macOS
+    # 10.15+ (Catalina). They get `Killed: 9`. Basically syspolicyd got a lot more shitty
+    # (checking notarization of unsigned executables by connecting to Apple servers), and
+    # there's no easy way to disable it. So we just don't test these cases.
+    #
+    # Example troubleshooting commands:
+    #
+    # syslog -f /var/log/DiagnosticMessages/2021.08.07.asl
+    #
+    # See also:
+    # - https://github.com/rust-lang/cargo/issues/7821#issuecomment-584469149
+    # - https://lapcatsoftware.com/articles/catalina-executables.html
+    # - https://news.ycombinator.com/item?id=23281564
+    # - https://kittywhiskers.eu/disable-syspolicyd-on-your-hackintosh/
+    # - https://knight.sc/reverse%20engineering/2019/02/20/syspolicyd-internals.html
+    # - https://www.naut.ca/blog/2020/11/13/forbidden-commands-to-liberate-macos/
+
+    macOS-11-emacs-27.2:
+      IMAGE_NAME: 'macOS-11'
+      EVM_EMACS: emacs-27.2
+    macOS-11-emacs-28.1:
+      IMAGE_NAME: 'macOS-11'
+      EVM_EMACS: emacs-28.1
+
+    macOS-12-emacs-27.2:
+      IMAGE_NAME: 'macOS-12'
+      EVM_EMACS: emacs-27.2
+    macOS-12-emacs-28.1:
+      IMAGE_NAME: 'macOS-12'
+      EVM_EMACS: emacs-28.1
+
+    macOS-13-emacs-27.2:
+      IMAGE_NAME: 'macOS-13'
+      EVM_EMACS: emacs-27.2
+    macOS-13-emacs-28.1:
+      IMAGE_NAME: 'macOS-13'
+      EVM_EMACS: emacs-28.1
+
+    # ----------------------------------------------------------------
 
     # thread 'main' panicked at '`libclang` function not loaded: `clang_createIndex`. This crate requires that `libclang` 3.9 or later be installed on your system. For more information on how to accomplish this, see here: https://rust-lang.github.io/rust-bindgen/requirements.html#installing-clang-39', /home/vsts/.cargo/registry/src/github.com-1ecc6299db9ec823/clang-sys-1.2.0/src/lib.rs:1682:1
     # ubuntu-16.04-emacs-25.3:
@@ -54,15 +78,32 @@ strategy:
     #   IMAGE_NAME: 'ubuntu-16.04'
     #   EVM_EMACS: emacs-26.3
 
-    ubuntu-18.04-emacs-25.3:
-      IMAGE_NAME: 'ubuntu-18.04'
+    ubuntu-20.04-emacs-25.3:
+      IMAGE_NAME: 'ubuntu-20.04'
       EVM_EMACS: emacs-25.3
-    ubuntu-18.04-emacs-26.3:
-      IMAGE_NAME: 'ubuntu-18.04'
+    ubuntu-20.04-emacs-26.3:
+      IMAGE_NAME: 'ubuntu-20.04'
       EVM_EMACS: emacs-26.3
-    ubuntu-18.04-emacs-27.1:
-      IMAGE_NAME: 'ubuntu-18.04'
-      EVM_EMACS: emacs-27.1
+    ubuntu-20.04-emacs-27.2:
+      IMAGE_NAME: 'ubuntu-20.04'
+      EVM_EMACS: emacs-27.2
+    ubuntu-20.04-emacs-28.1:
+      IMAGE_NAME: 'ubuntu-20.04'
+      EVM_EMACS: emacs-28.1
+
+    # sysdep.c:1821:22: error: variably modified ‘sigsegv_stack’ at file scope
+    # ubuntu-22.04-emacs-25.3:
+    #   IMAGE_NAME: 'ubuntu-22.04'
+    #   EVM_EMACS: emacs-25.3
+    # ubuntu-22.04-emacs-26.3:
+    #   IMAGE_NAME: 'ubuntu-22.04'
+    #   EVM_EMACS: emacs-26.3
+    # ubuntu-22.04-emacs-27.2:
+    #   IMAGE_NAME: 'ubuntu-22.04'
+    #   EVM_EMACS: emacs-27.2
+    ubuntu-22.04-emacs-28.1:
+      IMAGE_NAME: 'ubuntu-22.04'
+      EVM_EMACS: emacs-28.1
 
 pool:
   vmImage: $(IMAGE_NAME)
@@ -70,7 +111,7 @@ pool:
 steps:
 - template: steps/setup-rust.yml
   parameters:
-    version: '1.45.0'
+    version: '1.56.0'
 - template: steps/-build.yml
 - template: steps/setup-emacs.yml
 - template: steps/-test.yml
