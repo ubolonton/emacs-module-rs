@@ -1,6 +1,6 @@
 [package]
 name = "emacs-rs-module"
-version = "0.18.0"
+version = "0.19.0"
 edition = "2018"
 authors = ["Nguyễn Tuấn Anh <ubolonton@gmail.com>"]
 description = "An Emacs dynamic module that helps developing other dynamic modules, in Rust"
@@ -13,4 +13,4 @@ crate-type = ["cdylib"]
 [dependencies]
 lazy_static = "1.4"
 libloading = "0.5.2"
-emacs = { path = "..", version = "0.18.0" }
+emacs = { path = "..", version = "0.19.0" }
