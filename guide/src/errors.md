@@ -52,7 +52,7 @@ emacs::define_errors! {
 #[defun]
 fn signal_if_negative(env: &Env, x: i16) -> Result<()> {
     if (x < 0) {
-        return env.signal(my_custom_error., ("associated", "DATA", 7))
+        return env.signal(my_custom_error, ("associated", "DATA", 7))
     }
     Ok(())
 }

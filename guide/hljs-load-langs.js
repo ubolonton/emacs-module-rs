@@ -10,7 +10,7 @@
   }
 
   function load(lang) {
-    var src = "//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.9/languages/" + lang + ".min.js";
+    var src = "//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/languages/" + lang + ".min.js";
     var s = document.createElement('script');
     s.setAttribute('src', src);
     s.setAttribute('type', 'text/javascript');
