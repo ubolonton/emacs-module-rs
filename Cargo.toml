@@ -3,7 +3,7 @@ name = "emacs"
 version = "0.19.0"
 edition = "2021"
 description = "Rust library for creating Emacs's dynamic modules"
-homepage = "https://github.com/ubolonton/emacs-module-rs"
+repository = "https://github.com/ubolonton/emacs-module-rs"
 documentation = "https://ubolonton.github.io/emacs-module-rs/"
 authors = [
     "Aaron France <aaron.l.france@gmail.com>",
