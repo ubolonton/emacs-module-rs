@@ -26,7 +26,7 @@
          (error-file (make-temp-file "destructive-fn"))
          (exit-code
           (pcase system-type
-            ((or 'darwin 'gnu/linux)
+            ((or 'darwin 'gnu/linux 'berkeley-unix)
              (call-process
               "bash"
               ;; If VERBOSE, redirect subprocess's stdout to stderr
@@ -44,7 +44,8 @@
               nil (list t error-file)
               nil (if t/support-module-assertions-p
                       ".\\bin\\fn-module-assertions.ps1"
-                    ".\\bin\\fn.ps1") name))))
+                    ".\\bin\\fn.ps1") name))
+            (_ (error "Unsupported system-type: %s" system-type))))
          (error-string
           (with-temp-buffer
             (insert-file-contents error-file)
