@@ -24,8 +24,8 @@ macro_rules! __module_init {
             $crate::init::initialize(&$crate::Env::from_runtime(runtime), $init)
         }
 
-        // TODO: Exclude this in release build.
         /// Entry point for live-reloading (by `rs-module`) during development.
+        #[cfg(debug_assertions)]
         #[no_mangle]
         pub unsafe extern "C" fn emacs_rs_module_init(
             raw: *mut $crate::raw::emacs_env,
