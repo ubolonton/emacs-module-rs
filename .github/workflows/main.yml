@@ -20,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-11
           - macos-12
+          - macos-13
           - ubuntu-20.04
           - ubuntu-22.04
           - windows-2019
@@ -31,7 +31,7 @@ jobs:
           - '28.2'
           - '29.2'
         include:
-          - os: macos-11
+          - os: macos-12
             emacs-version: '26.3'
           - os: ubuntu-20.04
             emacs-version: '26.3'
@@ -63,7 +63,7 @@ jobs:
       - run: ./bin/test
 
   ci-aarch64:
-    runs-on: macos-11
+    runs-on: macos-12
     steps:
       - name: Set up Rust
         run: |

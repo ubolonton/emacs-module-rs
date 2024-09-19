@@ -42,13 +42,6 @@ strategy:
     # - https://knight.sc/reverse%20engineering/2019/02/20/syspolicyd-internals.html
     # - https://www.naut.ca/blog/2020/11/13/forbidden-commands-to-liberate-macos/
 
-    macOS-11-emacs-27.2:
-      IMAGE_NAME: 'macOS-11'
-      EVM_EMACS: emacs-27.2
-    macOS-11-emacs-28.1:
-      IMAGE_NAME: 'macOS-11'
-      EVM_EMACS: emacs-28.1
-
     macOS-12-emacs-27.2:
       IMAGE_NAME: 'macOS-12'
       EVM_EMACS: emacs-27.2
@@ -111,7 +104,7 @@ pool:
 steps:
 - template: steps/setup-rust.yml
   parameters:
-    version: '1.56.0'
+    version: '1.63.0'
 - template: steps/-build.yml
 - template: steps/setup-emacs.yml
 - template: steps/-test.yml
