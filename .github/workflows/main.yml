@@ -20,12 +20,12 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-12
           - macos-13
-          - ubuntu-20.04
+          - macos-14
           - ubuntu-22.04
-          - windows-2019
+          - ubuntu-24.04
           - windows-2022
+          - windows-2025
         emacs-version:
           - '27.2'
           - '28.2'
@@ -50,20 +50,14 @@ jobs:
 
       - run: cargo test --all
 
-      - uses: purcell/setup-emacs@v6.0
-        if: runner.os != 'Windows'
-        with:
-          version: ${{ matrix.emacs-version }}
-
-      - uses: jcs090218/setup-emacs-windows@master
-        if: runner.os == 'Windows'
+      - uses: jcs090218/setup-emacs@master
         with:
           version: ${{ matrix.emacs-version }}
 
       - run: ./bin/test
 
   ci-aarch64:
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
       - name: Set up Rust
         run: |
