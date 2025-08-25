@@ -32,9 +32,13 @@ jobs:
           - '28.2'
           - '29.2'
         exclude:
-          - os: macos-latest
+          - os: macos-13
             emacs-version: 26.3
-          - os: macos-latest
+          - os: macos-13
+            emacs-version: 27.2
+          - os: macos-14
+            emacs-version: 26.3
+          - os: macos-14
             emacs-version: 27.2
     runs-on: ${{ matrix.os }}
     steps:
