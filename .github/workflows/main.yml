@@ -27,14 +27,15 @@ jobs:
           - windows-2022
           - windows-2025
         emacs-version:
+          - '26.3'
           - '27.2'
           - '28.2'
           - '29.2'
-        include:
-          - os: macos-12
-            emacs-version: '26.3'
-          - os: ubuntu-20.04
-            emacs-version: '26.3'
+        exclude:
+          - os: macos-latest
+            emacs-version: 26.3
+          - os: macos-latest
+            emacs-version: 27.2
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
