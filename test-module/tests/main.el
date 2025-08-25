@@ -275,7 +275,7 @@
     ;; FIX: Don't rely on error's string representation.
     (should (equal (cdr (should-error (t/ref-cell-unwrap-and-call r (lambda () (t/ref-cell-inc r)))
                                       :type 'rust-error))
-                   '("already borrowed")))))
+                   '("RefCell already borrowed")))))
 
 (ert-deftest transfer::type-check ()
   (should-error (t/ref-cell-inc (t/vector-make 1 2))
