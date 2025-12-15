@@ -1,5 +1,6 @@
 use std::{
     os,
+    ptr,
     any,
     cell::RefCell,
     rc::Rc,
@@ -148,7 +149,8 @@ impl<'e> Value<'e> {
     pub(crate) fn get_raw_pointer<T: Transfer>(self) -> Result<*mut T> {
         match self.get_user_finalizer()? {
             // TODO: Consider using dynamic dispatch for finalize, and core::any for type checking.
-            Some(fin) if fin == finalize::<T> => {
+            //  I'm not sure this is sound.
+            Some(fin) if ptr::fn_addr_eq(fin, finalize::<T> as unsafe extern "C" fn(*mut os::raw::c_void)) => {
                 let ptr = self.get_user_ptr()?;
                 Ok(ptr as *mut T)
             }
