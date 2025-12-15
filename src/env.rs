@@ -106,7 +106,7 @@ impl Env {
 impl Drop for Env {
     fn drop(&mut self) {
         if let Some(protected) = &self.protected {
-            #[cfg(build = "debug")]
+            #[cfg(feature = "debug")]
             println!("Unrooting {} values protected by {:?}", protected.borrow().len(), self);
             // If the `defun` returned a non-local exit, we clear it so that `free_global_ref` doesn't
             // bail out early. Afterwards we restore the non-local exit status and associated data.

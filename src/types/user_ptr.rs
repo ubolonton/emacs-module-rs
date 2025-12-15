@@ -66,7 +66,7 @@ impl<'e, T: Transfer> FromLisp<'e> for &'e T {
 ///
 /// This function also serves as a form of runtime type tag, relying on Rust's mono-morphization.
 unsafe extern "C" fn finalize<T: Transfer>(ptr: *mut os::raw::c_void) {
-    #[cfg(build = "debug")]
+    #[cfg(feature = "debug")]
     println!("Finalizing {:#?} {}", ptr, T::type_name());
     drop(Box::from_raw(ptr as *mut T));
 }
