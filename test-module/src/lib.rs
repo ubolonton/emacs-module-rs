@@ -1,3 +1,5 @@
+#![allow(mismatched_lifetime_syntaxes)]
+
 use std::{env, panic};
 
 use lazy_static::lazy_static;

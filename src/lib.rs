@@ -26,6 +26,7 @@
 //! [User Guide]: https://ubolonton.github.io/emacs-module-rs/
 //! [Examples]: https://github.com/ubolonton/emacs-rs-examples/
 
+#![allow(mismatched_lifetime_syntaxes)]
 
 #[doc(inline)]
 pub use emacs_macros::{defun, module};
