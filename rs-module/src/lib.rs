@@ -46,7 +46,7 @@ fn load(env: &Env, path: String) -> Result<Value<'_>> {
     let lib = Library::new(&path)?;
     message!(env, "[{}]: initializing...", path)?;
     unsafe {
-        let rs_init: Symbol<'_, unsafe extern fn(*mut emacs_env) -> u32> =
+        let rs_init: Symbol<'_, unsafe extern "C" fn(*mut emacs_env) -> u32> =
             lib.get(INIT_FROM_ENV.as_bytes())?;
         rs_init(env.raw());
     }
