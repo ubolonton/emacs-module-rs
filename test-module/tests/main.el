@@ -273,9 +273,9 @@
     (should (= (t/ref-cell-unwrap r) 6))
     (t/ref-cell-unwrap-and-call r (lambda () (t/ref-cell-unwrap r)))
     ;; FIX: Don't rely on error's string representation.
-    (should (equal (cdr (should-error (t/ref-cell-unwrap-and-call r (lambda () (t/ref-cell-inc r)))
-                                      :type 'rust-error))
-                   '("already borrowed")))))
+    (should (string-match-p "already borrowed"
+                            (cadr (should-error (t/ref-cell-unwrap-and-call r (lambda () (t/ref-cell-inc r)))
+                                                :type 'rust-error))))))
 
 (ert-deftest transfer::type-check ()
   (should-error (t/ref-cell-inc (t/vector-make 1 2))
