@@ -146,10 +146,12 @@ macro_rules! global_refs {
 }
 
 /// A [`GlobalRef`] that can be initialized once. This is useful for long-lived values that should
-/// be initialized when the dynamic module is loaded. A typical use case is specifying
-/// frequently-used symbols, which can be done with the help of the macro [`use_symbols!`].
+/// be initialized when the dynamic module is loaded. Typical use cases include "importing"
+/// frequently-used symbols via [`use_symbols!`], or frequently-called functions via
+/// [`use_functions!`].
 ///
-/// [`use_symbols`]: crate::use_symbols
+/// [`use_symbols!`]: crate::use_symbols
+/// [`use_functions!`]: crate::use_functions
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct OnceGlobalRef {

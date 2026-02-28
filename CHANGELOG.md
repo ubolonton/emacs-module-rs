@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added `use_functions!`, which enables module code to cache references to frequently-used Lisp functions.
 
 ## [0.19.0] - 2024-03-16
 - Upgraded to Rust 2021 edition.
