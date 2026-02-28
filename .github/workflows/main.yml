@@ -20,21 +20,19 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-12
-          - macos-13
-          - ubuntu-20.04
+          - macos-14
+          - macos-15
+          - macos-26
           - ubuntu-22.04
-          - windows-2019
+          - ubuntu-24.04
+          - ubuntu-22.04-arm
+          - ubuntu-24.04-arm
           - windows-2022
+          - windows-2025
         emacs-version:
-          - '27.2'
           - '28.2'
-          - '29.2'
-        include:
-          - os: macos-12
-            emacs-version: '26.3'
-          - os: ubuntu-20.04
-            emacs-version: '26.3'
+          - '29.4'
+          - '30.1'
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
@@ -61,20 +59,3 @@ jobs:
           version: ${{ matrix.emacs-version }}
 
       - run: ./bin/test
-
-  ci-aarch64:
-    runs-on: macos-12
-    steps:
-      - name: Set up Rust
-        run: |
-          rustup install stable
-          rustup target add aarch64-apple-darwin
-          rustc -Vv
-          cargo -V
-
-      - uses: actions/checkout@v4
-
-      - name: Build
-        run: ./bin/build
-        env:
-          CARGO_BUILD_TARGET: aarch64-apple-darwin
