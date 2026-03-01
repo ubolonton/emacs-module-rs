@@ -43,14 +43,14 @@ jobs:
           rustc -Vv
           cargo -V
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build
         run: ./bin/build
 
       - run: cargo test --all
 
-      - uses: purcell/setup-emacs@v6.0
+      - uses: purcell/setup-emacs@master
         if: runner.os != 'Windows'
         with:
           version: ${{ matrix.emacs-version }}
