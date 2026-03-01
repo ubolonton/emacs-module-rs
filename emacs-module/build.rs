@@ -17,13 +17,15 @@ fn main() {
             .unwrap()
             .write_to_file(Path::new(&out_dir).join("emacs-module.rs"))
             .unwrap();
-
-        // bindgen \
-        //         --no-prepend-enum-name \
-        //         --allowlist-type '^emacs.*' \
-        //         --allowlist-function '^emacs.*' \
-        //         --allowlist-var '^emacs.*' \
-        //         emacs-module/include/emacs-module.h \
-        //         -o emacs-module/src/emacs_module.rs
     }
+
+    let _bindgen_command = "
+bindgen \
+    --no-prepend-enum-name \
+    --allowlist-type '^emacs.*' \
+    --allowlist-function '^emacs.*' \
+    --allowlist-var '^emacs.*' \
+    emacs-module/include/emacs-module.h \
+    -o emacs-module/src/emacs-module.rs
+";
 }
