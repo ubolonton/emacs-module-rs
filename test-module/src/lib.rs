@@ -10,6 +10,7 @@ use emacs::{defun, CallEnv, Env, IntoLisp, Result, Value};
 mod macros;
 
 mod test_basics;
+mod test_eq;
 mod test_error;
 mod test_lifetime;
 mod test_vector;
@@ -37,6 +38,7 @@ fn t(env: &Env) -> Result<()> {
     env.message("Hel\0lo, \0Emacs")?;
 
     test_basics::init(env)?;
+    test_eq::init(env)?;
     test_error::init(env)?;
     Ok(())
 }

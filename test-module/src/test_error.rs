@@ -49,7 +49,7 @@ fn catch<'e>(expected_tag: Value<'e>, lambda: Value<'e>) -> Result<Value<'e>> {
         Err(error) => {
             if let Some(Throw { tag, value }) = error.downcast_ref::<ErrorKind>() {
                 unsafe {
-                    if tag.value(env).eq(expected_tag) {
+                    if tag.value(env) == expected_tag {
                         return Ok(value.value(env));
                     }
                 }

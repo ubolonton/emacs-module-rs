@@ -1,4 +1,5 @@
 use std::cell::{RefCell, Ref, RefMut};
+use std::cmp::PartialEq;
 
 use emacs_module::emacs_value;
 
@@ -57,7 +58,7 @@ impl<'e> Value<'e> {
         unsafe_raw_call_no_exit!(env, is_not_nil, self.raw)
     }
 
-    // TODO: Decide what we want for PartialEq (==, !=): eq vs. eql vs. equal.
+    #[deprecated(since = "0.20.0", note = "Please use `==` instead")]
     #[allow(clippy::should_implement_trait)]
     pub fn eq(&self, other: Value<'e>) -> bool {
         let env = self.env;
@@ -111,5 +112,11 @@ impl<'e> Value<'e> {
 
     pub fn cdr<T: FromLisp<'e>>(self) -> Result<T> {
         self.env.call(subr::cdr, (self,))?.into_rust()
+    }
+}
+
+impl<'e> PartialEq for Value<'e> {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe_raw_call_no_exit!(self.env, eq, self.raw, other.raw)
     }
 }

@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::cmp::PartialEq;
 
 use once_cell::sync::OnceCell;
 
@@ -106,6 +107,20 @@ impl<'e> Value<'e> {
     }
 }
 
+impl<'e> PartialEq<Value<'e>> for GlobalRef {
+    #[inline]
+    fn eq(&self, other: &Value<'e>) -> bool {
+        self.bind(other.env) == *other
+    }
+}
+
+impl<'e> PartialEq<GlobalRef> for Value<'e> {
+    #[inline]
+    fn eq(&self, other: &GlobalRef) -> bool {
+        other == self
+    }
+}
+
 /// Declares global references. These will be initialized when the module is loaded.
 #[doc(hidden)]
 #[macro_export]
@@ -207,5 +222,19 @@ impl Deref for OnceGlobalRef {
     #[inline]
     fn deref(&self) -> &Self::Target {
         self.inner.get().expect("Cannot access an uninitialized global reference")
+    }
+}
+
+impl<'e> PartialEq<Value<'e>> for OnceGlobalRef {
+    #[inline]
+    fn eq(&self, other: &Value<'e>) -> bool {
+        self.bind(other.env) == *other
+    }
+}
+
+impl<'e> PartialEq<OnceGlobalRef> for Value<'e> {
+    #[inline]
+    fn eq(&self, other: &OnceGlobalRef) -> bool {
+        other == self
     }
 }
