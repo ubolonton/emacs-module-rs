@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.20.0] - 2026-03-04
 - Added `use_functions!`, which enables module code to cache references to frequently-used Lisp functions.
 - Implemented `PartialEq` for `Value`, `GlobalRef`, `OnceGlobalRef`, enabling more ergonomic code.
 
@@ -154,7 +156,8 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 ## [0.2.0] - 2018-01-04
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.19.0...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.20.0...HEAD
+[0.20.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.19.0...0.20.0
 [0.19.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.18.0...0.19.0
 [0.18.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.17.0...0.18.0
 [0.17.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.16.2...0.17.0
