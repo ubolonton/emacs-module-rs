@@ -100,6 +100,17 @@ impl Env {
     pub fn message<T: AsRef<str>>(&self, text: T) -> Result<Value<'_>> {
         self.call(subr::message, (text.as_ref(),))
     }
+
+    /// Opens a channel to a pipe process, returning a file descriptor.
+    ///
+    /// The returned fd can be written to from any thread. Data written to it will be received by
+    /// the pipe process's filter function in Emacs. The caller must close the fd when done.
+    ///
+    /// Requires Emacs 28+.
+    #[cfg(feature = "emacs-28")]
+    pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>) -> Result<i32> {
+        unsafe_raw_call!(self, open_channel, pipe_process.raw)
+    }
 }
 
 // TODO: Add tests to make sure the protected values are not leaked.

@@ -2,13 +2,28 @@
 extern crate bindgen;
 
 fn main() {
+    // Highest version first — features are additive in Cargo,
+    // so emacs-29 = ["emacs-28"] means both are enabled.
+    // To add version N:
+    //   1. Add `cfg!(feature = "emacs-N") => "N",` at the top
+    //   2. Add "N" to the check-cfg values
+    //   3. Add `#[cfg(emacs_version = "N")]` include in lib.rs
+    let version = if cfg!(feature = "emacs-28") { "28" } else { "25" };
+
+    println!("cargo::rustc-check-cfg=cfg(emacs_version, values(\"25\", \"28\"))");
+    println!("cargo::rustc-cfg=emacs_version=\"{version}\"");
+
     #[cfg(feature = "bindgen")]
     {
         use std::env;
         use std::path::Path;
         let out_dir = env::var("OUT_DIR").unwrap();
+        let header = match version {
+            "25" => "./include/emacs-module.h",
+            v    => &format!("./include/emacs-module-{v}.h"),
+        };
         bindgen::builder()
-            .header("./include/emacs-module.h")
+            .header(header)
             .allowlist_type("^emacs.*")
             .allowlist_function("^emacs.*")
             .allowlist_var("^emacs.*")

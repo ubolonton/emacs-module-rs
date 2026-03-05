@@ -9,8 +9,16 @@
 
 use std::os;
 
-#[cfg(not(feature = "bindgen"))]
+// build.rs emits `emacs_version = "N"` for the highest enabled version.
+// When adding a new Emacs version N, add an entry here:
+//   #[cfg(all(emacs_version = "N", not(feature = "bindgen")))]
+//   include!("./emacs-module-N.rs");
+
+#[cfg(all(emacs_version = "25", not(feature = "bindgen")))]
 include!("./emacs-module.rs");
+
+#[cfg(all(emacs_version = "28", not(feature = "bindgen")))]
+include!("./emacs-module-28.rs");
 
 #[cfg(feature = "bindgen")]
 include!(concat!(env!("OUT_DIR"), "/emacs-module.rs"));
