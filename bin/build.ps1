@@ -20,3 +20,4 @@ try {
 
 Copy-Item $module_dir\emacs_rs_module.dll $module_dir\rs-module.dll
 Copy-Item $module_dir\test_module.dll $module_dir\t.dll
+Copy-Item $module_dir\test_module_28.dll $module_dir\t28.dll

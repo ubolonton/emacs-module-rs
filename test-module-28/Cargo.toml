@@ -1,0 +1,11 @@
+[package]
+name = "test-module-28"
+version = "0.0.0"
+edition = "2018"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+emacs = { path = "..", features = ["emacs-28"] }

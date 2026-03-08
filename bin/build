@@ -19,4 +19,5 @@ source "$here/env.bash"
     cd "$MODULE_DIR"
     ln -f -s libemacs_rs_module."$EXT" rs-module.so
     ln -f -s "$MODULE_ORIGINAL" "$MODULE_RENAMED"
+    ln -f -s libtest_module_28."$EXT" t28.so
 )
