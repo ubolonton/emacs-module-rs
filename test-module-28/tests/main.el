@@ -1,18 +1,7 @@
 (require 't28)
 
 ;;; ----------------------------------------------------------------------------
-;;; open-channel tests (Emacs 28+, Unix only).
-
-(ert-deftest channel::open-returns-fd ()
-  (skip-unless (>= emacs-major-version 28))
-  (skip-unless (not (eq system-type 'windows-nt)))
-  (let* ((proc (make-pipe-process :name "test-open-fd"
-                                  :filter #'ignore)))
-    (unwind-protect
-        (let ((fd (t28/open-channel proc)))
-          (should (integerp fd))
-          (should (> fd 0)))
-      (delete-process proc))))
+;;; open-channel tests (Emacs 28+).
 
 (ert-deftest channel::send-and-receive ()
   (skip-unless (>= emacs-major-version 28))
@@ -47,5 +36,5 @@
 (ert-deftest channel::wrong-type-arg ()
   (skip-unless (>= emacs-major-version 28))
   (skip-unless (not (eq system-type 'windows-nt)))
-  (should-error (t28/open-channel "not-a-process")
+  (should-error (t28/channel-send "not-a-process" "data")
                 :type 'wrong-type-argument))

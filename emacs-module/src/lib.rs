@@ -17,8 +17,13 @@ use std::os;
 #[cfg(all(emacs_version = "25", not(feature = "bindgen")))]
 include!("./emacs-module.rs");
 
-#[cfg(all(emacs_version = "28", not(feature = "bindgen")))]
+// emacs-28 bindings are not yet supported on Windows (timespec layout mismatch).
+#[cfg(all(emacs_version = "28", not(feature = "bindgen"), not(windows)))]
 include!("./emacs-module-28.rs");
+
+// Fall back to base bindings on Windows even when emacs-28 is requested.
+#[cfg(all(emacs_version = "28", not(feature = "bindgen"), windows))]
+include!("./emacs-module.rs");
 
 #[cfg(feature = "bindgen")]
 include!(concat!(env!("OUT_DIR"), "/emacs-module.rs"));

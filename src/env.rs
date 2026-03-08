@@ -101,15 +101,19 @@ impl Env {
         self.call(subr::message, (text.as_ref(),))
     }
 
-    /// Opens a channel to a pipe process, returning a file descriptor.
+    /// Opens a channel to a pipe process, returning a writer.
     ///
-    /// The returned fd can be written to from any thread. Data written to it will be received by
-    /// the pipe process's filter function in Emacs. The caller must close the fd when done.
+    /// The returned writer can be sent to another thread. Data written to it will be received by
+    /// the pipe process's filter function in Emacs.
     ///
-    /// Requires Emacs 28+.
-    #[cfg(feature = "emacs-28")]
-    pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>) -> Result<i32> {
-        unsafe_raw_call!(self, open_channel, pipe_process.raw)
+    /// Requires Emacs 28+. Not yet supported on Windows.
+    #[cfg(all(feature = "emacs-28", not(windows)))]
+    pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>)
+        -> Result<impl std::io::Write + std::fmt::Debug + Send + Sync>
+    {
+        use std::os::unix::io::FromRawFd;
+        let raw_fd: i32 = unsafe_raw_call!(self, open_channel, pipe_process.raw)?;
+        Ok(unsafe { std::io::PipeWriter::from_raw_fd(raw_fd) })
     }
 }
 
