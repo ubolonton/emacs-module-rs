@@ -100,6 +100,21 @@ impl Env {
     pub fn message<T: AsRef<str>>(&self, text: T) -> Result<Value<'_>> {
         self.call(subr::message, (text.as_ref(),))
     }
+
+    /// Opens a channel to a pipe process, returning a writer.
+    ///
+    /// The returned writer can be sent to another thread. Data written to it will be received by
+    /// the pipe process's filter function in Emacs.
+    ///
+    /// Requires Emacs 28+. Not yet supported on Windows.
+    #[cfg(all(feature = "emacs-28", not(windows)))]
+    pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>)
+        -> Result<impl std::io::Write + std::fmt::Debug + Send + Sync>
+    {
+        use std::os::unix::io::FromRawFd;
+        let raw_fd: i32 = unsafe_raw_call!(self, open_channel, pipe_process.raw)?;
+        Ok(unsafe { std::io::PipeWriter::from_raw_fd(raw_fd) })
+    }
 }
 
 // TODO: Add tests to make sure the protected values are not leaked.

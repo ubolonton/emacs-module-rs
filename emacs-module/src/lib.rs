@@ -9,7 +9,20 @@
 
 use std::os;
 
-#[cfg(not(feature = "bindgen"))]
+// build.rs emits `emacs_version = "N"` for the highest enabled version.
+// When adding a new Emacs version N, add an entry here:
+//   #[cfg(all(emacs_version = "N", not(feature = "bindgen")))]
+//   include!("./emacs-module-N.rs");
+
+#[cfg(all(emacs_version = "25", not(feature = "bindgen")))]
+include!("./emacs-module.rs");
+
+// emacs-28 bindings are not yet supported on Windows (timespec layout mismatch).
+#[cfg(all(emacs_version = "28", not(feature = "bindgen"), not(windows)))]
+include!("./emacs-module-28.rs");
+
+// Fall back to base bindings on Windows even when emacs-28 is requested.
+#[cfg(all(emacs_version = "28", not(feature = "bindgen"), windows))]
 include!("./emacs-module.rs");
 
 #[cfg(feature = "bindgen")]
