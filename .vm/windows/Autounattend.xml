@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Unattended answer file for Windows Server 2022 (Desktop Experience or Core).
+  Passed to the installer via a virtual floppy disk (see create-vm.sh).
+
+  Customization:
+    - Administrator password: change the <Value> under <AdministratorPassword>
+    - Locale/keyboard: adjust <UILanguage>, <UserLocale>, <InputLocale> if needed
+-->
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+
+  <!-- ===== windowsPE: runs from the installer environment ===== -->
+  <settings pass="windowsPE">
+
+    <component name="Microsoft-Windows-International-Core-WinPE"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS"
+               xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <SetupUILanguage>
+        <UILanguage>en-US</UILanguage>
+      </SetupUILanguage>
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+
+    <component name="Microsoft-Windows-Setup"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS"
+               xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+
+      <!-- Accept the EULA -->
+      <UserData>
+        <AcceptEula>true</AcceptEula>
+        <!-- No product key for Evaluation edition -->
+        <ProductKey>
+          <WillShowUI>Never</WillShowUI>
+        </ProductKey>
+      </UserData>
+
+      <!-- Install image: index 2 = Server Standard (Desktop Experience)
+           Index 1 = Server Standard Core (no GUI, smaller)
+           Adjust if you prefer Core. -->
+      <ImageInstall>
+        <OSImage>
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Key>/IMAGE/INDEX</Key>
+              <Value>2</Value>
+            </MetaData>
+          </InstallFrom>
+          <InstallTo>
+            <DiskID>0</DiskID>
+            <PartitionID>3</PartitionID>
+          </InstallTo>
+        </OSImage>
+      </ImageInstall>
+
+      <!-- Disk layout: single NTFS system partition -->
+      <DiskConfiguration>
+        <Disk wcm:action="add">
+          <DiskID>0</DiskID>
+          <WillWipeDisk>true</WillWipeDisk>
+          <CreatePartitions>
+            <!-- 1: System reserved (EFI/MSR) -->
+            <CreatePartition wcm:action="add">
+              <Order>1</Order>
+              <Type>EFI</Type>
+              <Size>200</Size>
+            </CreatePartition>
+            <CreatePartition wcm:action="add">
+              <Order>2</Order>
+              <Type>MSR</Type>
+              <Size>128</Size>
+            </CreatePartition>
+            <!-- 2: Main Windows partition (rest of disk) -->
+            <CreatePartition wcm:action="add">
+              <Order>3</Order>
+              <Type>Primary</Type>
+              <Extend>true</Extend>
+            </CreatePartition>
+          </CreatePartitions>
+          <ModifyPartitions>
+            <ModifyPartition wcm:action="add">
+              <Order>1</Order>
+              <PartitionID>1</PartitionID>
+              <Label>System</Label>
+              <Format>FAT32</Format>
+            </ModifyPartition>
+            <ModifyPartition wcm:action="add">
+              <Order>2</Order>
+              <PartitionID>3</PartitionID>
+              <Label>Windows</Label>
+              <Format>NTFS</Format>
+              <Letter>C</Letter>
+            </ModifyPartition>
+          </ModifyPartitions>
+        </Disk>
+      </DiskConfiguration>
+
+      <EnableNetwork>true</EnableNetwork>
+
+    </component>
+  </settings>
+
+  <!-- ===== specialize: first boot after file copy ===== -->
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-Shell-Setup"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS"
+               xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <ComputerName>win-dev</ComputerName>
+      <TimeZone>UTC</TimeZone>
+    </component>
+  </settings>
+
+  <!-- ===== oobeSystem: out-of-box experience / first logon ===== -->
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-Shell-Setup"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS"
+               xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+
+      <OOBE>
+        <HideEULAPage>true</HideEULAPage>
+        <HideLocalAccountScreen>true</HideLocalAccountScreen>
+        <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+        <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
+      </OOBE>
+
+      <!-- Set Administrator password. CHANGE THIS before use. -->
+      <UserAccounts>
+        <AdministratorPassword>
+          <Value>Passw0rd!</Value>
+          <PlainText>true</PlainText>
+        </AdministratorPassword>
+      </UserAccounts>
+
+      <AutoLogon>
+        <Enabled>true</Enabled>
+        <Username>Administrator</Username>
+        <Password>
+          <Value>Passw0rd!</Value>
+          <PlainText>true</PlainText>
+        </Password>
+        <LogonCount>3</LogonCount>
+      </AutoLogon>
+
+      <!-- Run once on first logon: enable OpenSSH, open firewall -->
+      <FirstLogonCommands>
+
+        <!-- Install OpenSSH Server -->
+        <SynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <CommandLine>powershell -Command "Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0"</CommandLine>
+          <Description>Install OpenSSH Server</Description>
+        </SynchronousCommand>
+
+        <!-- Set OpenSSH service to start automatically -->
+        <SynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <CommandLine>powershell -Command "Set-Service -Name sshd -StartupType Automatic; Start-Service sshd"</CommandLine>
+          <Description>Enable and start OpenSSH Server</Description>
+        </SynchronousCommand>
+
+        <!-- Allow SSH through Windows Firewall -->
+        <SynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <CommandLine>powershell -Command "New-NetFirewallRule -Name 'SSH' -DisplayName 'OpenSSH Server' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22"</CommandLine>
+          <Description>Open firewall for SSH</Description>
+        </SynchronousCommand>
+
+        <!-- Set PowerShell as the default shell for SSH sessions -->
+        <SynchronousCommand wcm:action="add">
+          <Order>4</Order>
+          <CommandLine>powershell -Command "New-ItemProperty -Path 'HKLM:\SOFTWARE\OpenSSH' -Name DefaultShell -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -PropertyType String -Force"</CommandLine>
+          <Description>Set PowerShell as SSH default shell</Description>
+        </SynchronousCommand>
+
+      </FirstLogonCommands>
+
+    </component>
+  </settings>
+
+</unattend>
