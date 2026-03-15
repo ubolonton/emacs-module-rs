@@ -125,6 +125,7 @@ cmd_attach() {
 
 cmd_detach() {
     vm_is_running || die "VM '$VM_NAME' is not running."
+    # This seems to incorrectly report "not attached" even when Windows sees the device.
     fs_is_attached || { echo "virtiofs is not currently attached."; return; }
 
     # Use any path for detach — virsh matches by mount tag.
