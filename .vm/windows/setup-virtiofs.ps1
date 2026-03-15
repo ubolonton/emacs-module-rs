@@ -3,7 +3,8 @@
 #
 # Installs:
 #   - WinFsp (Windows FUSE layer)           via Scoop nonportable bucket
-#   - VirtIO-FS driver (viofs)              from the VirtIO ISO (mounted at sdc)
+#   - VirtIO-FS driver (viofs.sys)          from the VirtIO ISO (kernel driver)
+#   - VirtIO-FS service (virtiofs.exe)      from the VirtIO ISO (user-mode service)
 #
 # Prerequisites:
 #   - bootstrap.ps1 has been run (Scoop is installed)
@@ -86,44 +87,54 @@ if (-not $virtioLetter) {
 }
 
 Write-Host "  Found VirtIO ISO at $virtioLetter"
-$infPath = "${virtioLetter}viofs\w10\amd64\viofs.inf"
-
-if (-not (Test-Path $infPath)) {
-    $infPath = "${virtioLetter}viofs\2k22\amd64\viofs.inf"
+$infPath = $null
+foreach ($osDir in @("2k22", "2k25", "2k19", "w11", "w10")) {
+    $candidate = "${virtioLetter}viofs\$osDir\amd64\viofs.inf"
+    if (Test-Path $candidate) { $infPath = $candidate; break }
 }
-if (-not (Test-Path $infPath)) {
-    die "viofs.inf not found under ${virtioLetter}viofs\. Check the VirtIO ISO version."
+if (-not $infPath) {
+    Write-Host "ERROR: viofs.inf not found under ${virtioLetter}viofs\. Check the VirtIO ISO version." -ForegroundColor Red
+    exit 1
 }
 
 Write-Host "  Installing driver from: $infPath"
-$result = pnputil /add-driver $infPath /install 2>&1
-Write-Host "  $result"
+pnputil /add-driver $infPath /install | Write-Host
 
 # ---------------------------------------------------------------------------
-# VirtIO-FS Service — maps mount tag to a drive letter
+# VirtIO-FS Service — user-mode service (virtiofs.exe) that maps the mount
+# tag to a drive letter. Not registered automatically by pnputil — must be
+# done manually. The binary ships on the VirtIO ISO alongside the driver.
 # ---------------------------------------------------------------------------
-Step "Configuring VirtIO-FS Service"
+Step "Installing VirtIO-FS Service (virtiofs.exe)"
 
-$svc = Get-Service -Name "VirtIO-FS Service" -ErrorAction SilentlyContinue
-if (-not $svc) {
-    # The service is registered by the driver; trigger device detection.
-    Write-Host "  Service not found yet — rescanning devices..."
-    pnputil /scan-devices | Out-Null
-    Start-Sleep -Seconds 3
-    $svc = Get-Service -Name "VirtIO-FS Service" -ErrorAction SilentlyContinue
+$svcName = "VirtioFsSvc"
+$installDir = "C:\Program Files\VirtioFS"
+$exeDest = "$installDir\virtiofs.exe"
+
+$svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+if ($svc) {
+    Write-Host "  VirtioFsSvc already registered."
+} else {
+    # virtiofs.exe lives alongside viofs.inf in the same per-OS directory.
+    $exeSrc = Join-Path (Split-Path $infPath) "virtiofs.exe"
+    if (-not (Test-Path $exeSrc)) {
+        Write-Host ""
+        Write-Host "ERROR: virtiofs.exe not found at: $exeSrc" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "  Copying $exeSrc -> $exeDest"
+    New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+    Copy-Item $exeSrc $exeDest -Force
+
+    Write-Host "  Registering service..."
+    sc.exe create $svcName binPath= "`"$exeDest`"" start= auto depend= VirtioFsDrv | Write-Host
+    $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
 }
 
-if ($svc) {
-    Set-Service -Name "VirtIO-FS Service" -StartupType Automatic
-    if ($svc.Status -ne "Running") {
-        Start-Service -Name "VirtIO-FS Service"
-    }
-    Write-Host "  VirtIO-FS Service is running."
-} else {
-    Write-Host "  WARNING: VirtIO-FS Service not found." -ForegroundColor Yellow
-    Write-Host "  The virtiofs device may not be attached yet on the host." -ForegroundColor Yellow
-    Write-Host "  On the host, run: .vm/windows/share.sh attach" -ForegroundColor Yellow
-    Write-Host "  Then re-run this script." -ForegroundColor Yellow
+if ($svc -and $svc.Status -ne "Running") {
+    Write-Host "  Starting $svcName..."
+    sc.exe start $svcName | Write-Host
 }
 
 # ---------------------------------------------------------------------------
