@@ -35,3 +35,46 @@ Alternatively, if `pwsh` (PowerShell Core) is installed on the host, the
 ```bash
 .vm/windows/bootstrap.ps1 -VMHost "$VM_IP"
 ```
+
+## Directory Sharing (virtiofs)
+
+virtiofs exposes a host directory inside the VM as a drive letter. It requires
+a one-time host and guest setup, then can be toggled per-session.
+
+### One-time host setup
+
+Add `<memoryBacking>` to the VM config and restart:
+
+```bash
+.vm/windows/share.sh configure   # modifies the running VM definition via virsh
+virsh reboot windows-2022         # required for memoryBacking to take effect
+```
+
+### One-time guest setup
+
+The VirtIO ISO must be mounted (it is by default until `boot-vm.sh` ejects it).
+If it was already ejected, re-attach it first:
+
+```bash
+virsh change-media windows-2022 sdc <path-to-virtio-win.iso>
+```
+
+Then run (while the VM is running and the share is attached):
+
+```bash
+.vm/windows/share.sh attach
+cat .vm/windows/setup-virtiofs.ps1 | ssh Administrator@"$VM_IP" \
+    "powershell -ExecutionPolicy Bypass -NonInteractive -"
+```
+
+This installs WinFsp and the VirtIO-FS driver on the guest. The shared
+directory (`.vm/windows/shared/` by default) will appear as a new drive letter.
+
+### Per-session use
+
+```bash
+.vm/windows/share.sh attach              # expose .vm/windows/shared/ to VM
+.vm/windows/share.sh attach --dir PATH   # expose a custom directory
+.vm/windows/share.sh detach              # stop sharing
+.vm/windows/share.sh status              # check current state
+```
