@@ -11,7 +11,7 @@ interface configured as a sibling to `enp7s0`, with the host's LAN IP assigned
 to it rather than directly to `enp7s0`.
 
 ```shell
-sudo apt install libvirt-clients libvirt-daemon qemu-system virt-install virt-viewer mtools dosfstools
+sudo apt install libvirt-clients libvirt-daemon qemu-system virt-install virt-viewer mtools dosfstools virtiofsd
 ```
 
 ## Workflow
