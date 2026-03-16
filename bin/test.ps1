@@ -28,8 +28,14 @@ if ($args[0] -eq "watch") {
     $env:MODULE_DIR = $module_dir
     $env:EMACS_MODULE_RS_DEBUG = 1
     emacs --version
+
     emacs --batch --directory "$module_dir" `
       -l ert `
       -l "$project_root\test-module\tests\main.el" `
+      -f ert-run-tests-batch-and-exit
+
+    emacs --batch --directory "$module_dir" `
+      -l ert `
+      -l "$project_root\test-module-28\tests\main.el" `
       -f ert-run-tests-batch-and-exit
 }

@@ -1,11 +1,8 @@
-#[cfg(not(windows))]
 use std::io::Write;
 
-#[cfg(not(windows))]
 use emacs::{defun, Env, Result, Value};
 
 /// Open a channel to PROCESS, write DATA to it, then close.
-#[cfg(not(windows))]
 #[defun]
 fn channel_send(env: &Env, process: Value<'_>, data: String) -> Result<()> {
     let mut writer = env.open_channel(process)?;
@@ -15,7 +12,6 @@ fn channel_send(env: &Env, process: Value<'_>, data: String) -> Result<()> {
 
 /// Open a channel to PROCESS, then spawn a thread that writes DATA and closes it.
 /// Blocks until the thread finishes.
-#[cfg(not(windows))]
 #[defun]
 fn channel_send_from_thread(env: &Env, process: Value<'_>, data: String) -> Result<()> {
     let mut writer = env.open_channel(process)?;

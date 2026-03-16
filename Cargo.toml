@@ -30,6 +30,9 @@ once_cell = "1.2.0"
 emacs_module = { path = "emacs-module", version = "0.20.0" }
 emacs-macros = { path = "emacs-macros", version = "0.17.0" }
 
+[target.'cfg(windows)'.dependencies]
+libc = "0.2"
+
 [build-dependencies]
 rustc_version = "0.2.3"
 

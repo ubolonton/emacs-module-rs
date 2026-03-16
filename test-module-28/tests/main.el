@@ -5,7 +5,6 @@
 
 (ert-deftest channel::send-and-receive ()
   (skip-unless (>= emacs-major-version 28))
-  (skip-unless (not (eq system-type 'windows-nt)))
   (let* ((received nil)
          (proc (make-pipe-process
                 :name "test-send"
@@ -20,7 +19,6 @@
 
 (ert-deftest channel::send-from-thread ()
   (skip-unless (>= emacs-major-version 28))
-  (skip-unless (not (eq system-type 'windows-nt)))
   (let* ((received nil)
          (proc (make-pipe-process
                 :name "test-thread-send"
@@ -35,6 +33,5 @@
 
 (ert-deftest channel::wrong-type-arg ()
   (skip-unless (>= emacs-major-version 28))
-  (skip-unless (not (eq system-type 'windows-nt)))
   (should-error (t28/channel-send "not-a-process" "data")
                 :type 'wrong-type-argument))
