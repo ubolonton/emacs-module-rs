@@ -13,10 +13,10 @@ license = "BSD-3-Clause"
 build = "build.rs"
 
 [dependencies]
-bindgen = { version = "0.72.1", optional = true }
+bindgen = { version = "0.72.1", optional = true, features = ["prettyplease"] }
 
 [build-dependencies]
-bindgen = { version = "0.72.1", optional = true }
+bindgen = { version = "0.72.1", optional = true, features = ["prettyplease"] }
 
 [features]
 default = []

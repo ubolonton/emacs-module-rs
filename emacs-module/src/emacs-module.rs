@@ -4,8 +4,9 @@ pub type intmax_t = i64;
 pub type __time_t = i64;
 pub type __syscall_slong_t = ::std::os::raw::c_long;
 
-pub type emacs_finalizer_function =
-    ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>;
+pub type emacs_finalizer_function = ::std::option::Option<
+    unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void),
+>;
 pub type emacs_env = emacs_env_25;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -20,21 +21,27 @@ pub type emacs_arity = ::std::os::raw::c_int;
 pub struct emacs_runtime {
     pub size: isize,
     pub private_members: *mut emacs_runtime_private,
-    pub get_environment:
-        ::std::option::Option<unsafe extern "C" fn(ert: *mut emacs_runtime) -> *mut emacs_env>,
+    pub get_environment: ::std::option::Option<
+        unsafe extern "C" fn(ert: *mut emacs_runtime) -> *mut emacs_env,
+    >,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
     ["Size of emacs_runtime"][::std::mem::size_of::<emacs_runtime>() - 24usize];
     ["Alignment of emacs_runtime"][::std::mem::align_of::<emacs_runtime>() - 8usize];
-    ["Offset of field: emacs_runtime::size"][::std::mem::offset_of!(emacs_runtime, size) - 0usize];
-    ["Offset of field: emacs_runtime::private_members"]
-        [::std::mem::offset_of!(emacs_runtime, private_members) - 8usize];
-    ["Offset of field: emacs_runtime::get_environment"]
-        [::std::mem::offset_of!(emacs_runtime, get_environment) - 16usize];
+    [
+        "Offset of field: emacs_runtime::size",
+    ][::std::mem::offset_of!(emacs_runtime, size) - 0usize];
+    [
+        "Offset of field: emacs_runtime::private_members",
+    ][::std::mem::offset_of!(emacs_runtime, private_members) - 8usize];
+    [
+        "Offset of field: emacs_runtime::get_environment",
+    ][::std::mem::offset_of!(emacs_runtime, get_environment) - 16usize];
 };
-pub type emacs_init_function =
-    ::std::option::Option<unsafe extern "C" fn(ert: *mut emacs_runtime) -> ::std::os::raw::c_int>;
+pub type emacs_init_function = ::std::option::Option<
+    unsafe extern "C" fn(ert: *mut emacs_runtime) -> ::std::os::raw::c_int,
+>;
 pub type emacs_subr = ::std::option::Option<
     unsafe extern "C" fn(
         env: *mut emacs_env,
@@ -53,14 +60,20 @@ pub struct emacs_env_25 {
     pub size: isize,
     pub private_members: *mut emacs_env_private,
     pub make_global_ref: ::std::option::Option<
-        unsafe extern "C" fn(env: *mut emacs_env, any_reference: emacs_value) -> emacs_value,
+        unsafe extern "C" fn(
+            env: *mut emacs_env,
+            any_reference: emacs_value,
+        ) -> emacs_value,
     >,
     pub free_global_ref: ::std::option::Option<
         unsafe extern "C" fn(env: *mut emacs_env, global_reference: emacs_value),
     >,
-    pub non_local_exit_check:
-        ::std::option::Option<unsafe extern "C" fn(env: *mut emacs_env) -> emacs_funcall_exit>,
-    pub non_local_exit_clear: ::std::option::Option<unsafe extern "C" fn(env: *mut emacs_env)>,
+    pub non_local_exit_check: ::std::option::Option<
+        unsafe extern "C" fn(env: *mut emacs_env) -> emacs_funcall_exit,
+    >,
+    pub non_local_exit_clear: ::std::option::Option<
+        unsafe extern "C" fn(env: *mut emacs_env),
+    >,
     pub non_local_exit_get: ::std::option::Option<
         unsafe extern "C" fn(
             env: *mut emacs_env,
@@ -124,10 +137,12 @@ pub struct emacs_env_25 {
     pub make_integer: ::std::option::Option<
         unsafe extern "C" fn(env: *mut emacs_env, value: intmax_t) -> emacs_value,
     >,
-    pub extract_float:
-        ::std::option::Option<unsafe extern "C" fn(env: *mut emacs_env, value: emacs_value) -> f64>,
-    pub make_float:
-        ::std::option::Option<unsafe extern "C" fn(env: *mut emacs_env, value: f64) -> emacs_value>,
+    pub extract_float: ::std::option::Option<
+        unsafe extern "C" fn(env: *mut emacs_env, value: emacs_value) -> f64,
+    >,
+    pub make_float: ::std::option::Option<
+        unsafe extern "C" fn(env: *mut emacs_env, value: f64) -> emacs_value,
+    >,
     pub copy_string_contents: ::std::option::Option<
         unsafe extern "C" fn(
             env: *mut emacs_env,
@@ -151,7 +166,10 @@ pub struct emacs_env_25 {
         ) -> emacs_value,
     >,
     pub get_user_ptr: ::std::option::Option<
-        unsafe extern "C" fn(env: *mut emacs_env, uptr: emacs_value) -> *mut ::std::os::raw::c_void,
+        unsafe extern "C" fn(
+            env: *mut emacs_env,
+            uptr: emacs_value,
+        ) -> *mut ::std::os::raw::c_void,
     >,
     pub set_user_ptr: ::std::option::Option<
         unsafe extern "C" fn(
@@ -161,80 +179,128 @@ pub struct emacs_env_25 {
         ),
     >,
     pub get_user_finalizer: ::std::option::Option<
-        unsafe extern "C" fn(env: *mut emacs_env, uptr: emacs_value) -> emacs_finalizer_function,
+        unsafe extern "C" fn(
+            env: *mut emacs_env,
+            uptr: emacs_value,
+        ) -> emacs_finalizer_function,
     >,
     pub set_user_finalizer: ::std::option::Option<
-        unsafe extern "C" fn(env: *mut emacs_env, uptr: emacs_value, fin: emacs_finalizer_function),
+        unsafe extern "C" fn(
+            env: *mut emacs_env,
+            uptr: emacs_value,
+            fin: emacs_finalizer_function,
+        ),
     >,
     pub vec_get: ::std::option::Option<
-        unsafe extern "C" fn(env: *mut emacs_env, vec: emacs_value, i: isize) -> emacs_value,
+        unsafe extern "C" fn(
+            env: *mut emacs_env,
+            vec: emacs_value,
+            i: isize,
+        ) -> emacs_value,
     >,
     pub vec_set: ::std::option::Option<
-        unsafe extern "C" fn(env: *mut emacs_env, vec: emacs_value, i: isize, val: emacs_value),
+        unsafe extern "C" fn(
+            env: *mut emacs_env,
+            vec: emacs_value,
+            i: isize,
+            val: emacs_value,
+        ),
     >,
-    pub vec_size:
-        ::std::option::Option<unsafe extern "C" fn(env: *mut emacs_env, vec: emacs_value) -> isize>,
+    pub vec_size: ::std::option::Option<
+        unsafe extern "C" fn(env: *mut emacs_env, vec: emacs_value) -> isize,
+    >,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
     ["Size of emacs_env_25"][::std::mem::size_of::<emacs_env_25>() - 232usize];
     ["Alignment of emacs_env_25"][::std::mem::align_of::<emacs_env_25>() - 8usize];
-    ["Offset of field: emacs_env_25::size"][::std::mem::offset_of!(emacs_env_25, size) - 0usize];
-    ["Offset of field: emacs_env_25::private_members"]
-        [::std::mem::offset_of!(emacs_env_25, private_members) - 8usize];
-    ["Offset of field: emacs_env_25::make_global_ref"]
-        [::std::mem::offset_of!(emacs_env_25, make_global_ref) - 16usize];
-    ["Offset of field: emacs_env_25::free_global_ref"]
-        [::std::mem::offset_of!(emacs_env_25, free_global_ref) - 24usize];
-    ["Offset of field: emacs_env_25::non_local_exit_check"]
-        [::std::mem::offset_of!(emacs_env_25, non_local_exit_check) - 32usize];
-    ["Offset of field: emacs_env_25::non_local_exit_clear"]
-        [::std::mem::offset_of!(emacs_env_25, non_local_exit_clear) - 40usize];
-    ["Offset of field: emacs_env_25::non_local_exit_get"]
-        [::std::mem::offset_of!(emacs_env_25, non_local_exit_get) - 48usize];
-    ["Offset of field: emacs_env_25::non_local_exit_signal"]
-        [::std::mem::offset_of!(emacs_env_25, non_local_exit_signal) - 56usize];
-    ["Offset of field: emacs_env_25::non_local_exit_throw"]
-        [::std::mem::offset_of!(emacs_env_25, non_local_exit_throw) - 64usize];
-    ["Offset of field: emacs_env_25::make_function"]
-        [::std::mem::offset_of!(emacs_env_25, make_function) - 72usize];
-    ["Offset of field: emacs_env_25::funcall"]
-        [::std::mem::offset_of!(emacs_env_25, funcall) - 80usize];
-    ["Offset of field: emacs_env_25::intern"]
-        [::std::mem::offset_of!(emacs_env_25, intern) - 88usize];
-    ["Offset of field: emacs_env_25::type_of"]
-        [::std::mem::offset_of!(emacs_env_25, type_of) - 96usize];
-    ["Offset of field: emacs_env_25::is_not_nil"]
-        [::std::mem::offset_of!(emacs_env_25, is_not_nil) - 104usize];
-    ["Offset of field: emacs_env_25::eq"][::std::mem::offset_of!(emacs_env_25, eq) - 112usize];
-    ["Offset of field: emacs_env_25::extract_integer"]
-        [::std::mem::offset_of!(emacs_env_25, extract_integer) - 120usize];
-    ["Offset of field: emacs_env_25::make_integer"]
-        [::std::mem::offset_of!(emacs_env_25, make_integer) - 128usize];
-    ["Offset of field: emacs_env_25::extract_float"]
-        [::std::mem::offset_of!(emacs_env_25, extract_float) - 136usize];
-    ["Offset of field: emacs_env_25::make_float"]
-        [::std::mem::offset_of!(emacs_env_25, make_float) - 144usize];
-    ["Offset of field: emacs_env_25::copy_string_contents"]
-        [::std::mem::offset_of!(emacs_env_25, copy_string_contents) - 152usize];
-    ["Offset of field: emacs_env_25::make_string"]
-        [::std::mem::offset_of!(emacs_env_25, make_string) - 160usize];
-    ["Offset of field: emacs_env_25::make_user_ptr"]
-        [::std::mem::offset_of!(emacs_env_25, make_user_ptr) - 168usize];
-    ["Offset of field: emacs_env_25::get_user_ptr"]
-        [::std::mem::offset_of!(emacs_env_25, get_user_ptr) - 176usize];
-    ["Offset of field: emacs_env_25::set_user_ptr"]
-        [::std::mem::offset_of!(emacs_env_25, set_user_ptr) - 184usize];
-    ["Offset of field: emacs_env_25::get_user_finalizer"]
-        [::std::mem::offset_of!(emacs_env_25, get_user_finalizer) - 192usize];
-    ["Offset of field: emacs_env_25::set_user_finalizer"]
-        [::std::mem::offset_of!(emacs_env_25, set_user_finalizer) - 200usize];
-    ["Offset of field: emacs_env_25::vec_get"]
-        [::std::mem::offset_of!(emacs_env_25, vec_get) - 208usize];
-    ["Offset of field: emacs_env_25::vec_set"]
-        [::std::mem::offset_of!(emacs_env_25, vec_set) - 216usize];
-    ["Offset of field: emacs_env_25::vec_size"]
-        [::std::mem::offset_of!(emacs_env_25, vec_size) - 224usize];
+    [
+        "Offset of field: emacs_env_25::size",
+    ][::std::mem::offset_of!(emacs_env_25, size) - 0usize];
+    [
+        "Offset of field: emacs_env_25::private_members",
+    ][::std::mem::offset_of!(emacs_env_25, private_members) - 8usize];
+    [
+        "Offset of field: emacs_env_25::make_global_ref",
+    ][::std::mem::offset_of!(emacs_env_25, make_global_ref) - 16usize];
+    [
+        "Offset of field: emacs_env_25::free_global_ref",
+    ][::std::mem::offset_of!(emacs_env_25, free_global_ref) - 24usize];
+    [
+        "Offset of field: emacs_env_25::non_local_exit_check",
+    ][::std::mem::offset_of!(emacs_env_25, non_local_exit_check) - 32usize];
+    [
+        "Offset of field: emacs_env_25::non_local_exit_clear",
+    ][::std::mem::offset_of!(emacs_env_25, non_local_exit_clear) - 40usize];
+    [
+        "Offset of field: emacs_env_25::non_local_exit_get",
+    ][::std::mem::offset_of!(emacs_env_25, non_local_exit_get) - 48usize];
+    [
+        "Offset of field: emacs_env_25::non_local_exit_signal",
+    ][::std::mem::offset_of!(emacs_env_25, non_local_exit_signal) - 56usize];
+    [
+        "Offset of field: emacs_env_25::non_local_exit_throw",
+    ][::std::mem::offset_of!(emacs_env_25, non_local_exit_throw) - 64usize];
+    [
+        "Offset of field: emacs_env_25::make_function",
+    ][::std::mem::offset_of!(emacs_env_25, make_function) - 72usize];
+    [
+        "Offset of field: emacs_env_25::funcall",
+    ][::std::mem::offset_of!(emacs_env_25, funcall) - 80usize];
+    [
+        "Offset of field: emacs_env_25::intern",
+    ][::std::mem::offset_of!(emacs_env_25, intern) - 88usize];
+    [
+        "Offset of field: emacs_env_25::type_of",
+    ][::std::mem::offset_of!(emacs_env_25, type_of) - 96usize];
+    [
+        "Offset of field: emacs_env_25::is_not_nil",
+    ][::std::mem::offset_of!(emacs_env_25, is_not_nil) - 104usize];
+    [
+        "Offset of field: emacs_env_25::eq",
+    ][::std::mem::offset_of!(emacs_env_25, eq) - 112usize];
+    [
+        "Offset of field: emacs_env_25::extract_integer",
+    ][::std::mem::offset_of!(emacs_env_25, extract_integer) - 120usize];
+    [
+        "Offset of field: emacs_env_25::make_integer",
+    ][::std::mem::offset_of!(emacs_env_25, make_integer) - 128usize];
+    [
+        "Offset of field: emacs_env_25::extract_float",
+    ][::std::mem::offset_of!(emacs_env_25, extract_float) - 136usize];
+    [
+        "Offset of field: emacs_env_25::make_float",
+    ][::std::mem::offset_of!(emacs_env_25, make_float) - 144usize];
+    [
+        "Offset of field: emacs_env_25::copy_string_contents",
+    ][::std::mem::offset_of!(emacs_env_25, copy_string_contents) - 152usize];
+    [
+        "Offset of field: emacs_env_25::make_string",
+    ][::std::mem::offset_of!(emacs_env_25, make_string) - 160usize];
+    [
+        "Offset of field: emacs_env_25::make_user_ptr",
+    ][::std::mem::offset_of!(emacs_env_25, make_user_ptr) - 168usize];
+    [
+        "Offset of field: emacs_env_25::get_user_ptr",
+    ][::std::mem::offset_of!(emacs_env_25, get_user_ptr) - 176usize];
+    [
+        "Offset of field: emacs_env_25::set_user_ptr",
+    ][::std::mem::offset_of!(emacs_env_25, set_user_ptr) - 184usize];
+    [
+        "Offset of field: emacs_env_25::get_user_finalizer",
+    ][::std::mem::offset_of!(emacs_env_25, get_user_finalizer) - 192usize];
+    [
+        "Offset of field: emacs_env_25::set_user_finalizer",
+    ][::std::mem::offset_of!(emacs_env_25, set_user_finalizer) - 200usize];
+    [
+        "Offset of field: emacs_env_25::vec_get",
+    ][::std::mem::offset_of!(emacs_env_25, vec_get) - 208usize];
+    [
+        "Offset of field: emacs_env_25::vec_set",
+    ][::std::mem::offset_of!(emacs_env_25, vec_set) - 216usize];
+    [
+        "Offset of field: emacs_env_25::vec_size",
+    ][::std::mem::offset_of!(emacs_env_25, vec_size) - 224usize];
 };
 unsafe extern "C" {
     pub fn emacs_module_init(ert: *mut emacs_runtime) -> ::std::os::raw::c_int;
