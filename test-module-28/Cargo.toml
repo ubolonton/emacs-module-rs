@@ -9,3 +9,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 emacs = { path = "..", features = ["emacs-28"] }
+
+[features]
+bindgen = ["emacs/bindgen"]

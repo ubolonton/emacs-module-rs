@@ -14,3 +14,6 @@ emacs = { path = ".." }
 
 [dev-dependencies]
 emacs-rs-module = { path = "../rs-module" }
+
+[features]
+bindgen = ["emacs/bindgen"]
