@@ -42,6 +42,10 @@ jobs:
           cargo -V
 
       - uses: actions/checkout@v6
+        with:
+          # XXX: Partial protection. We can't currently do better. Maybe move the 3rd-party actions
+          # up? See https://github.com/actions/checkout/issues/485.
+          persist-credentials: false
 
       - name: Build
         run: ./bin/build
