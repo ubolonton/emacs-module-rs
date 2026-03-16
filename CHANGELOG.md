@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 - Added `emacs-28` feature with `Env::open_channel` for pipe-based communication (Emacs 28+).
+    - On Windows, this requires the module to be built with the same toolchain as Emacs, either `gnu` or `msvc`.
 
 ## [0.20.0] - 2026-03-04
 - Added `use_functions!`, which enables module code to cache references to frequently-used Lisp functions.

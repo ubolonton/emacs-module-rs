@@ -12,9 +12,17 @@ authors = [
 license = "BSD-3-Clause"
 build = "build.rs"
 
+[dependencies]
+bindgen = { version = "0.72.1", optional = true }
+
 [build-dependencies]
 bindgen = { version = "0.72.1", optional = true }
 
 [features]
 default = []
 emacs-28 = []
+
+[[bin]]
+name = "gen-bindings"
+path = "src/bin/gen-bindings.rs"
+required-features = ["bindgen"]
