@@ -1,7 +1,4 @@
 //! Generates the pre-built binding files kept in git.
-//!
-//! Run with:
-//!   cargo run -p emacs_module --features bindgen --bin gen-bindings
 
 include!(concat!(env!("CARGO_MANIFEST_DIR"), "/bindgen_config.rs"));
 

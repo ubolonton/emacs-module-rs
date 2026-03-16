@@ -1,7 +1,7 @@
-#[cfg(feature = "bindgen")]
+#[cfg(feature = "bindgen-build")]
 extern crate bindgen;
 
-#[cfg(feature = "bindgen")]
+#[cfg(feature = "bindgen-build")]
 include!("bindgen_config.rs");
 
 fn main() {
@@ -16,7 +16,7 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(emacs_version, values(\"25\", \"28\"))");
     println!("cargo::rustc-cfg=emacs_version=\"{version}\"");
 
-    #[cfg(feature = "bindgen")]
+    #[cfg(feature = "bindgen-build")]
     {
         use std::env;
         use std::path::Path;

@@ -21,8 +21,12 @@ bindgen = { version = "0.72.1", optional = true, features = ["prettyplease"] }
 [features]
 default = []
 emacs-28 = []
+# Code-time generation, via a binary that generates bindings as source code.
+bindgen-code = ["bindgen"]
+# Build-time generation.
+bindgen-build = ["bindgen"]
 
 [[bin]]
 name = "gen-bindings"
 path = "src/bin/gen-bindings.rs"
-required-features = ["bindgen"]
+required-features = ["bindgen-code"]
