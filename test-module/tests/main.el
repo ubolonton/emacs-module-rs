@@ -42,9 +42,11 @@
               "powershell"
               ;; If VERBOSE, redirect subprocess's stdout to stderr
               nil (list t error-file)
-              nil (if t/support-module-assertions-p
-                      ".\\bin\\fn-module-assertions.ps1"
-                    ".\\bin\\fn.ps1") name))
+              nil
+              ;; ARGS
+              "-NoProfile" (if t/support-module-assertions-p
+                               ".\\bin\\fn-module-assertions.ps1"
+                             ".\\bin\\fn.ps1") name))
             (_ (error "Unsupported system-type: %s" system-type))))
          (error-string
           (with-temp-buffer
