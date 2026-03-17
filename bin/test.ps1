@@ -27,7 +27,19 @@ if ($args[0] -eq "watch") {
     $env:PROJECT_ROOT = $project_root
     $env:MODULE_DIR = $module_dir
     $env:EMACS_MODULE_RS_DEBUG = 1
+
     emacs --version
+
+    # Diagnostic: show which CRT emacs.exe links against (msvcrt.dll vs ucrtbase.dll).
+    # The fd returned by open_channel lives in Emacs's CRT fd table; our modules must
+    # use the same CRT to call _get_osfhandle/_close on it, or they will crash.
+    $emacs_cmd = Get-Command emacs -ErrorAction SilentlyContinue
+    $emacs_exe = if ($emacs_cmd) { $emacs_cmd.Source } else { $null }
+    if ($emacs_exe) {
+        Write-Host "=== Emacs binary: $emacs_exe ==="
+        & objdump -p $emacs_exe 2>$null | Select-String "DLL Name"
+        Write-Host "==================================="
+    }
 
     emacs -Q --batch --directory "$module_dir" `
       -l ert `

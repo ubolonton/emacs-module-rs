@@ -6,8 +6,7 @@ if [[ $system == "Linux" || $system == "FreeBSD" ]]; then
 elif [[ $system == "Darwin" ]]; then
     EXT="dylib"
 else
-    echo "Unsupported system: $system"
-    exit 1
+    EXT="dll"
 fi
 
 here=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
