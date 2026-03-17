@@ -115,38 +115,9 @@ impl Env {
 
         #[cfg(target_os = "windows")]
         {
-            // Emacs on Windows links against MSVCRT. This module must be built with the same
-            // CRT (via MSYS2 MINGW64 toolchain). The fd was created by Emacs via _pipe() in
-            // MSVCRT; libc::write/_close map to MSVCRT's _write/_close through the same CRT.
-            struct CrtPipeWriter(i32);
-
-            impl std::io::Write for CrtPipeWriter {
-                fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                    let ret = unsafe {
-                        libc::write(self.0, buf.as_ptr() as *const libc::c_void, buf.len() as _)
-                    };
-                    if ret < 0 { Err(std::io::Error::last_os_error()) } else { Ok(ret as usize) }
-                }
-                fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
-            }
-
-            impl std::fmt::Debug for CrtPipeWriter {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    write!(f, "CrtPipeWriter({})", self.0)
-                }
-            }
-
-            unsafe impl Send for CrtPipeWriter {}
-            unsafe impl Sync for CrtPipeWriter {}
-
-            impl Drop for CrtPipeWriter {
-                fn drop(&mut self) {
-                    // _close signals EOF to the pipe reader and cleans up the fd table entry.
-                    unsafe { libc::close(self.0) };
-                }
-            }
-
-            Ok(CrtPipeWriter(raw_fd))
+            use std::os::windows::io::{FromRawHandle, RawHandle};
+            let handle = unsafe { libc::get_osfhandle(raw_fd) as RawHandle };
+            Ok(unsafe { std::io::PipeWriter::from_raw_handle(handle) })
         }
 
         #[cfg(not(target_os = "windows"))]
