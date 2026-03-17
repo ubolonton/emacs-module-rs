@@ -79,12 +79,11 @@ jobs:
         with:
           version: ${{ matrix.emacs-version }}
 
-      - run: |
-          emacs -Q --batch --eval '(princ (emacs-version))'
-          echo $PATH
-          which emacs
-        shell: msys2 {0}
-        if: runner.os == 'Windows'
+      - name: Test
+        run: ./bin/test
+        if: runner.os != 'Windows'
 
-      - run: .\bin\test.ps1
+      - name: Test (Windows)
+        run: ./bin/test
+        shell: msys2 {0}
         if: runner.os == 'Windows'
