@@ -65,6 +65,12 @@ jobs:
 
       - name: Build
         run: ./bin/build
+        if: runner.os != 'Windows'
+
+      - name: Build (Windows)
+        run: ./bin/build
+        shell: msys2 {0}
+        if: runner.os == 'Windows'
 
       - run: cargo test --all
 
