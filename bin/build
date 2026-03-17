@@ -17,9 +17,9 @@ source "$here/env.bash"
     cargo build --all $extra
 
     cd "$MODULE_DIR"
-    cp -f libemacs_rs_module."$EXT" rs-module."$EXT"
+    cp -f "${LIB_PREFIX}emacs_rs_module.$EXT" rs-module."$EXT"
     cp -f "$MODULE_ORIGINAL" "$MODULE_RENAMED"
-    cp -f libtest_module_28."$EXT" t28."$EXT"
+    cp -f "${LIB_PREFIX}test_module_28.$EXT" t28."$EXT"
 )
 
 # Diagnostic: show GCC and CRT linkage. On Windows (MSYS2), the modules are DLLs
