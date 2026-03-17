@@ -17,7 +17,25 @@ source "$here/env.bash"
     cargo build --all $extra
 
     cd "$MODULE_DIR"
-    ln -f -s libemacs_rs_module."$EXT" rs-module.so
-    ln -f -s "$MODULE_ORIGINAL" "$MODULE_RENAMED"
-    ln -f -s libtest_module_28."$EXT" t28.so
+    cp -f "${LIB_PREFIX}emacs_rs_module.$EXT" rs-module."$EXT"
+    cp -f "$MODULE_ORIGINAL" "$MODULE_RENAMED"
+    cp -f "${LIB_PREFIX}test_module_28.$EXT" t28."$EXT"
 )
+
+# Diagnostic: show GCC and CRT linkage. On Windows (MSYS2), the modules are DLLs
+# and objdump -p shows which CRT (msvcrt.dll vs ucrtbase.dll) they import.
+echo "=== Build environment ==="
+echo "gcc: $(which gcc 2>/dev/null || echo 'not found')"
+gcc --version 2>/dev/null | head -1 || true
+echo "========================="
+
+if [[ $EXT == "dll" ]]; then
+    echo "=== CRT imports for built modules ==="
+    for dll in "$MODULE_DIR/t.dll" "$MODULE_DIR/t28.dll" "$MODULE_DIR/rs-module.dll"; do
+        if [[ -f "$dll" ]]; then
+            echo "--- $(basename "$dll") ---"
+            objdump -p "$dll" 2>/dev/null | grep "DLL Name" || true
+        fi
+    done
+    echo "====================================="
+fi
