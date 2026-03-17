@@ -115,91 +115,38 @@ impl Env {
 
         #[cfg(target_os = "windows")]
         {
-            // open_channel returns a CRT fd created by Emacs via _pipe() in its CRT
-            // (typically msvcrt.dll on MSYS2 MINGW64). Our Rust module may link against
-            // a different CRT (ucrtbase.dll on UCRT64 environments). Calling our own
-            // libc::write or libc::get_osfhandle on this fd crashes because the fd is
-            // not in our CRT's fd table — UCRT's invalid-parameter handler aborts.
-            //
-            // Fix: dynamically look up _get_osfhandle and _close from the CRT that actually
-            // owns the fd (try msvcrt.dll first, then ucrtbase.dll). Write via Win32
-            // WriteFile. Close via the owning CRT's _close, which calls CloseHandle
-            // internally (signaling EOF to the reader) and cleans up the fd table entry.
-            extern "system" {
-                fn WriteFile(
-                    hFile: *mut core::ffi::c_void,
-                    lpBuffer: *const core::ffi::c_void,
-                    nNumberOfBytesToWrite: u32,
-                    lpNumberOfBytesWritten: *mut u32,
-                    lpOverlapped: *mut core::ffi::c_void,
-                ) -> i32;
-                fn GetModuleHandleA(lpModuleName: *const u8) -> *mut core::ffi::c_void;
-                fn GetProcAddress(
-                    hModule: *mut core::ffi::c_void,
-                    lpProcName: *const u8,
-                ) -> *mut core::ffi::c_void;
-            }
+            // Emacs on Windows links against MSVCRT. This module must be built with the same
+            // CRT (via MSYS2 MINGW64 toolchain). The fd was created by Emacs via _pipe() in
+            // MSVCRT; libc::write/_close map to MSVCRT's _write/_close through the same CRT.
+            struct CrtPipeWriter(i32);
 
-            type GetOsfhandleFn = unsafe extern "C" fn(i32) -> isize;
-            type CloseFdFn = unsafe extern "C" fn(i32) -> i32;
-
-            let crts: &[&[u8]] = &[b"msvcrt.dll\0", b"ucrtbase.dll\0"];
-            let result = crts.iter().find_map(|&crt| unsafe {
-                let module = GetModuleHandleA(crt.as_ptr());
-                if module.is_null() { return None; }
-                let gof = GetProcAddress(module, b"_get_osfhandle\0".as_ptr());
-                let clf = GetProcAddress(module, b"_close\0".as_ptr());
-                if gof.is_null() || clf.is_null() { return None; }
-                let get_osfhandle: GetOsfhandleFn = std::mem::transmute(gof);
-                let close_fd: CloseFdFn = std::mem::transmute(clf);
-                let h = get_osfhandle(raw_fd);
-                if h < 0 { return None; } // invalid handle
-                Some((h as *mut core::ffi::c_void, close_fd))
-            });
-
-            let (handle, close_fd) = result
-                .expect("open_channel: cannot find HANDLE for fd in msvcrt.dll or ucrtbase.dll");
-
-            struct Win32PipeWriter {
-                handle: *mut core::ffi::c_void,
-                fd: i32,
-                close_fd: CloseFdFn,
-            }
-
-            impl std::io::Write for Win32PipeWriter {
+            impl std::io::Write for CrtPipeWriter {
                 fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                    let mut written: u32 = 0;
-                    let n = buf.len().min(u32::MAX as usize) as u32;
-                    let ok = unsafe {
-                        WriteFile(self.handle, buf.as_ptr() as _, n, &mut written, core::ptr::null_mut())
+                    let ret = unsafe {
+                        libc::write(self.0, buf.as_ptr() as *const libc::c_void, buf.len() as _)
                     };
-                    if ok == 0 {
-                        Err(std::io::Error::last_os_error())
-                    } else {
-                        Ok(written as usize)
-                    }
+                    if ret < 0 { Err(std::io::Error::last_os_error()) } else { Ok(ret as usize) }
                 }
                 fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
             }
 
-            impl std::fmt::Debug for Win32PipeWriter {
+            impl std::fmt::Debug for CrtPipeWriter {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    write!(f, "Win32PipeWriter({:p})", self.handle)
+                    write!(f, "CrtPipeWriter({})", self.0)
                 }
             }
 
-            unsafe impl Send for Win32PipeWriter {}
-            unsafe impl Sync for Win32PipeWriter {}
+            unsafe impl Send for CrtPipeWriter {}
+            unsafe impl Sync for CrtPipeWriter {}
 
-            impl Drop for Win32PipeWriter {
+            impl Drop for CrtPipeWriter {
                 fn drop(&mut self) {
-                    // Use the CRT that owns the fd: _close calls CloseHandle internally,
-                    // signaling EOF to the pipe reader and cleaning up the fd table entry.
-                    unsafe { (self.close_fd)(self.fd) };
+                    // _close signals EOF to the pipe reader and cleans up the fd table entry.
+                    unsafe { libc::close(self.0) };
                 }
             }
 
-            Ok(Win32PipeWriter { handle, fd: raw_fd, close_fd })
+            Ok(CrtPipeWriter(raw_fd))
         }
 
         #[cfg(not(target_os = "windows"))]
