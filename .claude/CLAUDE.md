@@ -66,6 +66,10 @@ Use `global_refs!` macro / `OnceGlobalRef` (`src/global.rs`) to hold Lisp values
 
 `bin/env.bash` detects the platform and sets `EXT` to `.so` (Linux/FreeBSD) or `.dylib` (macOS). Windows uses PowerShell scripts (`bin/build.ps1`, `bin/test.ps1`).
 
+## Changelog
+
+Update `CHANGELOG.md` under `## [Unreleased]` for every non-trivial feature, bug fix, and breaking change. Use the `changelog` skill when writing entries.
+
 ## Guide Docs
 
 When writing or editing files under `guide/src/`, use the `guide-writing` skill.
