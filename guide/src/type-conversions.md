@@ -64,6 +64,37 @@ By default, no utf-8 validation is done when converting Lisp strings into Rust s
 features = ["utf-8-validation"]
 ```
 
+## Equality
+
+`Value` implements `PartialEq`, which maps to Lisp's `eq` (identity/pointer equality, not `equal`).
+
+```rust
+// Two references to the same interned symbol are eq.
+let a = env.intern("hello")?;
+let b = env.intern("hello")?;
+assert!(a == b);
+
+// Two separately allocated strings with the same content are not eq.
+let s1 = "hi".into_lisp(env)?;
+let s2 = "hi".into_lisp(env)?;
+assert!(s1 != s2);
+```
+
+`GlobalRef` and `OnceGlobalRef` implement `PartialEq<Value>` (and vice versa), so you can compare a cached global against an incoming argument without rebinding:
+
+```rust
+use emacs::use_symbols;
+
+use_symbols! { nil }
+
+#[defun]
+fn is_nil(v: Value<'_>) -> Result<bool> {
+    Ok(v == *nil)
+}
+```
+
+The old `value.eq(other)` method is deprecated since 0.20.0. Use `==` instead.
+
 ## Vectors
 
 Lisp vectors are represented by the type `Vector`, which can be considered a "sub-type" of `Value`.

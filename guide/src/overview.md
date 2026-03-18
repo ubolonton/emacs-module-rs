@@ -3,20 +3,21 @@
 `emacs-module-rs` provides high-level Rust binding and tools to write Emacs's dynamic modules. It is easy to use if you know either Rust or Emacs.
 
 It currently supports:
-- Stable Rust 1.56+.
+- Stable Rust (latest stable recommended; 1.56 minimum).
 - Emacs 25 or above, built with module support.
 - macOS, Linux, Windows.
 
 ## Setting up
 
+- Make sure your Emacs was compiled with module support. Check that `module-file-suffix` is not `nil`, and the function `module-load` is defined.
+    - On macOS, the recommended installation method is MacPorts (`emacs-app` and `emacs-mac-app`).
+    - On Windows, install Emacs via MSYS2: `pacman -S mingw-w64-x86_64-emacs`. (Emacs officially supports MSVCRT, not UCRT.)
 - Install the Rust toolchain with [rustup](https://www.rustup.rs/).
-- Make sure that your Emacs was compiled with module support. Check that `module-file-suffix` is not `nil`, and the function `module-load` is defined.
-  + On macOS, the recommended installation method is MacPorts (`emacs-app` and `emacs-mac-app`).
-  + On Windows, the recommended installation method for older Emacs versions (before 27.2) is `pacman -S mingw-w64-x86_64-emacs` (msys2), as the archives on GNU FTP's server were built without module support.
+    - On Windows, use the `stable-gnu` toolchain, with the `gcc` from `mingw-w64-x86_64-toolchain`. This ensures CRT linkages match.
 
 ### Notes
 
-- When the optional feature `bindgen` is enabled, the raw binding will be generated from `emacs-module.h` at build time. Therefore you will also need to install `clang`. (This is recommended only for troubleshooting, though.) For example, on Windows:
+- When the optional feature `bindgen` is enabled, the raw binding will be generated from `emacs-module.h` at build time. You will also need to install `clang`. (This is recommended only for troubleshooting.) For example, on Windows:
     ```powershell
     # In Powershell
     scoop install llvm
