@@ -1,0 +1,56 @@
+name: Doc
+
+on:
+  push:
+    branches:
+      - master
+      - doc
+    paths:
+      - guide/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish-doc:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install mdBook
+        run: |
+          cargo install mdbook --locked --version ^0.5
+          mdbook --version
+
+      - name: Get crate version
+        id: version
+        run: |
+          VERSION=$(awk -F'"' '/^version =/{print $2; exit}' Cargo.toml)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check out GitHub Pages repo
+        uses: actions/checkout@v6
+        with:
+          repository: ubolonton/ubolonton.github.io
+          path: ubolonton.github.io
+          token: ${{ secrets.PAT }}
+
+      - name: Build guide
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          mdbook build guide --dest-dir "../ubolonton.github.io/emacs-module-rs/$VERSION"
+          cd ubolonton.github.io/emacs-module-rs
+          ln -sfn "$VERSION" latest
+
+      - name: Publish
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add emacs-module-rs/
+          git diff --cached --quiet || git commit -m "auto: ${{ github.event.head_commit.message }}
+
+          SourceCommit: https://github.com/ubolonton/emacs-module-rs/commit/${{ github.sha }}"
+          git push
+        working-directory: ubolonton.github.io
