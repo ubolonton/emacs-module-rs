@@ -3,7 +3,6 @@ name: Doc
 on:
   push:
     branches:
-      - master
       - doc
     paths:
       - guide/**
@@ -40,7 +39,7 @@ jobs:
       - name: Build guide
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          mdbook build guide --dest-dir "../ubolonton.github.io/emacs-module-rs/$VERSION"
+          mdbook build guide --dest-dir "ubolonton.github.io/emacs-module-rs/$VERSION"
           cd ubolonton.github.io/emacs-module-rs
           ln -sfn "$VERSION" latest
 
