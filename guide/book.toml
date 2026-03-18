@@ -1,5 +1,5 @@
 [book]
-title = "emacs-module-rs 0.20"
+title = "emacs-module-rs 0.21"
 authors = ["ubolonton"]
 src = "src"
 
