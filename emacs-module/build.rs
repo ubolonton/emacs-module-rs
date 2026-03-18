@@ -1,5 +1,8 @@
-#[cfg(feature = "bindgen")]
+#[cfg(feature = "bindgen-build")]
 extern crate bindgen;
+
+#[cfg(feature = "bindgen-build")]
+include!("bindgen_config.rs");
 
 fn main() {
     // Highest version first — features are additive in Cargo,
@@ -13,7 +16,7 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(emacs_version, values(\"25\", \"28\"))");
     println!("cargo::rustc-cfg=emacs_version=\"{version}\"");
 
-    #[cfg(feature = "bindgen")]
+    #[cfg(feature = "bindgen-build")]
     {
         use std::env;
         use std::path::Path;
@@ -22,31 +25,10 @@ fn main() {
             "25" => "./include/emacs-module.h",
             v    => &format!("./include/emacs-module-{v}.h"),
         };
-        bindgen::builder()
-            .header(header)
-            .allowlist_type("^emacs.*")
-            .allowlist_function("^emacs.*")
-            .allowlist_var("^emacs.*")
-            .prepend_enum_name(false)
-            // XXX: I don't know why bindgen maps this to c_long, which doesn't work on Windows. On
-            //  the flip side, I agree with the opinion that `intmax_t` is bad in the first place.
-            //
-            // TODO: Restrict support to 64-bit platforms.
-            .blocklist_type("intmax_t").raw_line("pub type intmax_t = i64;")
+        bindgen_builder(header)
             .generate()
-            .unwrap()
+            .expect("bindgen failed")
             .write_to_file(Path::new(&out_dir).join("emacs-module.rs"))
-            .unwrap();
+            .expect("write_to_file failed");
     }
-
-    let _bindgen_command = "
-bindgen \
-    --blocklist-type intmax_t --raw-line 'pub type intmax_t = i64;' \
-    --no-prepend-enum-name \
-    --allowlist-type '^emacs.*' \
-    --allowlist-function '^emacs.*' \
-    --allowlist-var '^emacs.*' \
-    emacs-module/include/emacs-module.h \
-    -o emacs-module/src/emacs-module.rs
-";
 }

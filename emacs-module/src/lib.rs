@@ -1,3 +1,7 @@
+// When we use this crate's binary to generate the code to be checked into git, we don't want its
+// lib code.
+#![cfg(not(feature = "bindgen-code"))]
+
 // These crate-wide attrs are useful because `bindgen`:
 
 // generates types that don't and can't conform to the Rust naming conventions.
@@ -11,21 +15,16 @@ use std::os;
 
 // build.rs emits `emacs_version = "N"` for the highest enabled version.
 // When adding a new Emacs version N, add an entry here:
-//   #[cfg(all(emacs_version = "N", not(feature = "bindgen")))]
+//   #[cfg(all(emacs_version = "N", not(feature = "bindgen-build")))]
 //   include!("./emacs-module-N.rs");
 
-#[cfg(all(emacs_version = "25", not(feature = "bindgen")))]
+#[cfg(all(emacs_version = "25", not(feature = "bindgen-build")))]
 include!("./emacs-module.rs");
 
-// emacs-28 bindings are not yet supported on Windows (timespec layout mismatch).
-#[cfg(all(emacs_version = "28", not(feature = "bindgen"), not(windows)))]
+#[cfg(all(emacs_version = "28", not(feature = "bindgen-build")))]
 include!("./emacs-module-28.rs");
 
-// Fall back to base bindings on Windows even when emacs-28 is requested.
-#[cfg(all(emacs_version = "28", not(feature = "bindgen"), windows))]
-include!("./emacs-module.rs");
-
-#[cfg(feature = "bindgen")]
+#[cfg(feature = "bindgen-build")]
 include!(concat!(env!("OUT_DIR"), "/emacs-module.rs"));
 
 /// The type of all Emacs subroutines.

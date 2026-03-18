@@ -14,16 +14,28 @@ if [[ $@ == "watch" ]]; then
     )
 else
     $EMACS --version
+
+    if [[ $EXT == "dll" ]]; then
+        # Diagnostic: show which CRT emacs.exe links against (msvcrt.dll vs ucrtbase.dll).
+        # The fd returned by open_channel lives in Emacs's CRT fd table.
+        emacs_exe=$(which emacs 2>/dev/null || true)
+        if [[ -n $emacs_exe ]]; then
+            echo "=== Emacs binary: $emacs_exe ==="
+            objdump -p "$emacs_exe" 2>/dev/null | grep "DLL Name" || true
+            echo "==================================="
+        fi
+    fi
+
     echo "Testing $MODULE_FULL"
 
-    EMACS_MODULE_RS_DEBUG=1 $EMACS -batch --directory "$MODULE_DIR" \
+    EMACS_MODULE_RS_DEBUG=1 $EMACS -Q -batch --directory "$MODULE_DIR" \
            -l ert \
            -l "$PROJECT_ROOT/test-module/tests/main.el" \
            -f ert-run-tests-batch-and-exit
 
     echo "Testing test-module-28"
 
-    EMACS_MODULE_RS_DEBUG=1 $EMACS -batch --directory "$MODULE_DIR" \
+    EMACS_MODULE_RS_DEBUG=1 $EMACS -Q -batch --directory "$MODULE_DIR" \
            -l ert \
            -l "$PROJECT_ROOT/test-module-28/tests/main.el" \
            -f ert-run-tests-batch-and-exit

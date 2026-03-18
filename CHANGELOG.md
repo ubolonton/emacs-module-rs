@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 - Added `emacs-28` feature with `Env::open_channel` for pipe-based communication (Emacs 28+).
+    - On Windows, this requires the module to be linked against the same C runtime as Emacs.
+        - Keep in mind that Emacs officially supports MSVCRT, not the newer UCRT.
+        - Caution: GNU toolchain uses gcc as the linker, so if `mingw-w64-ucrt-x86_64-gcc` is before `mingw-w64-x86_64-gcc` in `$PATH`, UCRT will be linked.
 
 ## [0.20.0] - 2026-03-04
 - Added `use_functions!`, which enables module code to cache references to frequently-used Lisp functions.

@@ -106,14 +106,30 @@ impl Env {
     /// The returned writer can be sent to another thread. Data written to it will be received by
     /// the pipe process's filter function in Emacs.
     ///
-    /// Requires Emacs 28+. Not yet supported on Windows.
-    #[cfg(all(feature = "emacs-28", not(windows)))]
+    /// Requires Emacs 28+.
+    #[cfg(all(feature = "emacs-28"))]
     pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>)
         -> Result<impl std::io::Write + std::fmt::Debug + Send + Sync>
     {
-        use std::os::unix::io::FromRawFd;
         let raw_fd: i32 = unsafe_raw_call!(self, open_channel, pipe_process.raw)?;
-        Ok(unsafe { std::io::PipeWriter::from_raw_fd(raw_fd) })
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::io::{FromRawHandle, RawHandle};
+            // Safety: open_channel returns a CRT fd created by Emacs via _pipe(). This module must
+            // be linked against the same CRT as Emacs (MSVCRT), otherwise get_osfhandle will be
+            // called against the wrong CRT's fd table and crash. On CI, this is enforced by running
+            // cargo build in an msys2 shell so MSYS2 MINGW64 gcc (MSVCRT) takes precedence over the
+            // pre-installed UCRT gcc.
+            let handle = unsafe { libc::get_osfhandle(raw_fd) as RawHandle };
+            Ok(unsafe { std::io::PipeWriter::from_raw_handle(handle) })
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            use std::os::unix::io::FromRawFd;
+            Ok(unsafe { std::io::PipeWriter::from_raw_fd(raw_fd) })
+        }
     }
 }
 

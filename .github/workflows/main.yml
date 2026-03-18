@@ -35,16 +35,45 @@ jobs:
           - '30.1'
     runs-on: ${{ matrix.os }}
     steps:
+      # Use msys2 for more precise control over Emacs's and module's CRT linkage.
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows'
+        with:
+          update: true
+          # So we can use Rust, which is not from msys2.
+          path-type: inherit
+          install: >-
+            mingw-w64-x86_64-emacs
+            mingw-w64-x86_64-toolchain
+            base-devel
+
       - name: Set up Rust
         run: |
           rustup install stable
           rustc -Vv
           cargo -V
 
+      - name: Use Rust's GNU toolchain (Windows)
+        run: |
+          rustup default stable-gnu
+        if: runner.os == 'Windows'
+
       - uses: actions/checkout@v6
+        with:
+          # XXX: Partial protection. We can't currently do better. Maybe move the 3rd-party actions
+          # up? See https://github.com/actions/checkout/issues/485.
+          persist-credentials: false
 
       - name: Build
         run: ./bin/build
+        if: runner.os != 'Windows'
+
+      # msys2 {0} shell puts MSYS2 MINGW64 gcc ahead of the pre-installed UCRT gcc in PATH,
+      # so the built DLLs link MSVCRT — the same CRT as MSYS2's Emacs package.
+      - name: Build (Windows)
+        run: ./bin/build
+        shell: msys2 {0}
+        if: runner.os == 'Windows'
 
       - run: cargo test --all
 
@@ -53,9 +82,12 @@ jobs:
         with:
           version: ${{ matrix.emacs-version }}
 
-      - uses: jcs090218/setup-emacs-windows@master
-        if: runner.os == 'Windows'
-        with:
-          version: ${{ matrix.emacs-version }}
+      - name: Test
+        run: ./bin/test
+        if: runner.os != 'Windows'
 
-      - run: ./bin/test
+      # msys2 {0} also makes Emacs (installed as a MSYS2 package) visible on PATH.
+      - name: Test (Windows)
+        run: ./bin/test
+        shell: msys2 {0}
+        if: runner.os == 'Windows'

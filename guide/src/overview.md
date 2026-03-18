@@ -16,7 +16,6 @@ It currently supports:
 
 ### Notes
 
-- On Windows, only Rust's `msvc` toolchain was confirmed to work, not the `gnu` toolchain.
 - When the optional feature `bindgen` is enabled, the raw binding will be generated from `emacs-module.h` at build time. Therefore you will also need to install `clang`. (This is recommended only for troubleshooting, though.) For example, on Windows:
     ```powershell
     # In Powershell

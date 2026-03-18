@@ -30,6 +30,9 @@ once_cell = "1.2.0"
 emacs_module = { path = "emacs-module", version = "0.20.0" }
 emacs-macros = { path = "emacs-macros", version = "0.17.0" }
 
+[target.'cfg(windows)'.dependencies]
+libc = "0.2"
+
 [build-dependencies]
 rustc_version = "0.2.3"
 
@@ -43,7 +46,7 @@ emacs-28 = ["emacs_module/emacs-28"]
 # This feature is intended as a workaround when building on new untested platforms. If the crate
 # cannot be built without this feature, please report the issue at
 # https://github.com/ubolonton/emacs-module-rs/issues/new.
-bindgen = ["emacs_module/bindgen"]
+bindgen = ["emacs_module/bindgen-build"]
 
 [workspace]
 members = [
