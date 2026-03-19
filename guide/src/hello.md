@@ -10,9 +10,6 @@ cd greeting
 Modify `Cargo.toml`:
 
 ```toml
-[package]
-edition = "2018"
-
 [lib]
 crate-type = ["cdylib"]
 

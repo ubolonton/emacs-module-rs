@@ -1,7 +1,7 @@
 [package]
 name = "emacs_module"
 version = "0.21.0"
-edition = "2018"
+edition = "2021"
 description = "Raw FFI for emacs-module"
 homepage = "https://github.com/ubolonton/emacs-module-rs"
 authors = [
