@@ -29,9 +29,9 @@ pub fn report<T: ToTokens, U: Display>(errors: &mut TokenStream2, ts: T, msg: U)
 pub fn doc(fn_item: &ItemFn) -> String {
     let doc = &mut vec![];
     for attr in &fn_item.attrs {
-        if let Ok(syn::Meta::NameValue(mnv)) = attr.parse_meta() {
-            if &mnv.path.segments.last().unwrap().ident.to_string() == "doc" {
-                if let syn::Lit::Str(ls) = mnv.lit {
+        if let syn::Meta::NameValue(mnv) = &attr.meta {
+            if mnv.path.segments.last().unwrap().ident == "doc" {
+                if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(ls), .. }) = &mnv.value {
                     doc.push(ls.value().trim_start_matches(' ').to_owned());
                 }
             }

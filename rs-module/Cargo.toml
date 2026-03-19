@@ -11,6 +11,6 @@ readme = "README.md"
 crate-type = ["cdylib"]
 
 [dependencies]
-lazy_static = "1.4"
-libloading = "0.5.2"
+lazy_static = "1.5"
+libloading = "0.9.0"
 emacs = { path = "..", version = "0.21.0" }

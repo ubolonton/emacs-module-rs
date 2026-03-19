@@ -43,7 +43,8 @@ fn load(env: &Env, path: String) -> Result<Value<'_>> {
         None => message!(env, "[{}]: not loaded yet", path)?,
     };
     message!(env, "[{}]: loading...", path)?;
-    let lib = Library::new(&path)?;
+    // Safety: The path comes from user input; caller is responsible for providing a valid module.
+    let lib = unsafe { Library::new(&path) }?;
     message!(env, "[{}]: initializing...", path)?;
     unsafe {
         let rs_init: Symbol<'_, unsafe extern "C" fn(*mut emacs_env) -> u32> =

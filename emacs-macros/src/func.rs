@@ -1,12 +1,12 @@
 use std::ops::Range;
 
-use darling::FromMeta;
+use darling::{ast::NestedMeta, FromMeta};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, TokenStreamExt};
 use syn::{
     self,
     spanned::Spanned,
-    AttributeArgs, FnArg, Signature, Ident, ItemFn, Pat, PatType, Type, TypeReference, ReturnType,
+    FnArg, Signature, Ident, ItemFn, Pat, PatType, Type, TypeReference, ReturnType,
     TypePath,
 };
 
@@ -90,14 +90,13 @@ impl FromMeta for UserPtr {
         Ok(UserPtr::RefCell)
     }
 
-    // Use syn::, because it should have been the (non-existent) reexported version from `darling`.
-    fn from_list(outer: &[syn::NestedMeta]) -> darling::Result<UserPtr> {
+    fn from_list(outer: &[NestedMeta]) -> darling::Result<UserPtr> {
         match outer.len() {
             0 => Err(darling::Error::too_few_items(1)),
             1 => {
                 let elem = &outer[0];
                 match elem {
-                    syn::NestedMeta::Meta(syn::Meta::Path(path)) => {
+                    NestedMeta::Meta(syn::Meta::Path(path)) => {
                         match path.segments.last().unwrap().ident.to_string().as_ref() {
                             "refcell" => Ok(UserPtr::RefCell),
                             "mutex" => Ok(UserPtr::Mutex),
@@ -118,7 +117,7 @@ impl FromMeta for UserPtr {
 }
 
 impl LispFunc {
-    pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
+    pub fn parse(attr_args: Vec<NestedMeta>, fn_item: ItemFn) -> Result<Self, TokenStream2> {
         let opts: FuncOpts = match FuncOpts::from_list(&attr_args) {
             Ok(v) => v,
             Err(e) => return Err(e.write_errors()),
