@@ -8,3 +8,4 @@
 - PREFER let chains (`if let` combined with `&&`) over nested `if let` statements
 - PREFER top-level imports over local imports or fully qualified names
 - AVOID shortening variable names, e.g., use `version` instead of `ver`
+- ALWAYS keep Cargo.lock synchronized with Cargo.toml
