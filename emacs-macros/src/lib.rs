@@ -8,7 +8,8 @@ extern crate proc_macro2;
 
 use proc_macro::TokenStream;
 
-use syn::{self, AttributeArgs, ItemFn, LitInt, parse_macro_input};
+use syn::{self, ItemFn, LitInt, parse_macro_input};
+use darling::ast::NestedMeta;
 use quote::quote;
 
 mod util;
@@ -38,7 +39,10 @@ mod lisp_args;
 /// [`defun`]: attr.defun.html
 #[proc_macro_attribute]
 pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
-    let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
+    let attr_args = match NestedMeta::parse_meta_list(attr_ts.into()) {
+        Ok(v) => v,
+        Err(e) => return TokenStream::from(darling::Error::from(e).write_errors()),
+    };
     let fn_item: ItemFn = parse_macro_input!(item_ts);
     match module::Module::parse(attr_args, fn_item) {
         Ok(module) => module.render().into(),
@@ -109,7 +113,10 @@ pub fn module(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
 /// [`Vector`]: /emacs/*/emacs/struct.Vector.html
 #[proc_macro_attribute]
 pub fn defun(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
-    let attr_args: AttributeArgs = parse_macro_input!(attr_ts);
+    let attr_args = match NestedMeta::parse_meta_list(attr_ts.into()) {
+        Ok(v) => v,
+        Err(e) => return TokenStream::from(darling::Error::from(e).write_errors()),
+    };
     let fn_item: ItemFn = parse_macro_input!(item_ts);
     match func::LispFunc::parse(attr_args, fn_item) {
         Ok(func) => func.render().into(),

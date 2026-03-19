@@ -1,7 +1,7 @@
-use darling::{self, FromMeta};
+use darling::{self, ast::NestedMeta, FromMeta};
 use proc_macro2::{TokenStream as TokenStream2};
 use quote::quote;
-use syn::{AttributeArgs, ItemFn};
+use syn::ItemFn;
 
 use crate::util;
 
@@ -54,21 +54,20 @@ mod default {
 /// We don't use the derived impl provided by darling, since we want a different syntax.
 /// See https://github.com/TedDriggs/darling/issues/74.
 impl FromMeta for Name {
-    // Use syn::, because it should have been the (non-existent) reexported version from `darling`.
-    fn from_list(outer: &[syn::NestedMeta]) -> darling::Result<Name> {
+    fn from_list(outer: &[NestedMeta]) -> darling::Result<Name> {
         match outer.len() {
             0 => Err(darling::Error::too_few_items(1)),
             1 => {
                 let elem = &outer[0];
                 match elem {
-                    syn::NestedMeta::Meta(syn::Meta::Path(path)) => {
+                    NestedMeta::Meta(syn::Meta::Path(path)) => {
                         match path.segments.last().unwrap().ident.to_string().as_ref() {
                             "fn" => Ok(Name::Fn),
                             "crate" => Ok(Name::Crate),
                             _ => Err(darling::Error::custom("Expected crate/fn").with_span(path)),
                         }
                     }
-                    syn::NestedMeta::Lit(syn::Lit::Str(lit)) => Ok(Name::Str(lit.value())),
+                    NestedMeta::Lit(syn::Lit::Str(lit)) => Ok(Name::Str(lit.value())),
                     _ => {
                         Err(darling::Error::custom("Expected crate/fn or a string").with_span(elem))
                     }
@@ -84,7 +83,7 @@ impl FromMeta for Name {
 }
 
 impl Module {
-    pub fn parse(attr_args: AttributeArgs, fn_item: ItemFn) -> Result<Self, TokenStream2> {
+    pub fn parse(attr_args: Vec<NestedMeta>, fn_item: ItemFn) -> Result<Self, TokenStream2> {
         let opts: ModuleOpts = match ModuleOpts::from_list(&attr_args) {
             Ok(v) => v,
             Err(e) => return Err(e.write_errors()),

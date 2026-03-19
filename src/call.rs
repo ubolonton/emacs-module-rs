@@ -121,7 +121,9 @@ impl Env {
             F: IntoLispCallable<'e>,
             A: IntoLispArgs<'e>,
     {
-        func.into_lisp_callable(self)?.call_unprotected(args)
+        let callable = func.into_lisp_callable(self)?;
+        // SAFETY: Passthrough to caller.
+        unsafe { callable.call_unprotected(args) }
     }
 }
 
@@ -158,7 +160,8 @@ impl GlobalRef {
         where
             A: IntoLispArgs<'e>,
     {
-        self.bind(env).call_unprotected(args)
+        // SAFETY: Passthrough to caller.
+        unsafe { self.bind(env).call_unprotected(args) }
     }
 }
 

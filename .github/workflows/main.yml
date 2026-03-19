@@ -7,12 +7,16 @@ on:
       - ci
       - github-actions
     paths-ignore:
+      - '*.md'
       - guide/**
+      - .claude/**
   pull_request:
     branches:
       - master
     paths-ignore:
+      - '*.md'
       - guide/**
+      - .claude/**
 
 jobs:
   ci:

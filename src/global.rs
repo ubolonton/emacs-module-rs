@@ -1,7 +1,7 @@
 use std::ops::Deref;
 use std::cmp::PartialEq;
 
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 
 use emacs_module::emacs_value;
 
@@ -143,7 +143,7 @@ macro_rules! global_refs {
             $($name)*
         }
 
-        #[$crate::deps::ctor::ctor]
+        #[$crate::deps::ctor::ctor(crate_path = $crate::deps::ctor)]
         fn $registrator_name() {
             $crate::init::__GLOBAL_REFS__.try_lock()
                 .expect("Failed to acquire a write lock on the list of initializers for global refs")
@@ -170,12 +170,12 @@ macro_rules! global_refs {
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct OnceGlobalRef {
-    inner: OnceCell<GlobalRef>
+    inner: OnceLock<GlobalRef>
 }
 
 impl OnceGlobalRef {
     pub const fn new() -> Self {
-        Self { inner: OnceCell::new() }
+        Self { inner: OnceLock::new() }
     }
 
     /// Initializes this global reference with the given function.

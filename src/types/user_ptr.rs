@@ -69,7 +69,9 @@ impl<'e, T: Transfer> FromLisp<'e> for &'e T {
 unsafe extern "C" fn finalize<T: Transfer>(ptr: *mut os::raw::c_void) {
     #[cfg(feature = "debug")]
     println!("Finalizing {:#?} {}", ptr, T::type_name());
-    drop(Box::from_raw(ptr as *mut T));
+    // SAFETY: ptr was created via Box::into_raw in IntoLisp<Box<T>>, and Emacs calls this finalizer
+    // exactly once when the GC discards the user-ptr.
+    drop(unsafe { Box::from_raw(ptr as *mut T) });
 }
 
 impl<T: Transfer> IntoLisp<'_> for Box<T> {

@@ -1,8 +1,6 @@
 #![allow(mismatched_lifetime_syntaxes)]
 
-use std::{env, panic};
-
-use lazy_static::lazy_static;
+use std::{env, panic, sync::LazyLock};
 
 use emacs::{defun, CallEnv, Env, IntoLisp, Result, Value};
 
@@ -23,9 +21,7 @@ mod hash_map;
 emacs::plugin_is_GPL_compatible!();
 
 const MODULE: &str = "t";
-lazy_static! {
-    static ref MODULE_PREFIX: String = format!("{}/", MODULE);
-}
+static MODULE_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{}/", MODULE));
 
 // TODO: Add more tests for different combinations of module options.
 #[emacs::module(name(fn), separator = "/")]
