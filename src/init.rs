@@ -15,7 +15,7 @@ use crate::{Env, Value, Result, ErrorKind};
 macro_rules! __module_init {
     ($init:ident) => {
         /// Entry point for Emacs's module loader.
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub unsafe extern "C" fn emacs_module_init(
             runtime: *mut $crate::raw::emacs_runtime,
         ) -> ::std::os::raw::c_int {
@@ -24,7 +24,7 @@ macro_rules! __module_init {
 
         // TODO: Exclude this in release build.
         /// Entry point for live-reloading (by `rs-module`) during development.
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub unsafe extern "C" fn emacs_rs_module_init(
             raw: *mut $crate::raw::emacs_env,
         ) -> ::std::os::raw::c_int {

@@ -90,7 +90,7 @@ impl<'e> Value<'e> {
     ///
     /// # Safety
     ///
-    /// There are several ways this can go wrong:
+    /// There are several ways this can go wrong, violating aliasing rules:
     ///
     /// - Lisp code can pass the same object through 2 different values in an argument list.
     /// - Rust code earlier in the call chain may have copied this value.
@@ -103,7 +103,11 @@ impl<'e> Value<'e> {
     ///
     /// [`into_rust`]: #method.into_rust
     pub unsafe fn get_mut<T: Transfer>(&mut self) -> Result<&mut T> {
-        self.get_raw_pointer().map(|r| &mut *r)
+        self.get_raw_pointer().map(|r| {
+            // SAFETY: Emacs ensures this is not null/dangling/unaligned. Caller is responsible for
+            // aliasing soundness.
+            unsafe { &mut *r }
+        })
     }
 
     pub fn car<T: FromLisp<'e>>(self) -> Result<T> {

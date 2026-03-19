@@ -2,6 +2,8 @@ use std::{
     cell::RefCell,
     ffi::CString,
     mem::MaybeUninit,
+    fmt::Debug,
+    io::{Write, PipeWriter},
 };
 
 use std::sync::OnceLock;
@@ -42,9 +44,13 @@ impl Env {
 
     #[doc(hidden)]
     pub unsafe fn from_runtime(runtime: *mut emacs_runtime) -> Self {
-        let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
-        let raw = get_env(runtime);
-        Self::new(raw)
+        // SAFETY: This is only called upon module initialization, during which the runtime pointer
+        // is valid.
+        unsafe {
+            let get_env = (*runtime).get_environment.expect("Cannot get Emacs environment");
+            let raw = get_env(runtime);
+            Self::new(raw)
+        }
     }
 
     #[doc(hidden)]
@@ -54,9 +60,11 @@ impl Env {
 
     // For testing.
     #[doc(hidden)]
-    pub unsafe fn free_last_protected(&self) -> Result<()>{
+    pub unsafe fn free_last_protected(&self) -> Result<()> {
         if let Some(protected) = &self.protected {
-            let gr = GlobalRef::from_raw(*protected.borrow().last().unwrap());
+            let raw = *protected.borrow().last().unwrap();
+            // SAFETY: Protected values were created by `make_global_ref` and have not been freed.
+            let gr = unsafe { GlobalRef::from_raw(raw) };
             gr.free(self)?;
         }
         Ok(())
@@ -109,7 +117,7 @@ impl Env {
     /// Requires Emacs 28+.
     #[cfg(all(feature = "emacs-28"))]
     pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>)
-        -> Result<impl std::io::Write + std::fmt::Debug + Send + Sync>
+        -> Result<impl Write + Debug + Send + Sync + use<>>
     {
         let raw_fd: i32 = unsafe_raw_call!(self, open_channel, pipe_process.raw)?;
 
@@ -122,13 +130,13 @@ impl Env {
             // cargo build in an msys2 shell so MSYS2 MINGW64 gcc (MSVCRT) takes precedence over the
             // pre-installed UCRT gcc.
             let handle = unsafe { libc::get_osfhandle(raw_fd) as RawHandle };
-            Ok(unsafe { std::io::PipeWriter::from_raw_handle(handle) })
+            Ok(unsafe { PipeWriter::from_raw_handle(handle) })
         }
 
         #[cfg(not(target_os = "windows"))]
         {
             use std::os::unix::io::FromRawFd;
-            Ok(unsafe { std::io::PipeWriter::from_raw_fd(raw_fd) })
+            Ok(unsafe { PipeWriter::from_raw_fd(raw_fd) })
         }
     }
 }

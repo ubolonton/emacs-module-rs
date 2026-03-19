@@ -71,7 +71,7 @@ macro_rules! plugin_is_GPL_compatible {
     () => {
         /// This states that the module is GPL-compliant.
         /// Emacs won't load the module if this symbol is undefined.
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #[allow(non_upper_case_globals)]
         pub static plugin_is_GPL_compatible: ::std::os::raw::c_int = 0;
     };

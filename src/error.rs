@@ -126,7 +126,8 @@ impl TempValue {
     ///
     /// [`Env`]: struct.Env.html
     pub unsafe fn value<'e>(&self, env: &'e Env) -> Value<'e> {
-        Value::new(self.raw, env).protect()
+        // SAFETY: Caller guarantees env is the Env from which this error originated.
+        unsafe { Value::new(self.raw, env) }.protect()
     }
 }
 
@@ -170,7 +171,10 @@ impl Env {
         match result {
             Ok(v) => v.raw,
             Err(error) => match error.downcast_ref::<ErrorKind>() {
-                Some(err) => self.handle_known(err),
+                Some(err) => {
+                    // SAFETY: TempValue's raw values remain live for the duration of this error.
+                    unsafe { self.handle_known(err) }
+                }
                 _ => self
                     .signal_internal(symbol::rust_error, &format!("{}", error))
                     .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
@@ -222,8 +226,14 @@ impl Env {
 
     unsafe fn handle_known(&self, err: &ErrorKind) -> emacs_value {
         match err {
-            ErrorKind::Signal { symbol, data } => self.non_local_exit_signal(symbol.raw, data.raw),
-            ErrorKind::Throw { tag, value } => self.non_local_exit_throw(tag.raw, value.raw),
+            ErrorKind::Signal { symbol, data } => {
+                // SAFETY: TempValue's raw values remain live for the duration of this error.
+                unsafe { self.non_local_exit_signal(symbol.raw, data.raw) }
+            }
+            ErrorKind::Throw { tag, value } => {
+                // SAFETY: TempValue's raw values remain live for the duration of this error.
+                unsafe { self.non_local_exit_throw(tag.raw, value.raw) }
+            }
             ErrorKind::WrongTypeUserPtr { .. } => self
                 .signal_internal(symbol::rust_wrong_type_user_ptr, &format!("{}", err))
                 .unwrap_or_else(|_| panic!("Failed to signal {}", err)),
