@@ -143,7 +143,7 @@ macro_rules! global_refs {
             $($name)*
         }
 
-        #[$crate::deps::ctor::ctor]
+        #[$crate::deps::ctor::ctor(crate_path = $crate::deps::ctor)]
         fn $registrator_name() {
             $crate::init::__GLOBAL_REFS__.try_lock()
                 .expect("Failed to acquire a write lock on the list of initializers for global refs")

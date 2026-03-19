@@ -263,7 +263,7 @@ impl LispFunc {
         let init_fns = util::init_fns_path();
         let name = format!("{}", self.def.sig.ident);
         quote! {
-            #[::emacs::deps::ctor::ctor]
+            #[::emacs::deps::ctor::ctor(crate_path = ::emacs::deps::ctor)]
             fn #registrator() {
                 let mut full_path = module_path!().to_owned();
                 full_path.push_str("::");

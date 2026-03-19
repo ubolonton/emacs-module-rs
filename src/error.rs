@@ -36,7 +36,7 @@ macro_rules! define_errors {
             $( $name )*
         }
 
-        #[$crate::deps::ctor::ctor]
+        #[$crate::deps::ctor::ctor(crate_path = $crate::deps::ctor)]
         fn __emrs_define_errors__() {
             $crate::init::__CUSTOM_ERRORS__.try_lock()
                 .expect("Failed to acquire a write lock on the list of initializers for custom error signals")
