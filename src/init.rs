@@ -5,10 +5,8 @@
 use std::{
     os, panic,
     collections::HashMap,
-    sync::{Mutex, atomic::AtomicBool},
+    sync::{LazyLock, Mutex, atomic::AtomicBool},
 };
-
-use once_cell::sync::Lazy;
 
 use crate::{Env, Value, Result, ErrorKind};
 
@@ -51,7 +49,7 @@ type FnMap = HashMap<String, InitFn>;
 /// [`emacs_module_init`].
 ///
 /// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
-pub static __GLOBAL_REFS__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
+pub static __GLOBAL_REFS__: LazyLock<Mutex<Vec<InitFn>>> = LazyLock::new(|| Mutex::new(vec![]));
 
 /// Functions that will be called by [`emacs_module_init`] to define custom error signals.
 ///
@@ -61,7 +59,7 @@ pub static __GLOBAL_REFS__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(v
 /// [`emacs_module_init`].
 ///
 /// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
-pub static __CUSTOM_ERRORS__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new(vec![]));
+pub static __CUSTOM_ERRORS__: LazyLock<Mutex<Vec<InitFn>>> = LazyLock::new(|| Mutex::new(vec![]));
 
 /// Functions that will be called by [`emacs_module_init`] to define the module functions.
 ///
@@ -71,15 +69,15 @@ pub static __CUSTOM_ERRORS__: Lazy<Mutex<Vec<InitFn>>> = Lazy::new(|| Mutex::new
 /// [`emacs_module_init`].
 ///
 /// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
-pub static __INIT_FNS__: Lazy<Mutex<FnMap>> = Lazy::new(|| Mutex::new(HashMap::new()));
+pub static __INIT_FNS__: LazyLock<Mutex<FnMap>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
 /// attribute macro #[[`defun`]].
 ///
 /// [`defun`]: attr.defun.html
-pub static __PREFIX__: Lazy<Mutex<[String; 2]>> = Lazy::new(|| Mutex::new(["".to_owned(), "-".to_owned()]));
+pub static __PREFIX__: LazyLock<Mutex<[String; 2]>> = LazyLock::new(|| Mutex::new(["".to_owned(), "-".to_owned()]));
 
-pub static __MOD_IN_NAME__: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(true));
+pub static __MOD_IN_NAME__: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(true));
 
 fn debugging() -> bool {
     std::env::var("EMACS_MODULE_RS_DEBUG").unwrap_or_default() == "1"

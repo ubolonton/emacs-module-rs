@@ -26,7 +26,6 @@ include = [
 thiserror = "2.0"
 anyhow = "1.0"
 ctor = "0.6"
-once_cell = "1.21.4"
 emacs_module = { path = "emacs-module", version = "0.21.0" }
 emacs-macros = { path = "emacs-macros", version = "0.17.0" }
 

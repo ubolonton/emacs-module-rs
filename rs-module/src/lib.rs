@@ -1,9 +1,7 @@
 use std::{
     collections::HashMap,
-    sync::Mutex,
+    sync::{LazyLock, Mutex},
 };
-
-use lazy_static::lazy_static;
 
 use emacs::{defun, Env, Value, Result};
 use emacs::raw::emacs_env;
@@ -12,9 +10,7 @@ use libloading::{Library, Symbol};
 
 emacs::plugin_is_GPL_compatible!();
 
-lazy_static! {
-    static ref LIBRARIES: Mutex<HashMap<String, Library>> = Mutex::new(HashMap::new());
-}
+static LIBRARIES: LazyLock<Mutex<HashMap<String, Library>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 const INIT_FROM_ENV: &str = "emacs_rs_module_init";
 

@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Raised the minimum supported Rust version to 1.80.
 
 ## [0.21.0] - 2026-03-18
 - Added `emacs-28` feature with `Env::open_channel` for pipe-based communication (Emacs 28+).

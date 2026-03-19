@@ -4,7 +4,7 @@ use std::{
     mem::MaybeUninit,
 };
 
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 
 use emacs_module::{emacs_env, emacs_runtime, emacs_value};
 
@@ -18,7 +18,7 @@ use crate::{subr, error, Value, Result, IntoLisp, call::IntoLispArgs, GlobalRef}
 /// [issue #2]: https://github.com/ubolonton/emacs-module-rs/issues/2
 /// [workaround]: https://github.com/ubolonton/emacs-module-rs/pull/3
 /// [`Value`]: struct.Value.html
-pub static HAS_FIXED_GC_BUG_31238: OnceCell<bool> = OnceCell::new();
+pub static HAS_FIXED_GC_BUG_31238: OnceLock<bool> = OnceLock::new();
 
 /// Main point of interaction with the Lisp runtime.
 #[derive(Debug)]
