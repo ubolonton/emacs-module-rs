@@ -13,7 +13,7 @@ impl FromLisp<'_> for String {
     #[cfg(feature = "utf-8-validation")]
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.env.string_bytes(value)?;
-        Ok(String::from_utf8(bytes).unwrap())
+        String::from_utf8(bytes).map_err(|e| e.into())
     }
 }
 
