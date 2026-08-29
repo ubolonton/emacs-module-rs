@@ -28,6 +28,13 @@ The tool installs each build under `/opt/<name>`. The tool also adds
 a command to `/usr/bin/<name>`. Run this command to start that Emacs
 build.
 
+The tool also adds a short command for the major version. For
+example: `emacs-30`. The full command for each build always works.
+
+You can install two builds with the same major version at the same
+time. In this case, the short command starts only one of them. Run
+`sudo update-alternatives --config emacs-30` to choose which one.
+
 ## Before You Build
 
 1. Go to the Emacs source checkout.

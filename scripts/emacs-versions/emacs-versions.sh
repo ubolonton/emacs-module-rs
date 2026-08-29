@@ -226,6 +226,27 @@ do_build() {
   mkdir -p "$pkg_dir/usr/bin"
   ln -sf "$prefix/bin/emacs" "$pkg_dir/usr/bin/$name"
 
+  # Also register a short `emacs-<major>` alias (e.g. `emacs-29`) via
+  # update-alternatives rather than a plain symlink: rebuilding the same
+  # major version later (e.g. master stays "32" across many commits) would
+  # make a second package try to own the same /usr/bin file, which dpkg
+  # refuses. update-alternatives lets multiple packages provide the same
+  # generic name; `update-alternatives --config emacs-NN` switches between
+  # them, and removing a package cleanly drops its alternative.
+  local major="${version%%.*}"
+  mkdir -p "$pkg_dir/DEBIAN"
+  {
+    echo '#!/bin/sh'
+    echo 'set -e'
+    echo "update-alternatives --install /usr/bin/emacs-$major emacs-$major $prefix/bin/emacs 50"
+  } > "$pkg_dir/DEBIAN/postinst"
+  {
+    echo '#!/bin/sh'
+    echo 'set -e'
+    echo "update-alternatives --remove emacs-$major $prefix/bin/emacs"
+  } > "$pkg_dir/DEBIAN/prerm"
+  chmod 755 "$pkg_dir/DEBIAN/postinst" "$pkg_dir/DEBIAN/prerm"
+
   local stub_control="$work_dir/debian/control"
   {
     echo "Source: emacs-versions-build"
@@ -264,7 +285,7 @@ do_build() {
     echo "Maintainer: $(git -C "$SOURCE_DIR" config user.name 2>/dev/null || echo "$(id -un)") <$(git -C "$SOURCE_DIR" config user.email 2>/dev/null || echo "$(id -un)@localhost")>"
     echo "Description: GNU Emacs $version (source build)"
     echo " Built from $SOURCE_DIR at commit $(git -C "$SOURCE_DIR" rev-parse --short=12 HEAD) for local multi-version testing."
-    echo " Installed under $prefix; run via /usr/bin/$name."
+    echo " Installed under $prefix; run via /usr/bin/$name or /usr/bin/emacs-$major."
   } > "$pkg_dir/DEBIAN/control"
 
   DEB_PATH="$work_dir/${name}.deb"
