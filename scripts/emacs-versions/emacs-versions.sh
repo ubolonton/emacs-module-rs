@@ -108,7 +108,9 @@ deps_remove() {
 # --- naming --------------------------------------------------------------
 
 emacs_version() {
-  sed -n 's/^AC_INIT(\[GNU Emacs\], \[\([0-9.]*\)\].*/\1/p' "$SOURCE_DIR/configure.ac"
+  # Older configure.ac (e.g. Emacs 28 and earlier) spells this
+  # AC_INIT(GNU Emacs, 28.2, ...), without the brackets newer versions use.
+  sed -n 's/^AC_INIT(\[\?GNU Emacs\]\?, *\[\?\([0-9.]*\)\]\?.*/\1/p' "$SOURCE_DIR/configure.ac"
 }
 
 build_name() {
