@@ -116,7 +116,10 @@ build_name() {
   version="$(emacs_version)"
   [ -n "$version" ] || die "could not determine Emacs version from $SOURCE_DIR/configure.ac"
   hash="$(git -C "$SOURCE_DIR" rev-parse --short=12 HEAD)"
-  [ -z "$(git -C "$SOURCE_DIR" status --porcelain)" ] || dirty="-dirty"
+  # Only tracked-file changes count as dirty; unrelated untracked files
+  # (e.g. editor state left over from browsing the checkout) should not
+  # force a new build name.
+  { git -C "$SOURCE_DIR" diff --quiet && git -C "$SOURCE_DIR" diff --cached --quiet; } || dirty="-dirty"
   printf 'emacs-%s-g%s%s\n' "$version" "$hash" "$dirty"
 }
 
