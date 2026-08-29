@@ -184,11 +184,19 @@ do_build() {
   # (e.g. after switching branches) can look "up to date" to make and get
   # reused, producing broken/inconsistent bootstraps. autom4te.cache can
   # similarly make autoreconf silently reuse outdated macro expansions.
-  # Scope the clean to Emacs's own source subdirectories, never the repo
-  # root, so unrelated dotfiles the user keeps there are left alone.
-  git -C "$SOURCE_DIR" clean -fdX -- \
-    lisp leim src lib-src lib nt java admin build-aux doc etc info exec msdos m4 \
-    aclocal.m4 configure config.log
+  # autoreconf/make also refresh some *tracked* autotools boilerplate in
+  # place (build-aux/config.guess, config.sub, install-sh, ...), which then
+  # blocks checking out a different tag next time; discard that drift too.
+  # Scope both to Emacs's own source subdirectories, never the repo root,
+  # so unrelated dotfiles the user keeps there are left alone.
+  local -a clean_dirs=(lisp leim src lib-src lib nt java admin build-aux doc etc info exec msdos m4)
+  local dir
+  for dir in "${clean_dirs[@]}"; do
+    # Some of these dirs don't exist, or hold no tracked files, in a given
+    # version/branch (e.g. `exec` is master-only); that is not an error.
+    git -C "$SOURCE_DIR" checkout -- "$dir" 2>/dev/null || true
+  done
+  git -C "$SOURCE_DIR" clean -fdX -- "${clean_dirs[@]}" aclocal.m4 configure config.log
   (cd "$SOURCE_DIR" && ./autogen.sh all)
 
   log "configuring"
