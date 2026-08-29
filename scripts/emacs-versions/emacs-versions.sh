@@ -164,6 +164,29 @@ elf_files_under() {
   find "$1" -type f -print0 | xargs -0 -r file -N --mime-type | awk -F': ' '$2 == "application/x-executable" || $2 == "application/x-sharedlib" || $2 == "application/x-pie-executable" {print $1}'
 }
 
+# Emacs compiles Lisp in-tree (lisp/*.elc, lisp/*loaddefs.el) even with an
+# out-of-tree configure/make; leftovers from building a different commit
+# (e.g. after switching branches) can look "up to date" to make and get
+# reused, producing broken/inconsistent bootstraps. autom4te.cache can
+# similarly make autoreconf silently reuse outdated macro expansions.
+# autoreconf/make also refresh some *tracked* autotools boilerplate in
+# place (build-aux/config.guess, config.sub, install-sh, ...), which then
+# blocks checking out a different tag next time; discard that drift too.
+# Scope both to Emacs's own source subdirectories, never the repo root, so
+# unrelated dotfiles the user keeps there are left alone. Run this both
+# before a build (in case a previous run was interrupted) and after (so
+# the tree is ready for the next `git checkout <tag>`, per the README).
+clean_source_tree() {
+  local -a clean_dirs=(lisp leim src lib-src lib nt java admin build-aux doc etc info exec msdos m4)
+  local dir
+  for dir in "${clean_dirs[@]}"; do
+    # Some of these dirs don't exist, or hold no tracked files, in a given
+    # version/branch (e.g. `exec` is master-only); that is not an error.
+    git -C "$SOURCE_DIR" checkout -- "$dir" 2>/dev/null || true
+  done
+  git -C "$SOURCE_DIR" clean -fdX -- "${clean_dirs[@]}" aclocal.m4 configure config.log
+}
+
 do_build() {
   require_source_dir
   deps_install
@@ -181,24 +204,7 @@ do_build() {
   mkdir -p "$obj_dir" "$pkg_dir"
 
   log "cleaning generated build artifacts from a previous checkout"
-  # Emacs compiles Lisp in-tree (lisp/*.elc, lisp/*loaddefs.el) even with an
-  # out-of-tree configure/make; leftovers from building a different commit
-  # (e.g. after switching branches) can look "up to date" to make and get
-  # reused, producing broken/inconsistent bootstraps. autom4te.cache can
-  # similarly make autoreconf silently reuse outdated macro expansions.
-  # autoreconf/make also refresh some *tracked* autotools boilerplate in
-  # place (build-aux/config.guess, config.sub, install-sh, ...), which then
-  # blocks checking out a different tag next time; discard that drift too.
-  # Scope both to Emacs's own source subdirectories, never the repo root,
-  # so unrelated dotfiles the user keeps there are left alone.
-  local -a clean_dirs=(lisp leim src lib-src lib nt java admin build-aux doc etc info exec msdos m4)
-  local dir
-  for dir in "${clean_dirs[@]}"; do
-    # Some of these dirs don't exist, or hold no tracked files, in a given
-    # version/branch (e.g. `exec` is master-only); that is not an error.
-    git -C "$SOURCE_DIR" checkout -- "$dir" 2>/dev/null || true
-  done
-  git -C "$SOURCE_DIR" clean -fdX -- "${clean_dirs[@]}" aclocal.m4 configure config.log
+  clean_source_tree
   (cd "$SOURCE_DIR" && ./autogen.sh all)
 
   log "configuring"
@@ -260,6 +266,9 @@ do_build() {
   DEB_PATH="$work_dir/${name}.deb"
   dpkg-deb --build --root-owner-group "$pkg_dir" "$DEB_PATH"
   log "built $DEB_PATH"
+
+  log "leaving source tree clean for the next checkout"
+  clean_source_tree
 }
 
 do_install() {
