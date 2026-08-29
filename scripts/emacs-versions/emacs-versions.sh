@@ -126,6 +126,7 @@ build_name() {
 # --- build -----------------------------------------------------------------
 
 CONFIGURE_ARGS=()
+DEB_PATH=""
 build_configure_args() {
   local prefix="$1"
   CONFIGURE_ARGS=(
@@ -177,12 +178,17 @@ do_build() {
   rm -rf "$work_dir"
   mkdir -p "$obj_dir" "$pkg_dir"
 
-  log "regenerating configure (autogen.sh)"
-  # A stale autom4te.cache/aclocal.m4/configure left over from building a
-  # different commit (e.g. after switching branches) can make autoreconf
-  # silently reuse outdated macro expansions; force a clean regeneration.
-  rm -rf "$SOURCE_DIR/autom4te.cache" "$SOURCE_DIR/aclocal.m4" "$SOURCE_DIR/configure" \
-    "$SOURCE_DIR/config.log" "$SOURCE_DIR/src/config.in"
+  log "cleaning generated build artifacts from a previous checkout"
+  # Emacs compiles Lisp in-tree (lisp/*.elc, lisp/*loaddefs.el) even with an
+  # out-of-tree configure/make; leftovers from building a different commit
+  # (e.g. after switching branches) can look "up to date" to make and get
+  # reused, producing broken/inconsistent bootstraps. autom4te.cache can
+  # similarly make autoreconf silently reuse outdated macro expansions.
+  # Scope the clean to Emacs's own source subdirectories, never the repo
+  # root, so unrelated dotfiles the user keeps there are left alone.
+  git -C "$SOURCE_DIR" clean -fdX -- \
+    lisp leim src lib-src lib nt java admin build-aux doc etc info exec msdos m4 \
+    aclocal.m4 configure config.log
   (cd "$SOURCE_DIR" && ./autogen.sh all)
 
   log "configuring"
@@ -241,17 +247,15 @@ do_build() {
     echo " Installed under $prefix; run via /usr/bin/$name."
   } > "$pkg_dir/DEBIAN/control"
 
-  local deb_path="$work_dir/${name}.deb"
-  dpkg-deb --build --root-owner-group "$pkg_dir" "$deb_path"
-  log "built $deb_path"
-  printf '%s\n' "$deb_path"
+  DEB_PATH="$work_dir/${name}.deb"
+  dpkg-deb --build --root-owner-group "$pkg_dir" "$DEB_PATH"
+  log "built $DEB_PATH"
 }
 
 do_install() {
-  local deb_path
-  deb_path="$(do_build | tail -1)"
-  log "installing $deb_path"
-  sudo dpkg -i "$deb_path"
+  do_build
+  log "installing $DEB_PATH"
+  sudo dpkg -i "$DEB_PATH"
 }
 
 do_list() {
@@ -300,7 +304,7 @@ main() {
         *) die "unknown deps subcommand: $1" ;;
       esac
       ;;
-    build) do_build ;;
+    build) do_build; printf '%s\n' "$DEB_PATH" ;;
     install) do_install ;;
     list) do_list ;;
     uninstall) do_uninstall "${1:-}" ;;
