@@ -184,7 +184,11 @@ clean_source_tree() {
     # version/branch (e.g. `exec` is master-only); that is not an error.
     git -C "$SOURCE_DIR" checkout -- "$dir" 2>/dev/null || true
   done
-  git -C "$SOURCE_DIR" clean -fdX -- "${clean_dirs[@]}" aclocal.m4 configure config.log
+  # -x (not -X): some generated files (e.g. lisp/international/emoji-zwj.el,
+  # produced from Unicode data by a newer version's build) are untracked but
+  # not covered by any .gitignore pattern, so -X (ignored-only) misses them.
+  # An older version's byte-compiler can then choke on a newer file's syntax.
+  git -C "$SOURCE_DIR" clean -fdx -- "${clean_dirs[@]}" aclocal.m4 configure config.log
 }
 
 do_build() {
