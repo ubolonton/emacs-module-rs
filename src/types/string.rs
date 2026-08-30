@@ -46,7 +46,11 @@ impl<'e> Value<'e> {
     /// Copies the content of this Lisp string value to the given buffer as a null-terminated UTF-8
     /// string. Returns the copied bytes, excluding the null terminator.
     ///
-    /// Signals an `args-out-of-range` error if the buffer is too small.
+    /// Signals an error if the buffer is too small: `args-out-of-range` before Emacs 31,
+    /// `memory-buffer-too-small` from Emacs 31 onward. Emacs never documented this as part of the
+    /// module API's contract, so callers shouldn't rely on a specific symbol.
+    ///
+    /// See https://github.com/emacs-mirror/emacs/commit/96a1a07fb1f.
     pub fn copy_string_contents(self, buffer: &mut [u8]) -> Result<&[u8]> {
         let env = self.env;
         let ptr = buffer.as_mut_ptr() as *mut os::raw::c_char;

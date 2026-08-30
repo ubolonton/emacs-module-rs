@@ -5,6 +5,8 @@ use emacs::ErrorKind::{self, Signal};
 
 use super::MODULE_PREFIX;
 
+emacs::use_symbols! { nil }
+
 fn gc(env: &Env) -> Result<Value<'_>> {
     env.call("garbage-collect", &[])
 }
@@ -81,7 +83,7 @@ fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
     // Wouldn't fail if count is 1 or 2.
     create_collect_use(env, 3, || {
         let x = env.intern("xyz")?;
-        env.call("unintern", [x])?;
+        env.call("unintern", (x, nil))?;
         Ok(x)
     }, print)
 }

@@ -11,6 +11,13 @@
 
 (defvar t/support-bignum-p (fboundp 'bignump))
 
+;; Emacs 31 stopped signaling `args-out-of-range' for a too-small `copy_string_contents' buffer, in
+;; favor of a dedicated `memory-buffer-too-small'.
+;;
+;; See https://github.com/emacs-mirror/emacs/commit/96a1a07fb1f.
+(defvar t/buffer-too-small-error-type
+  (if (>= emacs-major-version 31) 'memory-buffer-too-small 'args-out-of-range))
+
 (defmacro t/get-error (&rest body)
   (declare (indent 0))
   `(condition-case err
@@ -87,11 +94,11 @@
 (ert-deftest conversion::string ()
   (should (equal (t/to-uppercase "abc") "ABC"))
   ;; copy_string_contents copies the null terminator.
-  (should-error (t/copy-string-contents "xyz" 3) :type 'args-out-of-range)
-  (should-error (t/copy-string-contents "" 0) :type 'args-out-of-range)
+  (should-error (t/copy-string-contents "xyz" 3) :type t/buffer-too-small-error-type)
+  (should-error (t/copy-string-contents "" 0) :type t/buffer-too-small-error-type)
   (should (string= "xyz" (t/copy-string-contents "xyz" 4)))
   (should (string= "" (t/copy-string-contents "" 1)))
-  (should-error (t/copy-string-contents "abcxyz" 3) :type 'args-out-of-range))
+  (should-error (t/copy-string-contents "abcxyz" 3) :type t/buffer-too-small-error-type))
 
 (ert-deftest conversion::option-string ()
   (should (equal (t/to-lowercase-or-nil "CDE") "cde"))
