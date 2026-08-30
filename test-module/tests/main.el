@@ -9,6 +9,8 @@
 
 (defvar t/support-module-assertions-p (> emacs-major-version 25))
 
+(defvar t/support-bignum-p (fboundp 'bignump))
+
 (defmacro t/get-error (&rest body)
   (declare (indent 0))
   `(condition-case err
@@ -41,7 +43,10 @@
             (insert-file-contents error-file)
             (string-trim-right
              (buffer-substring-no-properties (point-min) (point-max))))))
-    (unless (= exit-code 0)
+    ;; When the process is terminated by a signal, `exit-code' is a string. Examples:
+    ;; - SIGSEGV: GC bug 31238
+    ;; - SIGABRT: `--module-assertions'
+    (unless (equal exit-code 0)
       (error "Exit code: %s. Error: %s" exit-code error-string))))
 
 ;;; ----------------------------------------------------------------------------
@@ -239,8 +244,10 @@
 
 (ert-deftest eq::value-different-objects ()
   "Value == Value is false for distinct objects, even with equal contents."
-  ;; Two big integers (bignum) are two separate objects.
-  (should-not (t/eq:value-eq (1+ most-positive-fixnum) (1+ most-positive-fixnum)))
+  ;; Two big integers (bignums in Emacs 27+) are two separate objects. Without bignum support,
+  ;; overflowing a fixnum just wraps around and stays a fixnum, which is always eq.
+  (when t/support-bignum-p
+    (should-not (t/eq:value-eq (1+ most-positive-fixnum) (1+ most-positive-fixnum))))
   ;; Two separately allocated strings with the same content are not eq.
   (should-not (t/eq:value-eq (t/eq:new-string "hello") (t/eq:new-string "hello")))
   ;; Two separately allocated conses are not eq.
