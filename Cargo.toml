@@ -47,10 +47,12 @@ emacs-28 = ["emacs_module/emacs-28"]
 bindgen = ["emacs_module/bindgen-build"]
 
 [workspace]
+# test-module and test-module-28 are standalone workspaces (see their own Cargo.toml), not members
+# here: they intentionally require different Emacs ABI versions, and Cargo unifies a shared
+# dependency's features across everything resolved together in one workspace. rs-module stays here
+# because it targets the same baseline ABI as this crate, so there's nothing to unify away.
 members = [
     ".",
-    "test-module",
-    "test-module-28",
     "rs-module",
     "xtask",
 ]

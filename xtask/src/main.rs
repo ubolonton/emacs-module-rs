@@ -58,7 +58,11 @@ fn ext() -> &'static str {
 
 // On Windows, Cargo omits the "lib" prefix for cdylib outputs (e.g. foo.dll not libfoo.dll).
 fn lib_prefix() -> &'static str {
-    if cfg!(windows) { "" } else { "lib" }
+    if cfg!(windows) {
+        ""
+    } else {
+        "lib"
+    }
 }
 
 /// Resolves `name` to an absolute path by searching `PATH`.
@@ -136,8 +140,21 @@ fn build(release: bool) -> Result<()> {
 
     let profile = if release { "release" } else { "debug" };
     let release_flag: &[&str] = if release { &["--release"] } else { &[] };
+    let target_dir = root.join("target");
 
     cmd!(sh, "cargo build --workspace --exclude xtask {release_flag...}").run()?;
+
+    // test-module and test-module-28 are standalone workspaces (see their own Cargo.toml), each
+    // with its own Cargo.lock, so they must be built in their own invocations. They still share
+    // this workspace's target directory, so all module artifacts land in one place below.
+    for member in ["test-module", "test-module-28"] {
+        let manifest = root.join(member).join("Cargo.toml");
+        cmd!(
+            sh,
+            "cargo build --manifest-path {manifest} --target-dir {target_dir} {release_flag...}"
+        )
+        .run()?;
+    }
 
     let target = root.join("target").join(profile);
     let ext = ext();
@@ -179,7 +196,9 @@ fn test(watch: bool, release: bool, verbose: bool) -> Result<()> {
         // cargo-watch doesn't support passing flags through -s easily with spaces, so build and
         // test commands are kept as simple strings.
         let mut suffix = if release { " --release" } else { "" }.to_string();
-        if verbose { suffix.push_str(" --verbose"); }
+        if verbose {
+            suffix.push_str(" --verbose");
+        }
         let build_cmd = format!("cargo xtask build{suffix}");
         let test_cmd = format!("cargo xtask test{suffix}");
         return cmd!(sh, "cargo watch -s {build_cmd} -s {test_cmd}").run().map_err(Into::into);

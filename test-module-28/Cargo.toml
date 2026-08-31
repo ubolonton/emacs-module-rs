@@ -1,3 +1,8 @@
+[workspace]
+# Standalone: this crate requires the `emacs-28` feature, and Cargo unifies a shared dependency's
+# features across everything resolved together in one workspace. Kept out of the root workspace so
+# that requirement can't leak into test-module or rs-module, which target the baseline ABI.
+
 [package]
 name = "test-module-28"
 version = "0.0.0"
