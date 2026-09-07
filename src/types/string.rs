@@ -66,10 +66,15 @@ impl<'e> Value<'e> {
             }
         }
     }
+
+    #[inline]
+    pub fn clone_string_contents(self) -> Result<Vec<u8>> {
+        self.env.clone_string_contents(self)
+    }
 }
 
 impl Env {
-    fn string_bytes(&self, value: Value<'_>) -> Result<Vec<u8>> {
+    fn clone_string_contents(&self, value: Value<'_>) -> Result<Vec<u8>> {
         let mut len: isize = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);
@@ -99,6 +104,14 @@ impl Env {
             }
             bytes
         };
+        if bytes[len as usize - 1] == 0 {
+            bytes.pop();
+        }
+        Ok(bytes)
+    }
+
+    fn string_bytes(&self, value: Value<'_>) -> Result<Vec<u8>> {
+        let mut bytes = self.clone_string_contents(value)?;
         strip_trailing_zero_bytes(&mut bytes);
         Ok(bytes)
     }

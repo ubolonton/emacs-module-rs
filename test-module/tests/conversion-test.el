@@ -35,7 +35,7 @@
     (should (string-match-p (regexp-quote "Return the input (not a copy).")
                             (documentation #'t/identity) ))))
 
-(ert-deftest conversion::string ()
+(ert-deftest conversion::string-basic ()
   (should (equal (t/to-uppercase "abc") "ABC"))
   ;; copy_string_contents copies the null terminator.
   (should-error (t/conversion-copy-string-contents "xyz" 3) :type t/buffer-too-small-error-type)
@@ -43,6 +43,32 @@
   (should (string= "xyz" (t/conversion-copy-string-contents "xyz" 4)))
   (should (string= "" (t/conversion-copy-string-contents "" 1)))
   (should-error (t/conversion-copy-string-contents "abcxyz" 3) :type t/buffer-too-small-error-type))
+
+(ert-deftest conversion::string-coding ()
+  (should (equal (t/conversion-string-to-bytes
+                  "a")
+                 [97]))
+  ;; 2-byte UTF-8.
+  (should (equal (t/conversion-string-to-bytes
+                  "á")
+                 [195 161]))
+  ;; Trailing zero byte.
+  (should (equal (t/conversion-string-to-bytes
+                  (unibyte-string 97 0))
+                 [97 0]))
+  ;; Zero byte in the middle.
+  (should (equal (t/conversion-string-to-bytes
+                  (string-to-multibyte
+                   (unibyte-string 97 0 98)))
+                 [97 0 98]))
+  (should (equal (t/conversion-string-to-bytes
+                  (encode-coding-string
+                   (concat (unibyte-string #x97) "π")
+                   'utf-8))
+                 [151 207 128]))
+  (should-error (t/conversion-string-to-bytes
+                 (concat (unibyte-string #x97) "π"))
+                :type 'wrong-type-argument))
 
 (ert-deftest conversion::option-string ()
   (should (equal (t/conversion-to-lowercase-or-nil "CDE") "cde"))

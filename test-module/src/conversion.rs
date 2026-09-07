@@ -2,6 +2,8 @@
 
 use emacs::{defun, Env, IntoLisp, Result, Value, Vector};
 
+emacs::use_symbols! { nil }
+
 #[defun]
 fn to_lowercase_or_nil(env: &Env, input: Option<String>) -> Result<Value<'_>> {
     let output = input.map(|s| s.to_lowercase());
@@ -29,6 +31,18 @@ fn copy_string_contents(v: Value, size: usize) -> Result<String> {
     let mut buffer = vec![0u8; size];
     let s = v.copy_string_contents(&mut buffer)?;
     Ok(String::from_utf8_lossy(s).to_string())
+}
+
+#[defun]
+fn string_to_bytes(v: Value) -> Result<Vector> {
+    let env = v.env;
+    let bytes = v.clone_string_contents()?;
+    let n = bytes.len();
+    let result = env.make_vector(n, nil)?;
+    for i in 0..n {
+        result.set(i, bytes[i])?;
+    }
+    Ok(result)
 }
 
 // Bindings for vector functions (vec_get, vec_set, vec_size).
