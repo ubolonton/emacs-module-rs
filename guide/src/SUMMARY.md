@@ -10,5 +10,6 @@
 - [Custom Types](./custom-types.md)
 - [Error Handling and Signaling](./errors.md)
 - [Background Threads and Channels](./open-channel.md)
+- [Re-entering Lisp from a Callback](./reentering.md)
 - [Testing](./testing.md)
 - [Live Reloading](./reloading.md)

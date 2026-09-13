@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added `reentry` module for calling back into Lisp from a thread already inside a live module call. `Env::register_reentry` records the current call's env; `reentry::with_current_env` reconstructs a scoped `Env` from it. Use for synchronous callbacks reached through a `defun` (e.g. a JNI/C native), where no `Env` is otherwise available.
 - Upgraded to Rust 2024 edition.
 - Raised minimum support Rust version (MSRV) to 1.87 (for `PipeWriter`).
 

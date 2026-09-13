@@ -39,6 +39,7 @@ pub use self::{
     types::{FromLisp, IntoLisp, Transfer, Vector},
     func::CallEnv,
     error::{ErrorKind, Result, ResultExt, Error},
+    reentry::ReentryGuard,
 };
 
 #[macro_use] mod macros;
@@ -49,6 +50,7 @@ pub mod init;
 pub mod func;
 
 mod env;
+pub mod reentry;
 mod value;
 mod types;
 mod error;
