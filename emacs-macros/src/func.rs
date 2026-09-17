@@ -239,8 +239,8 @@ impl LispFunc {
         // CallEnv wrapper.
         quote! {
             #define_wrapper
-            fn #exporter(env: &::emacs::Env) -> ::emacs::Result<()> {
-                let prefix = ::emacs::init::lisp_path(#path);
+            fn #exporter(env: &::emacs::Env, prefix: &str) -> ::emacs::Result<()> {
+                let prefix = ::emacs::init::lisp_path(#path, prefix);
                 ::emacs::__export_functions! {
                     env, prefix, {
                         #lisp_name => (#wrapper, #min..#max, #doc),
@@ -261,16 +261,12 @@ impl LispFunc {
         let exporter = self.exporter_ident();
         let registrator = self.registrator_ident();
         let init_fns = util::init_fns_path();
-        let name = format!("{}", self.def.sig.ident);
         quote! {
             #[::emacs::deps::ctor::ctor(crate_path = ::emacs::deps::ctor)]
             fn #registrator() {
-                let mut full_path = module_path!().to_owned();
-                full_path.push_str("::");
-                full_path.push_str(#name);
                 let mut funcs = #init_fns.lock()
-                    .expect("Failed to acquire a write lock on map of initializers");
-                funcs.insert(full_path, ::std::boxed::Box::new(#exporter));
+                    .expect("Failed to acquire a write lock on initializers");
+                funcs.push(#exporter);
             }
         }
     }

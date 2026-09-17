@@ -119,22 +119,71 @@ impl Module {
         let mod_in_name = util::mod_in_name_path();
         let crate_mod_in_name = &self.opts.mod_in_name;
         let feature = match &self.opts.name {
-            Name::Crate => quote!(::emacs::init::lisp_pkg(module_path!())),
-            Name::Str(name) => quote!(#name.to_owned()),
+            Name::Crate => quote!({
+                const PATH: &str = module_path!();
+
+                const LEN: usize = {
+                    let mut i = 0;
+                    while i < PATH.len() {
+                        if PATH.as_bytes()[i] == b':' {
+                            break;
+                        }
+                        i += 1;
+                    }
+                    i
+                };
+
+                const BUF: [u8; LEN] = {
+                    let mut buf = [0; LEN];
+                    let mut i = 0;
+                    while i < LEN {
+                        let ch = PATH.as_bytes()[i];
+                        if ch == b'_' {
+                            buf[i] = b'-';
+                        } else {
+                            buf[i] = ch;
+                        }
+                        i += 1;
+                    }
+                    buf
+                };
+
+                // SAFETY: this is checked at compile time since this
+                // is in a `const` block
+                const NAME: &str = unsafe { ::std::str::from_utf8_unchecked(&BUF) };
+                NAME
+            }),
+            Name::Str(name) => quote!(#name),
             Name::Fn => {
                 let name = util::lisp_name(hook);
-                quote!(#name.to_owned())
+                quote!(#name)
             }
         };
         let defun_prefix = match &self.opts.defun_prefix {
-            None => quote!(feature.clone()),
-            Some(defun_prefix) => quote!(#defun_prefix.to_owned()),
+            None => quote!(FEATURE),
+            Some(defun_prefix) => quote!(#defun_prefix),
         };
         let set_prefix = quote! {
             {
                 let mut prefix = #prefix.try_lock()
                     .expect("Failed to acquire write lock on module prefix");
-                *prefix = [#defun_prefix, #separator.to_owned()];
+
+                const LEN: usize = #defun_prefix.len() + #separator.len();
+                const BUF: [u8; LEN] = {
+                    let mut buf = [0; LEN];
+                    // SAFETY: this is checked at compile time since this
+                    // is in a `const` block
+                    unsafe {
+                        ::std::ptr::copy_nonoverlapping(FEATURE.as_ptr(), buf.as_mut_ptr(), FEATURE.len());
+                        ::std::ptr::copy_nonoverlapping(#separator.as_ptr(), buf.as_mut_ptr().wrapping_add(FEATURE.len()), #separator.len());
+                    }
+                    buf
+                };
+                // SAFETY: this is checked at compile time since this
+                // is in a `const` block
+                const PREFIX: &str = unsafe { ::std::str::from_utf8_unchecked(&BUF) };
+
+                *prefix = PREFIX;
             }
         };
         let configure_mod_in_name = quote! {
@@ -143,21 +192,23 @@ impl Module {
         let export_lisp_funcs = quote! {
             {
                 let funcs = #init_fns.try_lock()
-                    .expect("Failed to acquire a read lock on map of initializers");
-                for (_, func) in funcs.iter() {
-                    func(#env)?
+                    .expect("Failed to acquire a read lock on initializers");
+                let prefix = #prefix.try_lock()
+                    .expect("Failed to acquire read lock on module prefix");
+                for func in funcs.iter() {
+                    func(#env, &prefix)?;
                 }
             }
         };
         quote! {
             #[allow(non_snake_case)]
             fn #init(#env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
-                let feature = #feature;
+                const FEATURE: &str = #feature;
                 #set_prefix
                 #configure_mod_in_name
                 #export_lisp_funcs
                 #hook(#env)?;
-                #env.provide(&feature)
+                #env.provide(FEATURE)
             }
         }
     }

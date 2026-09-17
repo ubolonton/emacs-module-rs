@@ -4,7 +4,6 @@
 
 use std::{
     os, panic,
-    collections::HashMap,
     sync::{LazyLock, Mutex, atomic::AtomicBool},
 };
 
@@ -33,9 +32,8 @@ macro_rules! __module_init {
     };
 }
 
-type InitFn = Box<dyn Fn(&Env) -> Result<()> + Send + 'static>;
-
-type FnMap = HashMap<String, InitFn>;
+type InitFn = fn(&Env) -> Result<()>;
+type Defun = fn(&Env, &str) -> Result<()>;
 
 // TODO: How about defining these in user crate, and requiring #[module] to be at the crate's root?
 // TODO: We probably don't need the mutexes.
@@ -69,13 +67,13 @@ pub static __CUSTOM_ERRORS__: LazyLock<Mutex<Vec<InitFn>>> = LazyLock::new(|| Mu
 /// [`emacs_module_init`].
 ///
 /// [`emacs_module_init`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Modules.html
-pub static __INIT_FNS__: LazyLock<Mutex<FnMap>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+pub static __INIT_FNS__: LazyLock<Mutex<Vec<Defun>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 
 /// Prefix to prepend to name of every Lisp function exposed by the dynamic module through the
 /// attribute macro #[[`defun`]].
 ///
 /// [`defun`]: attr.defun.html
-pub static __PREFIX__: LazyLock<Mutex<[String; 2]>> = LazyLock::new(|| Mutex::new(["".to_owned(), "-".to_owned()]));
+pub static __PREFIX__: LazyLock<Mutex<&'static str>> = LazyLock::new(|| Mutex::new(""));
 
 pub static __MOD_IN_NAME__: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(true));
 
@@ -139,22 +137,22 @@ pub fn initialize<F>(env: &Env, init: F) -> os::raw::c_int
     }
 }
 
-fn lisp_name(s: &str) -> String {
-    s.replace("_", "-")
+fn lisp_name(s: String) -> String {
+    s.chars()
+        .map(|ch| if ch == '_' {
+            '-'
+        } else {
+            ch
+        })
+        .collect()
 }
 
-pub fn lisp_pkg(mod_path: &str) -> String {
-    let crate_name = mod_path.split("::").nth(0).expect("mod_path is empty!");
-    lisp_name(&crate_name)
-}
-
-pub fn lisp_path(mod_path: &str) -> String {
+pub fn lisp_path(mod_path: &str, prefix: &str) -> String {
     let split = mod_path.split("::");
-    let mut path =
-        __PREFIX__.try_lock().expect("Failed to acquire read lock of module prefix").join("");
+    let mut path = prefix.to_owned();
     for segment in split.skip(1) {
         path.push_str(segment);
         path.push('-');
     }
-    lisp_name(&path)
+    lisp_name(path)
 }

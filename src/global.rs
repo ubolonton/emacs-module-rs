@@ -147,7 +147,7 @@ macro_rules! global_refs {
         fn $registrator_name() {
             $crate::init::__GLOBAL_REFS__.try_lock()
                 .expect("Failed to acquire a write lock on the list of initializers for global refs")
-                .push(::std::boxed::Box::new(|env| {
+                .push(|env| {
                     $(
                         #[allow(unused_variables)]
                         let name = $crate::deps::emacs_macros::lisp_name!($name);
@@ -155,7 +155,7 @@ macro_rules! global_refs {
                         $crate::OnceGlobalRef::$init_method(&$name, env, name)?;
                     )*
                     Ok(())
-                }));
+                });
         }
     };
 }
