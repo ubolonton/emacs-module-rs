@@ -1,10 +1,14 @@
-# Code Comment Rules
+---
+paths:
+  - '**/*.rs'
 
-- Comment only when code can't express the intent — names and types first.
-- Inline (`//`) comments explain *why*, not *what*; full sentences; 1–3 lines.
-- Include issue links for bug workarounds (e.g. `// Emacs GC bug #31238`).
+---
+
+
+# Code Comment and Docstrings
+
+## Docstrings
 - Doc (`///`) comments cover *when/why to use*, not just what; use `# Safety`, `# Implementation`, `# Examples` sections; cross-link types with `` [`Type`] `` syntax.
-- TODOs are explicit and include the reason.
 
 ## Unsafe Code
 
