@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added an ABI compatibility check at module load time.
+    - Modules built with an `emacs-N` feature (e.g. `emacs-28`) now fail to load with a clear error message when loaded into an older Emacs, instead of crashing later when a version-specific function (e.g. `Env::open_channel`) is called.
 - Upgraded to Rust 2024 edition.
 - Raised minimum support Rust version (MSRV) to 1.87 (for `PipeWriter`).
 

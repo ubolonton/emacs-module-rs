@@ -1,4 +1,12 @@
-(require 't28)
+;;; ----------------------------------------------------------------------------
+;;; ABI compatibility. `t28` is built with the `emacs-28` feature, so it must refuse to load on an
+;;; older Emacs instead of loading and later reading past the end of its (smaller) `emacs_env`
+;;; struct.
+
+(if (>= emacs-major-version 28)
+    (require 't28)
+  (ert-deftest module-load::rejects-incompatible-abi ()
+    (should-error (require 't28))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; open-channel tests (Emacs 28+).

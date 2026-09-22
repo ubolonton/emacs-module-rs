@@ -12,7 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **`emacs-macros/`** - Proc macros: `#[module]` and `#[defun]`
 - **`emacs-module/`** - Low-level FFI bindings to the C `emacs-module` API; optionally uses `bindgen`
 - **`test-module/`** - Integration test suite compiled as `cdylib` and loaded by Emacs
+- **`test-module-28/`** - Integration tests for the `emacs-28` feature (`Env::open_channel`, etc.)
 - **`rs-module/`** - Live-reloading helper module for development
+
+`test-module` and `test-module-28` are standalone workspaces (own `Cargo.toml` `[workspace]`, own
+`Cargo.lock`), not members of the root workspace: they target different minimum Emacs ABI versions,
+and Cargo unifies a shared dependency's features across everything resolved together in one
+workspace, so keeping them separate stops one's `emacs-N` feature from leaking into the other.
 
 ## Build and Test Commands
 

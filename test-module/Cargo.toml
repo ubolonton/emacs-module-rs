@@ -1,3 +1,7 @@
+[workspace]
+# Standalone: this is a leaf consumer of `emacs`, not a member of its workspace, so a divergent
+# `emacs-N` feature elsewhere (e.g. test-module-28) can't unify into this crate's own baseline build.
+
 [package]
 name = "test-module"
 version = "0.0.0"
