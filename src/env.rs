@@ -125,10 +125,10 @@ impl Env {
         {
             use std::os::windows::io::{FromRawHandle, RawHandle};
             // Safety: open_channel returns a CRT fd created by Emacs via _pipe(). This module must
-            // be linked against the same CRT as Emacs (MSVCRT), otherwise get_osfhandle will be
-            // called against the wrong CRT's fd table and crash. On CI, this is enforced by running
-            // cargo build in an msys2 shell so MSYS2 MINGW64 gcc (MSVCRT) takes precedence over the
-            // pre-installed UCRT gcc.
+            // be linked against the same CRT as Emacs (MSVCRT or UCRT), otherwise get_osfhandle
+            // will be called against the wrong CRT's fd table and crash. With the GNU toolchain,
+            // the gcc used as the linker selects the CRT: MSYS2 MINGW64 links MSVCRT, UCRT64 links
+            // UCRT.
             let handle = unsafe { libc::get_osfhandle(raw_fd) as RawHandle };
             // SAFETY: Emacs dup'ed the open file descriptor.
             Ok(unsafe { PipeWriter::from_raw_handle(handle) })
