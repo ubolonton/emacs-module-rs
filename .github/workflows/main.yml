@@ -77,9 +77,6 @@ jobs:
           - name: msys2
             msystem: UCRT64
           # Official GNU builds (MSVCRT).
-          - name: '28.2'
-            msystem: MINGW64
-            zip: emacs-28/emacs-28.2.zip
           - name: '29.4'
             msystem: MINGW64
             zip: emacs-29/emacs-29.4.zip
