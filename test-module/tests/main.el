@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; Entry point for the integration tests. Load every `*-test.el' file in this directory.
 ;;;
 ;;; `t/run-in-sub-process' also loads this file, so that the sub-process sees the functions defined

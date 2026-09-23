@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; Functions.
 
 (require 't-helpers)

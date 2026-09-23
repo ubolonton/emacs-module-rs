@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; Type conversion.
 
 (require 't-helpers)

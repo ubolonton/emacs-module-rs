@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; Non-local exits.
 
 (require 't-helpers)

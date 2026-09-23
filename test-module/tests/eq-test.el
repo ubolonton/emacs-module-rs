@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; Value equality (PartialEq).
 
 (require 't-helpers)

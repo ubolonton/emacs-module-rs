@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; ----------------------------------------------------------------------------
 ;;; ABI compatibility. `t28` is built with the `emacs-28` feature, so it must refuse to load on an
 ;;; older Emacs instead of loading and later reading past the end of its (smaller) `emacs_env`

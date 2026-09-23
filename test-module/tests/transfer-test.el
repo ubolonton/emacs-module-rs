@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 ;;; user-ptr.
 
 (require 't-helpers)

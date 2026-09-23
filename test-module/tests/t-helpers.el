@@ -1,3 +1,5 @@
+;;; -*- lexical-binding: t -*-
+
 (require 'subr-x)
 (require 'help)
 
