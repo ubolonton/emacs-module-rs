@@ -33,9 +33,20 @@ cargo test --all
 # Run integration tests (requires Emacs installed)
 cargo xtask test              # runs once
 cargo xtask test --watch      # continuous via cargo-watch
+cargo xtask test --filter '^error::'  # only tests matching an ERT regexp
+
+# Use a specific Emacs binary
+EMACS=emacs-28 cargo xtask test
 ```
 
 The integration tests compile `test-module` as a `.so`/`.dylib`, then run Emacs in batch mode loading `test-module/tests/main.el` (ERT framework).
+
+### Integration test layout
+
+- `test-module/tests/main.el` only loads `t-helpers.el` and every `*-test.el` file in its directory.
+- Each topic pairs `test-module/src/<topic>.rs` with `test-module/tests/<topic>-test.el`. ERT test names start with an area prefix (`error::`, `calling::`, …), so `--filter` can select one area.
+- Lisp names come from module paths: `transfer::vector::make` is `t/transfer-vector-make`. When you move or rename a Rust module, update the Lisp call sites, including names built as strings in Rust.
+- Keep the defuns at the crate root of `test-module/src/lib.rs`. They test root-level naming.
 
 ## Architecture
 
