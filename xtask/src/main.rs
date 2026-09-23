@@ -27,6 +27,9 @@ enum Command {
         /// Print shared-library diagnostics for Emacs and the built modules
         #[arg(long)]
         verbose: bool,
+        /// Run only the ERT tests whose names match this regexp, e.g. `^error::`
+        #[arg(long)]
+        filter: Option<String>,
     },
 }
 
@@ -34,7 +37,9 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Build { release } => build(release),
-        Command::Test { watch, release, verbose } => test(watch, release, verbose),
+        Command::Test { watch, release, verbose, filter } => {
+            test(watch, release, verbose, filter.as_deref())
+        }
     }
 }
 
@@ -187,7 +192,17 @@ fn build(release: bool) -> Result<()> {
     Ok(())
 }
 
-fn test(watch: bool, release: bool, verbose: bool) -> Result<()> {
+/// Quote `s` as an Elisp string literal. Elisp needs escapes only for `\` and `"`.
+fn elisp_string(s: &str) -> String {
+    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Quote `s` as a single POSIX shell word, for commands that `cargo watch -s` runs through a shell.
+fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+fn test(watch: bool, release: bool, verbose: bool, filter: Option<&str>) -> Result<()> {
     let root = project_root();
     let sh = Shell::new()?;
     sh.change_dir(&root);
@@ -200,6 +215,9 @@ fn test(watch: bool, release: bool, verbose: bool) -> Result<()> {
             suffix.push_str(" --verbose");
         }
         let build_cmd = format!("cargo xtask build{suffix}");
+        if let Some(filter) = filter {
+            suffix.push_str(&format!(" --filter {}", shell_quote(filter)));
+        }
         let test_cmd = format!("cargo xtask test{suffix}");
         return cmd!(sh, "cargo watch -s {build_cmd} -s {test_cmd}").run().map_err(Into::into);
     }
@@ -231,13 +249,32 @@ fn test(watch: bool, release: bool, verbose: bool) -> Result<()> {
     sh.set_var("EMACS_MODULE_RS_DEBUG", "1");
     sh.set_var("EMACS", &emacs);
 
+    // ERT selector `t` selects all tests. A string selects tests whose names match it as a regexp.
+    let selector = filter.map_or_else(|| "t".to_string(), elisp_string);
+    let run_tests = format!("(ert-run-tests-batch-and-exit {selector})");
+
     println!("Testing test-module");
     let main_el = root.join("test-module/tests/main.el");
-    cmd!(sh, "{emacs} -Q -batch --directory {target} -l ert -l {main_el} -f ert-run-tests-batch-and-exit").run()?;
+    cmd!(sh, "{emacs} -Q -batch --directory {target} -l ert -l {main_el} --eval {run_tests}").run()?;
 
     println!("Testing test-module-28");
     let main_el_28 = root.join("test-module-28/tests/main.el");
-    cmd!(sh, "{emacs} -Q -batch --directory {target} -l ert -l {main_el_28} -f ert-run-tests-batch-and-exit").run()?;
+    cmd!(sh, "{emacs} -Q -batch --directory {target} -l ert -l {main_el_28} --eval {run_tests}").run()?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn elisp_string_escapes_backslash_and_quote() {
+        assert_eq!(elisp_string(r#"^error::\|"x""#), r#""^error::\\|\"x\"""#);
+    }
+
+    #[test]
+    fn shell_quote_escapes_single_quote() {
+        assert_eq!(shell_quote(r"^a\|b's"), r"'^a\|b'\''s'");
+    }
 }
