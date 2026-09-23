@@ -20,6 +20,7 @@ on:
 
 jobs:
   ci:
+    name: ${{ matrix.os }} - ${{ matrix.emacs-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +36,7 @@ jobs:
           - '28.2'
           - '29.4'
           - '30.1'
+          - '31.1'
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
@@ -60,7 +62,7 @@ jobs:
       - run: cargo xtask test --verbose
 
   windows:
-    name: ${{ matrix.os }}, Emacs ${{ matrix.emacs.name }}
+    name: ${{ matrix.os }} - ${{ matrix.emacs.name }} - ${{ matrix.emacs.msystem }}
     strategy:
       fail-fast: false
       matrix:
@@ -84,6 +86,13 @@ jobs:
           - name: '30.1'
             msystem: MINGW64
             zip: emacs-30/emacs-30.1.zip
+          - name: '31.1'
+            msystem: MINGW64
+            zip: emacs-31/emacs-31.1.zip
+          # Official GNU UCRT64 builds (Emacs 31+).
+          - name: 31.1
+            msystem: UCRT64
+            zip: emacs-31/emacs-31.1-UCRT64.zip
     runs-on: ${{ matrix.os }}
     defaults:
       run:
