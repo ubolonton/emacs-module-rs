@@ -233,12 +233,10 @@ fn test(watch: bool, release: bool, verbose: bool, filter: Option<&str>) -> Resu
     // Show which runtime libraries emacs links against. On Windows this reveals the CRT (msvcrt.dll
     // vs ucrtbase.dll); on Linux/macOS/FreeBSD it shows libc/libm/etc. Our modules must link the
     // same runtime or file-descriptor sharing will crash.
-    if verbose {
-        if let Some(emacs_path) = resolve_in_path(&emacs) {
-            println!("=== Emacs binary: {} ===", emacs_path.display());
-            print_shared_libs(&sh, &emacs_path);
-            println!("===================================");
-        }
+    if verbose && let Some(emacs_path) = resolve_in_path(&emacs) {
+        println!("=== Emacs binary: {} ===", emacs_path.display());
+        print_shared_libs(&sh, &emacs_path);
+        println!("===================================");
     }
 
     // These env vars are read by the Lisp test helpers (e.g. t/run-in-sub-process uses PROJECT_ROOT
