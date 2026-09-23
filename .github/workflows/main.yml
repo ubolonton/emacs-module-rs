@@ -31,36 +31,17 @@ jobs:
           - ubuntu-24.04
           - ubuntu-22.04-arm
           - ubuntu-24.04-arm
-          - windows-2022
-          - windows-2025
         emacs-version:
           - '28.2'
           - '29.4'
           - '30.1'
     runs-on: ${{ matrix.os }}
     steps:
-      # Use msys2 for more precise control over Emacs's and module's CRT linkage.
-      - uses: msys2/setup-msys2@v2
-        if: runner.os == 'Windows'
-        with:
-          update: true
-          # So we can use Rust, which is not from msys2.
-          path-type: inherit
-          install: >-
-            mingw-w64-x86_64-emacs
-            mingw-w64-x86_64-toolchain
-            base-devel
-
       - name: Set up Rust
         run: |
           rustup install stable
           rustc -Vv
           cargo -V
-
-      - name: Use Rust's GNU toolchain (Windows)
-        run: |
-          rustup default stable-gnu
-        if: runner.os == 'Windows'
 
       - uses: actions/checkout@v6
         with:
@@ -68,30 +49,85 @@ jobs:
           # up? See https://github.com/actions/checkout/issues/485.
           persist-credentials: false
 
-      - name: Build
-        run: cargo xtask build
-        if: runner.os != 'Windows'
-
-      # msys2 {0} shell puts MSYS2 MINGW64 gcc ahead of the pre-installed UCRT gcc in PATH,
-      # so the built DLLs link MSVCRT — the same CRT as MSYS2's Emacs package.
-      - name: Build (Windows)
-        run: cargo xtask build
-        shell: msys2 {0}
-        if: runner.os == 'Windows'
+      - run: cargo xtask build
 
       - run: cargo test --all
 
       - uses: purcell/setup-emacs@master
-        if: runner.os != 'Windows'
         with:
           version: ${{ matrix.emacs-version }}
 
-      - name: Test
-        run: cargo xtask test --verbose
-        if: runner.os != 'Windows'
+      - run: cargo xtask test --verbose
 
-      # msys2 {0} also makes Emacs (installed as a MSYS2 package) visible on PATH.
-      - name: Test (Windows)
-        run: cargo xtask test --verbose
+  windows:
+    name: ${{ matrix.os }}, Emacs ${{ matrix.emacs.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2022
+          - windows-2025
+        # The module must link the same C runtime (CRT) as Emacs, otherwise `Env::open_channel`
+        # crashes. gcc is the linker for Rust's GNU toolchain, so the MSYS2 environment selects the
+        # CRT: MINGW64 links MSVCRT, UCRT64 links UCRT.
+        emacs:
+          # MSYS2's Emacs package (UCRT). MSYS2 only has the latest version.
+          - name: msys2
+            msystem: UCRT64
+          # Official GNU builds (MSVCRT).
+          - name: '28.2'
+            msystem: MINGW64
+            zip: emacs-28/emacs-28.2.zip
+          - name: '29.4'
+            msystem: MINGW64
+            zip: emacs-29/emacs-29.4.zip
+          - name: '30.1'
+            msystem: MINGW64
+            zip: emacs-30/emacs-30.1.zip
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # Puts the selected environment's gcc ahead of the runner's pre-installed gcc in PATH.
         shell: msys2 {0}
-        if: runner.os == 'Windows'
+    steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.emacs.msystem }}
+          update: true
+          # So we can use Rust, which is not from msys2.
+          path-type: inherit
+          install: >-
+            base-devel
+            unzip
+          pacboy: >-
+            toolchain:p
+            ${{ !matrix.emacs.zip && 'emacs:p' || '' }}
+
+      - name: Set up Rust
+        run: |
+          rustup install stable-gnu
+          rustup default stable-gnu
+          rustc -Vv
+          cargo -V
+
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install official GNU Emacs
+        if: matrix.emacs.zip
+        env:
+          EMACS_ZIP: ${{ matrix.emacs.zip }}
+        run: |
+          emacs_dir=$(cygpath -u "$RUNNER_TEMP")/emacs
+          curl -sSfL -o emacs.zip "https://ftp.gnu.org/gnu/emacs/windows/$EMACS_ZIP"
+          unzip -q emacs.zip -d "$emacs_dir"
+          # Some zips have a top-level directory (e.g. emacs-28.2/), some don't.
+          emacs_exe=$(find "$emacs_dir" -path '*/bin/emacs.exe')
+          cygpath -w "$(dirname "$emacs_exe")" >> "$GITHUB_PATH"
+
+      - run: cargo xtask build
+
+      - run: cargo test --all
+
+      - run: cargo xtask test --verbose
