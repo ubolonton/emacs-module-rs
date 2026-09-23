@@ -11,9 +11,11 @@ It currently supports:
 
 - Make sure your Emacs was compiled with module support. Check that `module-file-suffix` is not `nil`, and the function `module-load` is defined.
     - On macOS, the recommended installation method is MacPorts (`emacs-app` and `emacs-mac-app`).
-    - On Windows, install Emacs via MSYS2: `pacman -S mingw-w64-x86_64-emacs`. (Emacs officially supports MSVCRT, not UCRT.)
+    - On Windows, use either an [official GNU build](https://ftp.gnu.org/gnu/emacs/windows/), or MSYS2's package: `pacman -S mingw-w64-ucrt-x86_64-emacs`.
 - Install the Rust toolchain with [rustup](https://www.rustup.rs/).
-    - On Windows, use the `stable-gnu` toolchain, with the `gcc` from `mingw-w64-x86_64-toolchain`. This ensures CRT linkages match.
+    - On Windows, use the `stable-gnu` toolchain. Build in the MSYS2 shell that matches the C runtime (CRT) of your Emacs:
+        - MINGW64 (`mingw-w64-x86_64-toolchain`) for official GNU builds, which use MSVCRT.
+        - UCRT64 (`mingw-w64-ucrt-x86_64-toolchain`) for official `-UCRT64` builds (Emacs 31+) and MSYS2's package, which use UCRT.
 
 ### Notes
 

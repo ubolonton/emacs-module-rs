@@ -55,6 +55,15 @@ Dropping the writer closes the write end of the pipe. Emacs's process sentinel f
 
 ## Windows Note
 
-On Windows, the write end of the pipe is a CRT (C runtime) file descriptor created by Emacs. Your module must link against the same CRT as Emacs — MSVCRT when using the MSYS2 MINGW64 toolchain (which is what the official Windows package and the CI setup use). Linking against a different CRT (e.g. UCRT) causes a crash inside `get_osfhandle`.
+On Windows, the write end of the pipe is a CRT (C runtime) file descriptor created by Emacs. Your module must link against the same CRT as Emacs. Otherwise, `open_channel` crashes inside `get_osfhandle`.
 
-If you build your module with the MSYS2 MINGW64 toolchain as described in [Hello, Emacs!](./hello.md), this is handled automatically.
+- Official GNU builds use MSVCRT. Build your module in the MSYS2 MINGW64 shell.
+- Official `-UCRT64` builds (Emacs 31+) and MSYS2's `mingw-w64-ucrt-x86_64-emacs` use UCRT. Build your module in the MSYS2 UCRT64 shell.
+
+The GNU toolchain uses `gcc` as the linker, so the first `gcc` in `PATH` selects the CRT. To check a binary's CRT, list its imported DLLs:
+
+```bash
+objdump -p "$(which emacs)" | grep 'DLL Name'
+```
+
+`msvcrt.dll` means MSVCRT. `ucrtbase.dll` or `api-ms-win-crt-*.dll` means UCRT. See [Overview](./overview.md#setting-up) for the setup steps.
