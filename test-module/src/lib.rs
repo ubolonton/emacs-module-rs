@@ -7,16 +7,12 @@ use emacs::{defun, CallEnv, Env, IntoLisp, Result, Value};
 #[macro_use]
 mod macros;
 
-mod test_basics;
-mod test_eq;
-mod test_error;
-mod test_lifetime;
-mod test_vector;
-mod call;
-
-mod ref_cell;
-mod vector;
-mod hash_map;
+mod conversion;
+mod eq;
+mod error;
+mod function;
+mod lifetime;
+mod transfer;
 
 emacs::plugin_is_GPL_compatible!();
 
@@ -33,9 +29,8 @@ fn t(env: &Env) -> Result<()> {
 
     env.message("Hel\0lo, \0Emacs")?;
 
-    test_basics::init(env)?;
-    test_eq::init(env)?;
-    test_error::init(env)?;
+    function::init(env)?;
+    error::init(env)?;
     Ok(())
 }
 

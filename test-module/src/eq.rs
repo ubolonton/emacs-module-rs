@@ -46,7 +46,3 @@ fn classify_position(position: Value<'_>) -> Result<String> {
         Ok("unknown".to_owned())
     }
 }
-
-pub fn init(_env: &Env) -> Result<()> {
-    Ok(())
-}

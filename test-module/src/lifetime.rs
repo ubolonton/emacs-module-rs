@@ -94,11 +94,11 @@ fn gc_after_uninterning(env: &Env) -> Result<Value<'_>> {
 #[defun(mod_in_name = false)]
 fn gc_after_retrieving(env: &Env) -> Result<Value<'_>> {
     create_collect_use(env, 2, || {
-        // XXX: These come from `hash_map` module.
-        env.call(&format!("{}hash-map-make", *MODULE_PREFIX), [])
+        // XXX: These come from the `transfer::hash_map` module.
+        env.call(&format!("{}transfer-hash-map-make", *MODULE_PREFIX), [])
     }, |env, v| {
         print(env, v)?; // Used: #<user-ptr ptr=... finalizer=...>. Free: #<misc free cell>.
-        env.call(&format!("{}hash-map-set", *MODULE_PREFIX), (v, "x", "y"))
+        env.call(&format!("{}transfer-hash-map-set", *MODULE_PREFIX), (v, "x", "y"))
     })
 }
 
