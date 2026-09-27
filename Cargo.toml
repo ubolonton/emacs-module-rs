@@ -35,7 +35,7 @@ emacs-macros = { path = "emacs-macros", version = "0.17.0" }
 libc = "0.2"
 
 [features]
-default = []
+default = ["utf-8-validation"]
 utf-8-validation = []
 lossy-integer-conversion = []
 nonzero-integer-conversion = []
