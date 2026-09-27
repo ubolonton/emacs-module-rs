@@ -44,31 +44,82 @@
   (should (string= "" (t/conversion-copy-string-contents "" 1)))
   (should-error (t/conversion-copy-string-contents "abcxyz" 3) :type t/buffer-too-small-error-type))
 
-(ert-deftest conversion::string-coding ()
-  (should (equal (t/conversion-string-to-bytes
-                  "a")
-                 [97]))
-  ;; 2-byte UTF-8.
-  (should (equal (t/conversion-string-to-bytes
-                  "á")
-                 [195 161]))
-  ;; Trailing zero byte.
-  (should (equal (t/conversion-string-to-bytes
-                  (unibyte-string 97 0))
-                 [97 0]))
-  ;; Zero byte in the middle.
-  (should (equal (t/conversion-string-to-bytes
-                  (string-to-multibyte
-                   (unibyte-string 97 0 98)))
-                 [97 0 98]))
-  (should (equal (t/conversion-string-to-bytes
-                  (encode-coding-string
-                   (concat (unibyte-string #x97) "π")
-                   'utf-8))
-                 [151 207 128]))
-  (should-error (t/conversion-string-to-bytes
-                 (concat (unibyte-string #x97) "π"))
+(ert-deftest conversion::string-unicode-to-bytes ()
+  (dolist (multibyte-unicode-str
+           (list "testing"
+                 "π là số vô tỉ"
+                 "
+á -> 2 bytes
+€ -> 3 bytes
+😊 -> 4 bytes"
+                 ;; With null bytes in the middle and trailing.
+                 (string ?π 0 0 ?á 0 0)))
+    (let* ((unibyte-str (string-as-unibyte multibyte-unicode-str))
+           (bytes (vconcat unibyte-str)))
+      ;; Both multibyte and unibyte representations should work.
+      (should (equal (t/conversion-string-to-bytes multibyte-unicode-str)
+                     bytes))
+      (should (equal (t/conversion-string-to-bytes unibyte-str)
+                     bytes)))))
+
+(ert-deftest conversion::string-non-unicode-to-bytes ()
+  (dolist (multibyte-non-unicode-str
+           (list (string #x3FFFFF       ;  raw byte FF
+                         ;; With null bytes in the middle and trailing.
+                         ?π 0 0 ?á 0 0)
+                 (decode-coding-string "\x96\xa4\xa2\xa4" 'emacs-mule)
+                 (decode-coding-string
+                  (encode-coding-string "Nguyễn Tuấn Anh" 'vietnamese-vscii) 'utf-8-emacs)
+                 (decode-coding-string
+                  (encode-coding-string "阮俊英" 'chinese-big5) 'utf-8-emacs)))
+    (let ((err (should-error
+                (t/conversion-string-to-bytes multibyte-non-unicode-str)
                 :type 'wrong-type-argument))
+          (unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
+      ;; Multibyte representation is rejected.
+      (should (eq (cadr err) 'unicode-string-p))
+      ;; Unibyte representation is accepted.
+      (should (equal (t/conversion-string-to-bytes unibyte-str)
+                     (vconcat unibyte-str))))))
+
+(ert-deftest conversion::string-unicode-roundtrip ()
+  (dolist (multibyte-unicode-str
+           (list "testing"
+                 "π là số vô tỉ"
+                 "
+á -> 2 bytes
+€ -> 3 bytes
+😊 -> 4 bytes"
+                 ;; With null bytes in the middle and trailing.
+                 (string ?π 0 0 ?á 0 0)))
+    (let ((unibyte-str (string-as-unibyte multibyte-unicode-str)))
+      ;; Both multibyte and unibyte representations should work.
+      (should (equal (t/conversion-string-roundtrip multibyte-unicode-str)
+                     multibyte-unicode-str))
+      (should (equal (t/conversion-string-roundtrip unibyte-str)
+                     multibyte-unicode-str)))))
+
+(ert-deftest conversion::string-non-unicode-roundtrip ()
+  (dolist (multibyte-non-unicode-str
+           (list (string #x3FFFFF       ;  raw byte FF
+                         ;; With null bytes in the middle and trailing.
+                         ?π 0 0 ?á 0 0)
+                 (decode-coding-string "\x96\xa4\xa2\xa4" 'emacs-mule)
+                 (decode-coding-string
+                  (encode-coding-string "Nguyễn Tuấn Anh" 'vietnamese-vscii) 'utf-8-emacs)
+                 (decode-coding-string
+                  (encode-coding-string "阮俊英" 'chinese-big5) 'utf-8-emacs)))
+    (let ((err (should-error
+                (t/conversion-string-roundtrip multibyte-non-unicode-str)
+                :type 'wrong-type-argument))
+          (unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
+      ;; Multibyte representation is rejected on the Emacs side.
+      (should (eq (cadr err) 'unicode-string-p))
+      ;; Unibyte representation is rejected on the Rust side.
+      (should (string-match-p
+               "invalid utf-8 sequence"
+               (cadr (should-error (t/conversion-string-roundtrip unibyte-str)
+                                   :type 'rust-error)))))))
 
 (ert-deftest conversion::option-string ()
   (should (equal (t/conversion-to-lowercase-or-nil "CDE") "cde"))

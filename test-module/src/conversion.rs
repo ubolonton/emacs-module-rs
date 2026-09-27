@@ -45,6 +45,11 @@ fn string_to_bytes(v: Value) -> Result<Vector> {
     Ok(result)
 }
 
+#[defun]
+fn string_roundtrip(s: String) -> Result<String> {
+    Ok(s)
+}
+
 // Bindings for vector functions (vec_get, vec_set, vec_size).
 
 #[defun]
