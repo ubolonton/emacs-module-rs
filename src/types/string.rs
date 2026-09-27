@@ -5,14 +5,14 @@ use super::*;
 impl FromLisp<'_> for String {
     #[cfg(not(feature = "utf-8-validation"))]
     fn from_lisp(value: Value<'_>) -> Result<Self> {
-        let bytes = value.env.string_bytes(value)?;
+        let bytes = value.clone_string_contents()?;
         // Safety: We trust Emacs to give us valid utf-8 bytes.
         unsafe { Ok(String::from_utf8_unchecked(bytes)) }
     }
 
     #[cfg(feature = "utf-8-validation")]
     fn from_lisp(value: Value<'_>) -> Result<Self> {
-        let bytes = value.env.string_bytes(value)?;
+        let bytes = value.clone_string_contents()?;
         String::from_utf8(bytes).map_err(|e| e.into())
     }
 }
@@ -100,23 +100,7 @@ impl Env {
             }
             bytes
         };
-        if bytes[len as usize - 1] == 0 {
-            bytes.pop();
-        }
+        bytes.pop();
         Ok(bytes)
-    }
-
-    fn string_bytes(&self, value: Value<'_>) -> Result<Vec<u8>> {
-        let mut bytes = self.clone_string_contents(value)?;
-        strip_trailing_zero_bytes(&mut bytes);
-        Ok(bytes)
-    }
-}
-
-fn strip_trailing_zero_bytes(bytes: &mut Vec<u8>) {
-    let mut len = bytes.len();
-    while len > 0 && bytes[len - 1] == 0 {
-        bytes.pop(); // strip trailing 0-byte(s)
-        len -= 1;
     }
 }
