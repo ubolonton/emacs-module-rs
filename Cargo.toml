@@ -36,7 +36,6 @@ libc = "0.2"
 
 [features]
 default = []
-utf-8-validation = []
 lossy-integer-conversion = []
 nonzero-integer-conversion = []
 debug = []
