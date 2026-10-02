@@ -58,7 +58,7 @@ impl<'e> Value<'e> {
         let mut len = max_len as isize;
         // Safety: ptr and len are valid, coming from a slice.
         match unsafe_raw_call!(env, copy_string_contents, self.raw, ptr, &mut len) {
-            Ok(false) => panic!("Emacs failed to copy string but did not raise a signal"),
+            Ok(false) => unreachable!("Emacs failed to copy string but did not raise a signal"),
             Err(x) => Err(x),
             _ => {
                 let n = cmp::min(max_len, len as usize) - 1;
@@ -79,10 +79,8 @@ impl Env {
                 ptr::null_mut(),
                 &mut len,
             ))?;
-            // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool.
             if !ok {
-                panic!("Emacs failed to give string's length but did not raise a signal");
+                unreachable!("Emacs failed to give string's length but did not raise a signal");
             }
 
             let mut bytes = vec![0u8; len as usize];
@@ -92,10 +90,8 @@ impl Env {
                 bytes.as_mut_ptr() as *mut os::raw::c_char,
                 &mut len,
             ))?;
-            // Technically this shouldn't happen, and the return type of copy_string_contents
-            // should be void, not bool.
             if !ok {
-                panic!("Emacs failed to copy string but did not raise a signal");
+                unreachable!("Emacs failed to copy string but did not raise a signal");
             }
             bytes
         };
