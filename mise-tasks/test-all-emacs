@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#MISE description="Run integration tests on every installed emacs-N binary (emacs-25, emacs-26, …)"
+set -uo pipefail
+
+# The CI matrix has fewer Emacs versions than the crate supports. Module-layer signals differ
+# between versions, so run the tests on every version that is installed.
+mapfile -t emacs_binaries < <(compgen -c | grep -E '^emacs-[0-9]+$' | sort -uV)
+if [ "${#emacs_binaries[@]}" -eq 0 ]; then
+    echo "No emacs-N binary in PATH" >&2
+    exit 1
+fi
+
+# `cargo xtask test` does not build the test modules, so build them once before the loop.
+cargo xtask build || exit 1
+
+failed=()
+for emacs in "${emacs_binaries[@]}"; do
+    echo "=== $emacs ==="
+    EMACS="$emacs" cargo xtask test "$@" || failed+=("$emacs")
+done
+
+if [ "${#failed[@]}" -gt 0 ]; then
+    echo "Failed: ${failed[*]}" >&2
+    exit 1
+fi
