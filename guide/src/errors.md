@@ -10,6 +10,8 @@ pub type Result<T> = result::Result<T, anyhow::Error>;
 
 ## Handling Lisp Errors in Rust
 
+Lisp code exits in 2 ways: it signals an error, or it throws a value. Calling it (`env.call`, `Value::call`) surfaces these as `ErrorKind::Signal` and `ErrorKind::Throw`.
+
 When calling a Lisp function, it's usually a good idea to propagate signaled errors with the `?` operator, letting higher level (Lisp) code handle them. If you want to handle a specific error, you can use `error.downcast_ref`:
 
 ```rust
@@ -38,6 +40,29 @@ Note the use of `unsafe` to extract the error symbol as a `Value`. The reason is
 
 This is similar to handling Lisp errors. The only difference is `ErrorKind::Throw` being used instead of `ErrorKind::Signal`.
 
+## Handling Module-layer and Rust-layer Errors in Rust
+
+Two more origins exist.
+- `ErrorKind::Module`: The module layer (`emacs-module.c`) rejects some calls, for example `extract_integer` on a string.
+- `ErrorKind::Rust`: The Rust layer (i.e. this crate) rejects some values, for example converting a `String` from bytes that are not valid UTF-8.
+
+```rust
+match error.downcast_ref::<ErrorKind>() {
+    Some(ErrorKind::Signal { .. } | ErrorKind::Throw { .. }) => {
+        // Lisp code signaled or threw.
+    }
+    Some(ErrorKind::Module(_)) => {
+        // The module layer rejected the call.
+    }
+    Some(ErrorKind::Rust(_)) => {
+        // Rust code in this crate rejected the value.
+    }
+    None => {
+        // Not an `ErrorKind`.
+    }
+}
+```
+
 ## Signaling Lisp Errors from Rust
 
 The function `env.signal` allows signaling a Lisp error from Rust code. The error symbol must have been defined, e.g. by the macro `define_errors!`:
@@ -58,17 +83,41 @@ fn signal_if_negative(env: &Env, x: i16) -> Result<()> {
 }
 ```
 
-## Handling Rust Errors in Lisp
+## Handling Module-layer and Rust-layer Errors in Lisp
 
-In addition to [standard errors](https://www.gnu.org/software/emacs/manual/html_node/elisp/Standard-Errors.html), Rust module functions can signal Rust-specific errors, which can also be handled by `condition-case`:
+Instead of handling the module-layer and Rust-layer errors above, Rust module functions can propagate them to Lisp. When that happens, the error is "wrapped" in a way that is compatible with using `condition-case` on [standard errors](https://www.gnu.org/software/emacs/manual/html_node/elisp/Standard-Errors.html).
+- The error symbol has 2 parent symbols: the origin symbol and the standard symbol.
+    - For Rust-layer errors, the origin symbol is `rust-error`.
+- The signal data has the same shape as the standard symbol's data shape in Emacs 31.
 
-- `rust-error`: The message is `Rust error`. This covers all generic Rust-originated errors.
-- `rust-wrong-type-user-ptr`: The message is `Wrong type user-ptr`. This happens when Rust code is passed a `user-ptr` of a type it's not expecting. It is a sub-type of `rust-error`.
-    ```rust
-    // May signal if `value` holds a different type of hash map,
-    // or is a `user-ptr` defined in a non-Rust module.
-    let r: &RefCell<HashMap<String, String>> = value.into_rust()?;
-    ```
+`Signal`, `Throw`, and `ModuleError::Signal` are raised again unchanged. Lisp code sees the original symbol and data. `ModuleError::Signal` has no `rust-` symbol.
+
+```
+ErrorKind
+├── Signal, Throw            from Lisp code
+├── Module(ModuleError)      the module layer (emacs-module.c) rejected the call
+│   └── Signal               no typed variant
+└── Rust(RustError)          this crate's Rust layer rejected the value
+    └── WrongTypeUserPtr
+```
+```
+error                                      + standard symbol
+├── rust-error
+│   └── rust-wrong-type-user-ptr           + wrong-type-argument
+└── rust-panic
+```
+
+| Variant | Data |
+|---|---|
+| `WrongTypeUserPtr` | `(EXPECTED VALUE)` |
+
+- `EXPECTED` is the Rust type name, not a predicate.
+
+```rust
+// May signal `rust-wrong-type-user-ptr` if `value` holds a different type of hash map,
+// or is a `user-ptr` defined in a non-Rust module.
+let r: &RefCell<HashMap<String, String>> = value.into_rust()?;
+```
 
 ### Panics
 

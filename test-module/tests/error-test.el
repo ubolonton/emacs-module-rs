@@ -58,3 +58,15 @@
       (t/error:signal 'emacs-module-rs-test-error "abc")
     (rust-error (should (equal err '(emacs-module-rs-test-error . ("abc"))))))
   (should-error (signal 'error-defined-without-parent nil) :type 'error))
+
+(ert-deftest error::variant-lisp-code ()
+  ;; Exits of Lisp code stay `Signal' and `Throw', also for symbols that the module layer uses.
+  (should (equal (t/error:variant
+                  "funcall" (lambda () (signal 'wrong-type-argument '(integerp "3"))) nil)
+                 "Signal"))
+  (should (equal (t/error:variant "funcall" (lambda () (throw 'ball 1)) nil) "Throw"))
+  (should (equal (t/error:variant "funcall" (lambda () 1) nil) nil)))
+
+(ert-deftest error::variant-module-layer ()
+  ;; Signals from module functions other than `funcall' are module-layer errors.
+  (should (string-prefix-p "Module/" (t/error:variant "i64" "3" nil))))

@@ -11,7 +11,7 @@ use std::{
 use anyhow::anyhow;
 use emacs_module::{EMACS_VERSION, MIN_ENV_SIZE};
 
-use crate::{Env, Value, Result, ErrorKind};
+use crate::{Env, Value, Result, ErrorKind, ModuleError};
 
 #[doc(hidden)]
 #[macro_export]
@@ -142,7 +142,10 @@ where
         })() {
             Ok(_) => 0,
             Err(e) => {
-                if let Some(ErrorKind::Signal { symbol, data }) = e.downcast_ref::<ErrorKind>() {
+                if let Some(
+                    ErrorKind::Signal { symbol, data }
+                    | ErrorKind::Module(ModuleError::Signal { symbol, data }),
+                ) = e.downcast_ref::<ErrorKind>() {
                     env.call(
                         "message",
                         (

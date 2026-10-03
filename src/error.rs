@@ -7,8 +7,9 @@ use thiserror::Error;
 use emacs_module::*;
 
 use crate::{
-    Env, Value, IntoLisp,
+    Env, Value,
     GlobalRef,
+    global::OnceGlobalRef,
     symbol::{self, IntoLispSymbol},
     call::IntoLispArgs,
 };
@@ -56,10 +57,10 @@ macro_rules! define_errors {
     }
 }
 
-/// Error types generic to all Rust dynamic modules.
+/// Errors that this crate reports. Each variant names the origin of the error.
 ///
-/// This list is intended to grow over time and it is not recommended to exhaustively match against
-/// it.
+/// This enum is exhaustive. Its variants are the origins, which are a closed set: Lisp code exits
+/// only by signal or throw. New failures go into [`ModuleError`] and [`RustError`].
 #[derive(Debug, Error)]
 pub enum ErrorKind {
     /// An [error] signaled by Lisp code.
@@ -74,7 +75,39 @@ pub enum ErrorKind {
     #[error("Non-local throw: tag={tag:?} value={value:?}")]
     Throw { tag: TempValue, value: TempValue },
 
-    /// An error indicating that the given value is not a `user-ptr` of the expected type.
+    /// The module layer (`emacs-module.c`) rejected the arguments of a module API call.
+    #[error(transparent)]
+    Module(#[from] ModuleError),
+
+    /// Rust code in this crate rejected a value.
+    #[error(transparent)]
+    Rust(#[from] RustError),
+}
+
+/// Errors that the module layer (`emacs-module.c`) detects.
+///
+/// If Rust code lets such an error propagate, Lisp code sees a signal with two parents:
+/// `rust-module-error`, and the standard signal for the same failure.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum ModuleError {
+    /// A module-layer signal with no typed variant. If it propagates, Lisp code sees it unchanged.
+    #[error("Module-layer signal: symbol={symbol:?} data={data:?}")]
+    #[non_exhaustive]
+    Signal { symbol: TempValue, data: TempValue },
+}
+
+/// Errors that Rust code in this crate detects.
+///
+/// If Rust code lets such an error propagate, Lisp code sees a signal with two parents:
+/// `rust-error`, and the standard signal for the same failure.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum RustError {
+    /// The value is a `user-ptr`, but it holds another Rust type.
+    ///
+    /// Lisp signal: `rust-wrong-type-user-ptr`, with data `(EXPECTED VALUE)`. `EXPECTED` is the
+    /// name of the expected Rust type.
     ///
     /// # Examples:
     ///
@@ -100,10 +133,11 @@ pub enum ErrorKind {
     /// ```emacs-lisp
     /// (unwrap 7)          ; *** Eval error ***  Wrong type argument: user-ptrp, 7
     /// (unwrap (wrap 7))   ; 7
-    /// (unwrap (wrap-f 7)) ; *** Eval error ***  Wrong type user-ptr: "expected: RefCell"
+    /// (unwrap (wrap-f 7)) ; *** Eval error ***  Wrong type user-ptr: "core::cell::RefCell<i64>", #<user-ptr …>
     /// ```
     #[error("expected: {expected}")]
-    WrongTypeUserPtr { expected: &'static str },
+    #[non_exhaustive]
+    WrongTypeUserPtr { expected: &'static str, value: TempValue },
 }
 
 /// A specialized [`Result`] type for Emacs's dynamic modules.
@@ -116,8 +150,11 @@ pub type Result<T> = result::Result<T, Error>;
 // (thus cannot be called there). This is likely a mis-design in Emacs (In Erlang,
 // `enif_keep_resource` and `enif_release_resource` don't require an env).
 impl TempValue {
-    unsafe fn new(raw: emacs_value) -> Self {
-        Self { raw }
+    /// Keeps a Lisp value in an error. To read it back, use the `unsafe` method [`value`].
+    ///
+    /// [`value`]: TempValue::value
+    pub(crate) fn from_value(value: Value<'_>) -> Self {
+        Self { raw: value.raw }
     }
 
     /// # Safety
@@ -137,32 +174,90 @@ unsafe impl Send for TempValue {}
 
 unsafe impl Sync for TempValue {}
 
+/// A pending non-local exit, read and cleared by [`Env::take_exit`].
+enum Exit {
+    Signal { symbol: emacs_value, data: emacs_value },
+    Throw { tag: emacs_value, value: emacs_value },
+}
+
 impl Env {
-    /// Handles possible non-local exit after calling Lisp code.
+    /// Reads and clears the pending non-local exit. Returns `None` if the last call returned
+    /// normally.
+    fn take_exit(&self) -> Option<Exit> {
+        let mut first = MaybeUninit::uninit();
+        let mut second = MaybeUninit::uninit();
+        // TODO: Check whether calling non_local_exit_check first makes a difference in performance.
+        let status = self.non_local_exit_get(&mut first, &mut second);
+        // SAFETY: Emacs writes both values for the statuses SIGNAL and THROW.
+        let exit = match status {
+            RETURN => return None,
+            SIGNAL => unsafe {
+                Exit::Signal { symbol: first.assume_init(), data: second.assume_init() }
+            },
+            THROW => unsafe {
+                Exit::Throw { tag: first.assume_init(), value: second.assume_init() }
+            },
+            _ => panic!("Unexpected non local exit status {}", status),
+        };
+        self.non_local_exit_clear();
+        Some(exit)
+    }
+
+    /// Handles a possible non-local exit after `funcall`. The exit comes from Lisp code, so it
+    /// stays [`ErrorKind::Signal`] or [`ErrorKind::Throw`].
+    #[inline]
+    pub(crate) fn handle_lisp_exit<T>(&self, result: T) -> Result<T> {
+        match self.take_exit() {
+            None => Ok(result),
+            Some(Exit::Signal { symbol, data }) => Err(ErrorKind::Signal {
+                symbol: TempValue { raw: symbol },
+                data: TempValue { raw: data },
+            }.into()),
+            Some(Exit::Throw { tag, value }) => Err(ErrorKind::Throw {
+                tag: TempValue { raw: tag },
+                value: TempValue { raw: value },
+            }.into()),
+        }
+    }
+
+    /// Handles a possible non-local exit after a module function other than `funcall`.
+    ///
+    /// A signal from such a function comes from the module layer. The call-site `rule` classifies
+    /// it first. It gets the raw signal symbol. A signal that no rule classifies becomes
+    /// [`ModuleError::Signal`]. See ADR 0002.
+    #[inline]
+    pub(crate) fn handle_module_exit<T, R>(&self, result: T, rule: R) -> Result<T>
+    where
+        R: FnOnce(&Env, emacs_value) -> Option<ModuleError>,
+    {
+        match self.take_exit() {
+            None => Ok(result),
+            Some(Exit::Signal { symbol, data }) => {
+                let error = rule(self, symbol).unwrap_or(ModuleError::Signal {
+                    symbol: TempValue { raw: symbol },
+                    data: TempValue { raw: data },
+                });
+                Err(ErrorKind::Module(error).into())
+            }
+            // The module layer does not throw. Keep such an exit unchanged.
+            Some(Exit::Throw { tag, value }) => Err(ErrorKind::Throw {
+                tag: TempValue { raw: tag },
+                value: TempValue { raw: value },
+            }.into()),
+        }
+    }
+
+    /// Handles a possible non-local exit after a module function other than `funcall`, with no
+    /// call-site rule.
     #[inline]
     pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
-        let mut symbol = MaybeUninit::uninit();
-        let mut data = MaybeUninit::uninit();
-        // TODO: Check whether calling non_local_exit_check first makes a difference in performance.
-        let status = self.non_local_exit_get(&mut symbol, &mut data);
-        match (status, symbol, data) {
-            (RETURN, ..) => Ok(result),
-            (SIGNAL, symbol, data) => {
-                self.non_local_exit_clear();
-                Err(ErrorKind::Signal {
-                    symbol: unsafe { TempValue::new(symbol.assume_init()) },
-                    data: unsafe { TempValue::new(data.assume_init()) },
-                }.into())
-            }
-            (THROW, tag, value) => {
-                self.non_local_exit_clear();
-                Err(ErrorKind::Throw {
-                    tag: unsafe { TempValue::new(tag.assume_init()) },
-                    value: unsafe { TempValue::new(value.assume_init()) },
-                }.into())
-            }
-            _ => panic!("Unexpected non local exit status {}", status),
-        }
+        self.handle_module_exit(result, |_, _| None)
+    }
+
+    /// Returns whether `raw` is the symbol `symbol`. Call-site rules use this.
+    pub(crate) fn is_symbol(&self, raw: emacs_value, symbol: &OnceGlobalRef) -> bool {
+        // SAFETY: `raw` comes from the pending exit of this env, which is still live.
+        (unsafe { Value::new(raw, self) }) == *symbol
     }
 
     /// Converts a Rust's `Result` to either a normal value, or a non-local exit in Lisp.
@@ -224,26 +319,67 @@ impl Env {
         Ok(())
     }
 
+    /// Raises the Lisp signal or throw for `err`. See ADR 0003.
+    ///
+    /// # Safety
+    ///
+    /// The `TempValue`s in `err` must come from this env, and must still be live.
     unsafe fn handle_known(&self, err: &ErrorKind) -> emacs_value {
-        match err {
+        // SAFETY: Guaranteed by the caller.
+        let raised = match err {
             ErrorKind::Signal { symbol, data } => {
-                // SAFETY: TempValue's raw values remain live for the duration of this error.
-                unsafe { self.non_local_exit_signal(symbol.raw, data.raw) }
+                return unsafe { self.non_local_exit_signal(symbol.raw, data.raw) };
             }
             ErrorKind::Throw { tag, value } => {
-                // SAFETY: TempValue's raw values remain live for the duration of this error.
-                unsafe { self.non_local_exit_throw(tag.raw, value.raw) }
+                return unsafe { self.non_local_exit_throw(tag.raw, value.raw) };
             }
-            ErrorKind::WrongTypeUserPtr { .. } => self
-                .signal_internal(symbol::rust_wrong_type_user_ptr, &format!("{}", err))
-                .unwrap_or_else(|_| panic!("Failed to signal {}", err)),
+            ErrorKind::Module(error) => unsafe { self.signal_module_error(error) },
+            ErrorKind::Rust(error) => unsafe { self.signal_rust_error(error) },
+        };
+        raised.unwrap_or_else(|_| {
+            self.signal_internal(symbol::rust_error, &format!("{}", err))
+                .unwrap_or_else(|_| panic!("Failed to signal {}", err))
+        })
+    }
+
+    /// Raises the signal for a module-layer error.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`Env::handle_known`].
+    unsafe fn signal_module_error(&self, error: &ModuleError) -> Result<emacs_value> {
+        match error {
+            // Lisp code sees an unclassified signal unchanged.
+            // SAFETY: Guaranteed by the caller.
+            ModuleError::Signal { symbol, data } => {
+                Ok(unsafe { self.non_local_exit_signal(symbol.raw, data.raw) })
+            }
         }
     }
 
-    fn signal_internal(&self, symbol: &GlobalRef, message: &str) -> Result<emacs_value> {
-        let message = message.into_lisp(&self)?;
-        let data = self.list([message])?;
+    /// Raises the signal for an error that Rust code in this crate detected.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`Env::handle_known`].
+    unsafe fn signal_rust_error(&self, error: &RustError) -> Result<emacs_value> {
+        match error {
+            RustError::WrongTypeUserPtr { expected, value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(symbol::rust_wrong_type_user_ptr, self.list((*expected, value))?)
+            }
+        }
+    }
+
+    /// Raises `symbol`, with `data` as the signal data. `data` must be a list.
+    fn signal_with(&self, symbol: &GlobalRef, data: Value<'_>) -> Result<emacs_value> {
+        // SAFETY: `symbol` is a global reference, and `data` is bound to this env.
         unsafe { Ok(self.non_local_exit_signal(symbol.bind(self).raw, data.raw)) }
+    }
+
+    fn signal_internal(&self, symbol: &GlobalRef, message: &str) -> Result<emacs_value> {
+        self.signal_with(symbol, self.list((message,))?)
     }
 
     /// Defines a new Lisp error signal. This is the equivalent of the Lisp function's [`define-error`].

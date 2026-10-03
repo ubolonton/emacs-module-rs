@@ -17,32 +17,42 @@ macro_rules! unsafe_raw_call_no_exit {
     };
 }
 
-/// Calls a raw function, then handles any pending non-local exit.
+/// Calls a raw function, then handles any pending non-local exit as a module-layer exit. Do not
+/// use this for `funcall`, whose exits come from Lisp code.
+///
+/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`].
 macro_rules! unsafe_raw_call {
-    ($env:expr, $name:ident $(, $args:expr)*) => {
+    ($env:expr, $name:ident $(, $args:expr)* ; $rule:expr) => {
         {
             let env = $env;
             let result = unsafe {
                 let $name = raw_fn!(env, $name);
                 $name(env.raw $(, $args)*)
             };
-            env.handle_exit(result)
+            env.handle_module_exit(result, $rule)
         }
+    };
+    ($env:expr, $name:ident $(, $args:expr)*) => {
+        unsafe_raw_call!($env, $name $(, $args)* ; |_, _| None)
     };
 }
 
 /// Calls a raw function that returns an emacs_value, then handles any pending non-local exit.
 /// Returns a [`Value`].
 ///
+/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`].
+///
 /// [`Value`]: struct.Value.html
 macro_rules! unsafe_raw_call_value {
-    ($env:expr, $name:ident $(, $args:expr)*) => {
-        unsafe_raw_call_value_unprotected!($env, $name $(, $args)*).map(|v| v.protect())
+    ($env:expr, $name:ident $(, $args:expr)* $(; $rule:expr)?) => {
+        unsafe_raw_call_value_unprotected!($env, $name $(, $args)* $(; $rule)?).map(|v| v.protect())
     };
 }
 
 /// Like [`unsafe_raw_call_value!`], except that the returned [`Value`] is not protected against
 /// Emacs GC's [bug #31238], which caused [issue #2].
+///
+/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`].
 ///
 /// # Safety
 ///
@@ -54,9 +64,10 @@ macro_rules! unsafe_raw_call_value {
 /// [bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
 /// [issue #2]: https://github.com/ubolonton/emacs-module-rs/issues/2
 macro_rules! unsafe_raw_call_value_unprotected {
-    ($env:expr, $name:ident $(, $args:expr)*) => {
+    ($env:expr, $name:ident $(, $args:expr)* $(; $rule:expr)?) => {
         {
-            let result: $crate::Result<$crate::raw::emacs_value> = unsafe_raw_call!($env, $name $(, $args)*);
+            let result: $crate::Result<$crate::raw::emacs_value> =
+                unsafe_raw_call!($env, $name $(, $args)* $(; $rule)?);
             result.map(|raw| unsafe {
                 $crate::Value::new(raw, $env)
             })

@@ -87,3 +87,4 @@ Key rules:
   - `ErrorKind::WrongTypeUserPtr` moves into `RustError`.
   - Code that downcasts to `TryFromIntError` or `FromUtf8Error` must downcast to `ErrorKind`. The std error stays available as the `source` of the variant.
   - Exhaustive matches on `ErrorKind` stop compiling.
+  - Module-layer failures from APIs other than `funcall` move from `ErrorKind::Signal` to `ErrorKind::Module(_)`. Code that matches `Signal` and compares the symbol still compiles, but no longer matches.

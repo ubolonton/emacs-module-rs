@@ -19,6 +19,13 @@ impl<'e> Value<'e> {
     /// `args` should be an array/slice of `Value`, or a tuple of different types, each implementing
     /// [`IntoLisp`].
     ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ErrorKind::Signal`](crate::ErrorKind::Signal), [`ErrorKind::Throw`](crate::ErrorKind::Throw), from the called Lisp code | The same signal or throw |
+    /// | The errors of the [`IntoLisp`](crate::IntoLisp) impls of the arguments | See those impls |
+    ///
     /// # Examples
     ///
     /// ```
@@ -60,7 +67,12 @@ impl<'e> Value<'e> {
         // Safety:
         // - ptr comes from a locally-owned value.
         // - length is ensured to be valid by IntoLispArgs implementation.
-        unsafe_raw_call_value_unprotected!(env, funcall, self.raw, length, ptr)
+        // `funcall` runs Lisp code, so its exits are not module-layer errors.
+        let result = unsafe {
+            let funcall = raw_fn!(env, funcall);
+            funcall(env.raw, self.raw, length, ptr)
+        };
+        env.handle_lisp_exit(result).map(|raw| unsafe { Value::new(raw, env) })
     }
 }
 
@@ -94,6 +106,14 @@ impl Env {
     /// [`Value`]: struct.Value.html
     /// [`func.call`]: struct.Value.html#method.call
     /// [`IntoLisp`]: trait.IntoLisp.html
+    ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ErrorKind::Signal`](crate::ErrorKind::Signal), [`ErrorKind::Throw`](crate::ErrorKind::Throw), from the called Lisp code | The same signal or throw |
+    /// | The errors of the [`IntoLisp`](crate::IntoLisp) impls of the arguments | See those impls |
+    ///
     #[inline]
     pub fn call<'e, F, A>(&'e self, func: F, args: A) -> Result<Value<'_>>
         where

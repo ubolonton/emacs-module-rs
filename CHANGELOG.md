@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Upgraded to Rust 2024 edition.
 - Raised minimum support Rust version (MSRV) to 1.87 (for `PipeWriter`).
 - Made UTF-8 validation always-on for string conversions, and removed the feature `utf-8-validation`.
+- Split `ErrorKind` by origin into `Signal`, `Throw`, `Module(ModuleError)`, and `Rust(RustError)`.
+    - Breaking (Rust): `ErrorKind::WrongTypeUserPtr` moved to `RustError::WrongTypeUserPtr`. Exhaustive matches on `ErrorKind` no longer compile.
+    - Breaking (Lisp): the data of `rust-wrong-type-user-ptr` changed from a message string to `(EXPECTED VALUE)`.
 
 ## [0.21.0] - 2026-03-18
 - Added `emacs-28` feature with `Env::open_channel` for pipe-based communication (Emacs 28+).

@@ -10,7 +10,7 @@ use std::{
 use emacs_module::emacs_finalizer_function;
 
 use super::*;
-use crate::ErrorKind;
+use crate::{ErrorKind, RustError, error::TempValue};
 
 /// Allowing a type to be exposed to Lisp, where its values appear as opaque objects, or "embedded
 /// user pointers" (printed as `#<user-ptr ...>`).
@@ -158,7 +158,10 @@ impl<'e> Value<'e> {
             }
             _ => {
                 let expected = T::type_name();
-                Err(ErrorKind::WrongTypeUserPtr { expected }.into())
+                Err(ErrorKind::Rust(RustError::WrongTypeUserPtr {
+                    expected,
+                    value: TempValue::from_value(self),
+                }).into())
             }
         }
     }

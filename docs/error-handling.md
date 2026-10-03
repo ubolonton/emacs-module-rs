@@ -18,7 +18,7 @@ Rust check ───────────────────────
                                                       └─► handled by Rust code
 ```
 
-- **Classify:** `Env::handle_exit` and the call-site rules ([ADR 0002](adrs/0002-module-signal-classification.md)).
+- **Classify:** `Env::handle_module_exit`, whose call-site `rule` has the signature `FnOnce(&Env, emacs_value) -> Option<ModuleError>` ([ADR 0002](adrs/0002-module-signal-classification.md)). `Env::handle_exit` is the case with no rule.
 - **Boundary:** `Env::maybe_exit` and `Env::handle_panic` ([ADR 0003](adrs/0003-lisp-signal-mapping.md)).
 
 ## Classification: module layer to Rust

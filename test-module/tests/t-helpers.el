@@ -54,4 +54,15 @@
     (unless (equal exit-code 0)
       (error "Exit code: %s. Error: %s" exit-code error-string))))
 
+(defmacro t/should-signal (form symbol parents data)
+  "Check that FORM signals SYMBOL, with PARENTS in its conditions, and with DATA.
+SYMBOL, PARENTS and DATA are evaluated. DATA is compared with `equal'."
+  (declare (indent 1))
+  `(let* ((symbol ,symbol)
+          (err (should-error ,form :type symbol)))
+     (should (eq (car err) symbol))
+     (dolist (parent ,parents)
+       (should (memq parent (get symbol 'error-conditions))))
+     (should (equal (cdr err) ,data))))
+
 (provide 't-helpers)
