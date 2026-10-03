@@ -180,6 +180,24 @@ enum Exit {
     Throw { tag: emacs_value, value: emacs_value },
 }
 
+impl Exit {
+    /// Converts a non-local exit from Lisp code into the matching [`ErrorKind`]. Used by
+    /// [`Env::handle_lisp_exit`] for both arms, and by [`Env::handle_module_exit`] for the `Throw`
+    /// arm: a throw never comes from the module layer, so it keeps this same conversion there too.
+    fn into_error(self) -> ErrorKind {
+        match self {
+            Exit::Signal { symbol, data } => ErrorKind::Signal {
+                symbol: TempValue { raw: symbol },
+                data: TempValue { raw: data },
+            },
+            Exit::Throw { tag, value } => ErrorKind::Throw {
+                tag: TempValue { raw: tag },
+                value: TempValue { raw: value },
+            },
+        }
+    }
+}
+
 impl Env {
     /// Reads and clears the pending non-local exit. Returns `None` if the last call returned
     /// normally.
@@ -209,14 +227,7 @@ impl Env {
     pub(crate) fn handle_lisp_exit<T>(&self, result: T) -> Result<T> {
         match self.take_exit() {
             None => Ok(result),
-            Some(Exit::Signal { symbol, data }) => Err(ErrorKind::Signal {
-                symbol: TempValue { raw: symbol },
-                data: TempValue { raw: data },
-            }.into()),
-            Some(Exit::Throw { tag, value }) => Err(ErrorKind::Throw {
-                tag: TempValue { raw: tag },
-                value: TempValue { raw: value },
-            }.into()),
+            Some(exit) => Err(exit.into_error().into()),
         }
     }
 
@@ -240,10 +251,7 @@ impl Env {
                 Err(ErrorKind::Module(error).into())
             }
             // The module layer does not throw. Keep such an exit unchanged.
-            Some(Exit::Throw { tag, value }) => Err(ErrorKind::Throw {
-                tag: TempValue { raw: tag },
-                value: TempValue { raw: value },
-            }.into()),
+            Some(exit @ Exit::Throw { .. }) => Err(exit.into_error().into()),
         }
     }
 
