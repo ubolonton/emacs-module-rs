@@ -107,3 +107,14 @@
     (t/should-signal (t/conversion-string-to-bytes s)
       'rust-module-non-unicode-string '(rust-module-error wrong-type-argument)
       (list 'unicode-string-p s))))
+
+(ert-deftest error::module-index-out-of-range ()
+  (let ((v [0 1 2 3]))
+    (should (equal (t/error:variant "vec-get" v -1) "Module/IndexOutOfRange"))
+    ;; Emacs 25 signals `overflow-error' for an index outside the fixnum range.
+    (should (equal (t/error:variant "vec-get-far" v nil) "Module/IndexOutOfRange"))
+    ;; The data is (VECTOR INDEX) on all versions.
+    (t/should-signal (t/conversion-vec-get v -1)
+      'rust-module-index-out-of-range '(rust-module-error args-out-of-range) (list v -1))
+    (t/should-signal (t/conversion-vec-set v 4 'a)
+      'rust-module-index-out-of-range '(rust-module-error args-out-of-range) (list v 4))))

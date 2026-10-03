@@ -118,6 +118,12 @@ pub enum ModuleError {
     #[non_exhaustive]
     BufferTooSmall { actual: usize, required: usize },
 
+    /// The vector index is out of range. Lisp signal: `rust-module-index-out-of-range`, with data
+    /// `(VECTOR INDEX)`.
+    #[error("Index {index} out of range")]
+    #[non_exhaustive]
+    IndexOutOfRange { vector: TempValue, index: isize },
+
     /// A module-layer signal with no typed variant. If it propagates, Lisp code sees it unchanged.
     #[error("Module-layer signal: symbol={symbol:?} data={data:?}")]
     #[non_exhaustive]
@@ -459,6 +465,11 @@ impl Env {
                 (symbol::rust_module_error, symbol::args_out_of_range),
             )?;
         }
+        self.define_error(
+            symbol::rust_module_index_out_of_range,
+            "Args out of range",
+            (symbol::rust_module_error, symbol::args_out_of_range),
+        )?;
         Ok(())
     }
 
@@ -520,6 +531,14 @@ impl Env {
                 symbol::rust_module_buffer_too_small,
                 self.list((*actual, *required))?,
             ),
+            ModuleError::IndexOutOfRange { vector, index } => {
+                // SAFETY: Guaranteed by the caller.
+                let vector = unsafe { vector.value(self) };
+                self.signal_with(
+                    symbol::rust_module_index_out_of_range,
+                    self.list((vector, *index))?,
+                )
+            }
             // Lisp code sees an unclassified signal unchanged.
             // SAFETY: Guaranteed by the caller.
             ModuleError::Signal { symbol, data } => {

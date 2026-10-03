@@ -1,7 +1,9 @@
 use std::convert::TryInto;
 
+use emacs_module::emacs_value;
+
 use super::*;
-use crate::{subr, call::IntoLispArgs};
+use crate::{symbol, ModuleError, error::TempValue, subr, call::IntoLispArgs};
 
 /// A type that represents Lisp vectors. This is a wrapper around [`Value`] that provides
 /// vector-specific methods.
@@ -31,6 +33,20 @@ pub struct Vector<'e> {
     len: usize,
 }
 
+/// The call-site rule for `vec_get` and `vec_set`. Emacs 25 signals `overflow-error` for an index
+/// outside the fixnum range. All versions signal `args-out-of-range` for other indexes.
+fn index_out_of_range<'e>(
+    vector: Value<'e>,
+    index: isize,
+) -> impl FnOnce(&Env, emacs_value) -> Option<ModuleError> + 'e {
+    move |env: &Env, symbol: emacs_value| {
+        let matches = env.is_symbol(symbol, symbol::args_out_of_range)
+            || env.is_symbol(symbol, symbol::overflow_error);
+        matches
+            .then(|| ModuleError::IndexOutOfRange { vector: TempValue::from_value(vector), index })
+    }
+}
+
 impl<'e> Vector<'e> {
     #[doc(hidden)]
     #[inline]
@@ -43,15 +59,19 @@ impl<'e> Vector<'e> {
     /// | Rust variant | Lisp signal, if the error propagates |
     /// |---|---|
     /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Vector`](crate::LispType::Vector) | `rust-module-wrong-type` |
+    /// | [`ModuleError::IndexOutOfRange`](crate::ModuleError::IndexOutOfRange) | `rust-module-index-out-of-range` |
     /// | The errors of `T`'s [`FromLisp`](crate::FromLisp) impl | See that impl |
     pub fn get<T: FromLisp<'e>>(&self, i: usize) -> Result<T> {
         let v = self.value;
         let env = v.env;
+        let index = i as isize;
         // Safety:
         // - Same lifetime.
         // - Emacs does bound checking.
         // - Value doesn't need protection because we are done with it while the vector still lives.
-        unsafe_raw_call_value_unprotected!(env, vec_get, v.raw, i as isize)?.into_rust()
+        unsafe_raw_call_value_unprotected!(env, vec_get, v.raw, index;
+        index_out_of_range(v, index))?
+            .into_rust()
     }
 
     /// # Errors
@@ -59,12 +79,15 @@ impl<'e> Vector<'e> {
     /// | Rust variant | Lisp signal, if the error propagates |
     /// |---|---|
     /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Vector`](crate::LispType::Vector) | `rust-module-wrong-type` |
+    /// | [`ModuleError::IndexOutOfRange`](crate::ModuleError::IndexOutOfRange) | `rust-module-index-out-of-range` |
+    /// | The errors of `T`'s [`IntoLisp`](crate::IntoLisp) impl | See that impl |
     pub fn set<T: IntoLisp<'e>>(&self, i: usize, value: T) -> Result<()> {
         let v = self.value;
         let env = v.env;
         let value = value.into_lisp(env)?;
+        let index = i as isize;
         // Safety: Same lifetime. Emacs does bound checking.
-        unsafe_raw_call!(env, vec_set, v.raw, i as isize, value.raw)
+        unsafe_raw_call!(env, vec_set, v.raw, index, value.raw; index_out_of_range(v, index))
     }
 
     #[deprecated(since = "0.14.0", note = "Use .len() instead")]

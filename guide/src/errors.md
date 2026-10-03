@@ -113,6 +113,7 @@ ErrorKind
 │   ├── NonUnicodeString
 │   ├── InvalidUtf8
 │   ├── BufferTooSmall
+│   ├── IndexOutOfRange
 │   └── Signal               no typed variant
 └── Rust(RustError)          this crate's Rust layer rejected the value
     └── WrongTypeUserPtr
@@ -123,7 +124,8 @@ error                                      + standard symbol
 │   ├── rust-module-wrong-type             + wrong-type-argument
 │   ├── rust-module-non-unicode-string     + wrong-type-argument
 │   ├── rust-module-invalid-utf-8          + wrong-type-argument
-│   └── rust-module-buffer-too-small       + args-out-of-range, memory-buffer-too-small (31+)
+│   ├── rust-module-buffer-too-small       + args-out-of-range, memory-buffer-too-small (31+)
+│   └── rust-module-index-out-of-range     + args-out-of-range
 ├── rust-error
 │   └── rust-wrong-type-user-ptr           + wrong-type-argument
 └── rust-panic
@@ -133,6 +135,7 @@ error                                      + standard symbol
 |---|---|
 | `WrongType` | `(PREDICATE VALUE)` |
 | `BufferTooSmall` | `(ACTUAL REQUIRED)` |
+| `IndexOutOfRange` | `(VECTOR INDEX)` |
 | `WrongTypeUserPtr` | `(EXPECTED VALUE)` |
 
 - `EXPECTED` is the Rust type name, not a predicate.
