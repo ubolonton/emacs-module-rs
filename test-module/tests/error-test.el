@@ -70,3 +70,29 @@
 (ert-deftest error::variant-module-layer ()
   ;; Signals from module functions other than `funcall' are module-layer errors.
   (should (string-prefix-p "Module/" (t/error:variant "i64" "3" nil))))
+
+(ert-deftest error::module-wrong-type ()
+  (dolist (case '(("i64" "3" "Module/WrongType/Integer")
+                  ("f64" "x" "Module/WrongType/Float")
+                  ("string" 5 "Module/WrongType/String")
+                  ("vector" 5 "Module/WrongType/Vector")
+                  ("ref-cell" 5 "Module/WrongType/UserPtr")))
+    (should (equal (t/error:variant (nth 0 case) (nth 1 case) nil) (nth 2 case))))
+  (t/should-signal (t/inc "3")
+    'rust-module-wrong-type '(rust-module-error wrong-type-argument) '(integerp "3"))
+  ;; Emacs 25 says `user-ptr'. The crate always says `user-ptrp'.
+  (t/should-signal (t/transfer-ref-cell-inc 5)
+    'rust-module-wrong-type '(rust-module-error wrong-type-argument) '(user-ptrp 5))
+  ;; Printed errors do not change.
+  (should (equal (error-message-string (t/get-error (t/inc "3")))
+                 "Wrong type argument: integerp, \"3\"")))
+
+(ert-deftest error::module-non-unicode-string ()
+  ;; Emacs 25 and 26 do not check this.
+  (skip-unless (>= emacs-major-version 27))
+  (let ((s (string #x3FFFFF)))          ; Raw byte FF, in a multibyte string.
+    (should (equal (t/error:variant "bytes" s nil) "Module/NonUnicodeString"))
+    (should (equal (t/error:variant "string" s nil) "Module/NonUnicodeString"))
+    (t/should-signal (t/conversion-string-to-bytes s)
+      'rust-module-non-unicode-string '(rust-module-error wrong-type-argument)
+      (list 'unicode-string-p s))))

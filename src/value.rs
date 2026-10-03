@@ -67,6 +67,10 @@ impl<'e> Value<'e> {
     }
 
     /// Converts this value into a Rust value of the given type.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of `T`'s [`FromLisp`] impl.
     #[inline(always)]
     pub fn into_rust<T: FromLisp<'e>>(self) -> Result<T> {
         FromLisp::from_lisp(self)

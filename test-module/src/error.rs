@@ -121,6 +121,9 @@ fn describe(error: &emacs::Error) -> String {
 fn describe_module(error: &ModuleError) -> String {
     match error {
         ModuleError::Signal { .. } => "Signal".to_string(),
+        ModuleError::WrongType { expected, .. } => format!("WrongType/{expected:?}"),
+        ModuleError::NonUnicodeString { .. } => "NonUnicodeString".to_string(),
+        ModuleError::InvalidUtf8 { .. } => "InvalidUtf8".to_string(),
         _ => format!("Unknown: {error:?}"),
     }
 }

@@ -1,6 +1,11 @@
 use super::*;
 
 impl FromLisp<'_> for i64 {
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         unsafe_raw_call!(value.env, extract_integer, value.raw)
     }
@@ -9,12 +14,22 @@ impl FromLisp<'_> for i64 {
 macro_rules! int_from_lisp {
     ($name:ident) => {
         impl FromLisp<'_> for $name {
+            /// # Errors
+            ///
+            /// | Rust variant | Lisp signal, if the error propagates |
+            /// |---|---|
+            /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
             #[cfg(not(feature = "lossy-integer-conversion"))]
             fn from_lisp(value: Value<'_>) -> Result<$name> {
                 let i: i64 = value.into_rust()?;
                 Ok(i.try_into()?)
             }
 
+            /// # Errors
+            ///
+            /// | Rust variant | Lisp signal, if the error propagates |
+            /// |---|---|
+            /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
             #[cfg(feature = "lossy-integer-conversion")]
             fn from_lisp(value: Value<'_>) -> Result<$name> {
                 let i: i64 = value.into_rust()?;
@@ -40,6 +55,11 @@ int_from_lisp!(usize);
 macro_rules! nonzero_int_from_lisp {
     ($name:ident($primitive:ident)) => {
         impl FromLisp<'_> for std::num::$name {
+            /// # Errors
+            ///
+            /// | Rust variant | Lisp signal, if the error propagates |
+            /// |---|---|
+            /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
             #[cfg(not(feature = "lossy-integer-conversion"))]
             fn from_lisp(value: Value<'_>) -> Result<std::num::$name> {
                 let i: i64 = value.into_rust()?;
@@ -47,6 +67,11 @@ macro_rules! nonzero_int_from_lisp {
                 Ok(i.try_into()?)
             }
 
+            /// # Errors
+            ///
+            /// | Rust variant | Lisp signal, if the error propagates |
+            /// |---|---|
+            /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
             #[cfg(feature = "lossy-integer-conversion")]
             fn from_lisp(value: Value<'_>) -> Result<std::num::$name> {
                 let i: i64 = value.into_rust()?;

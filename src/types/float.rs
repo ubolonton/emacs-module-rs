@@ -1,6 +1,11 @@
 use super::*;
 
 impl FromLisp<'_> for f64 {
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Float`](crate::LispType::Float) | `rust-module-wrong-type` |
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         unsafe_raw_call!(value.env, extract_float, value.raw)
     }

@@ -115,6 +115,12 @@ impl Env {
     /// the pipe process's filter function in Emacs.
     ///
     /// Requires Emacs 28+.
+    ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Process`](crate::LispType::Process) or [`LispType::PipeProcess`](crate::LispType::PipeProcess) | `rust-module-wrong-type` |
     #[cfg(all(feature = "emacs-28"))]
     pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>)
         -> Result<impl Write + Debug + Send + Sync + use<>>

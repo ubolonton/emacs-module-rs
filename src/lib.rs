@@ -38,7 +38,7 @@ pub use self::{
     global::{GlobalRef, OnceGlobalRef},
     types::{FromLisp, IntoLisp, Transfer, Vector},
     func::CallEnv,
-    error::{ErrorKind, ModuleError, RustError, Result, ResultExt, Error},
+    error::{ErrorKind, LispType, ModuleError, RustError, Result, ResultExt, Error},
 };
 
 #[macro_use] mod macros;

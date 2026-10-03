@@ -3,6 +3,12 @@ use std::{os, ptr, cmp};
 use super::*;
 
 impl FromLisp<'_> for String {
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
+    /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.clone_string_contents()?;
         String::from_utf8(bytes).map_err(|e| e.into())
@@ -43,6 +49,13 @@ impl<'e> Value<'e> {
     /// module API's contract, so callers shouldn't rely on a specific symbol.
     ///
     /// See https://github.com/emacs-mirror/emacs/commit/96a1a07fb1f.
+    ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
+    /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
     pub fn copy_string_contents(self, buffer: &mut [u8]) -> Result<&[u8]> {
         let env = self.env;
         let ptr = buffer.as_mut_ptr() as *mut os::raw::c_char;
@@ -59,6 +72,12 @@ impl<'e> Value<'e> {
         }
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
+    /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
     #[inline]
     pub fn clone_string_contents(self) -> Result<Vec<u8>> {
         self.env.clone_string_contents(self)

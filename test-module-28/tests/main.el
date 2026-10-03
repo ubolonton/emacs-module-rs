@@ -42,5 +42,15 @@
 
 (ert-deftest channel::wrong-type-arg ()
   (skip-unless (>= emacs-major-version 28))
-  (should-error (t28/channel-send "not-a-process" "data")
-                :type 'wrong-type-argument))
+  (let ((err (should-error (t28/channel-send "not-a-process" "data")
+                           :type 'rust-module-wrong-type)))
+    (should (memq 'wrong-type-argument (get (car err) 'error-conditions)))
+    (should (equal (cdr err) '(processp "not-a-process"))))
+  ;; A network process is a process, but not a pipe process.
+  (let ((proc (make-network-process :name "t28-not-pipe" :server t :service t
+                                    :host 'local :noquery t)))
+    (unwind-protect
+        (let ((err (should-error (t28/channel-send proc "data")
+                                 :type 'rust-module-wrong-type)))
+          (should (equal (cdr err) (list 'pipe-process-p proc))))
+      (delete-process proc))))

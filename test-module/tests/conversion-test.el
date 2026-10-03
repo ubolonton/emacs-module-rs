@@ -138,7 +138,7 @@
     (should (eq v (t/conversion-identity-if-vector v)))
     (should-error (t/conversion-identity-if-vector nil) :type 'wrong-type-argument)
     (should (equal (t/get-error (eq "abc" (t/conversion-identity-if-vector "abc")))
-                   '(wrong-type-argument vectorp "abc"))))
+                   '(rust-module-wrong-type vectorp "abc"))))
   (let ((v [0 1 2 3]))
     (should (eq v (t/conversion-stringify-num-vector v)))
     (should (equal v ["0" "1" "2" "3"]))

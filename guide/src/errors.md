@@ -63,6 +63,18 @@ match error.downcast_ref::<ErrorKind>() {
 }
 ```
 
+`ModuleError` and `RustError` are `#[non_exhaustive]`, so a match on their variants needs an `_` arm:
+
+```rust
+match error.downcast_ref::<ErrorKind>() {
+    Some(ErrorKind::Module(WrongType { expected: LispType::Integer, .. })) => {
+        env.message("Expected an integer")?;
+    }
+    // `ModuleError` and `RustError` can grow new variants in a minor release.
+    _ => return Err(error),
+}
+```
+
 ## Signaling Lisp Errors from Rust
 
 The function `env.signal` allows signaling a Lisp error from Rust code. The error symbol must have been defined, e.g. by the macro `define_errors!`:
@@ -87,8 +99,9 @@ fn signal_if_negative(env: &Env, x: i16) -> Result<()> {
 
 Instead of handling the module-layer and Rust-layer errors above, Rust module functions can propagate them to Lisp. When that happens, the error is "wrapped" in a way that is compatible with using `condition-case` on [standard errors](https://www.gnu.org/software/emacs/manual/html_node/elisp/Standard-Errors.html).
 - The error symbol has 2 parent symbols: the origin symbol and the standard symbol.
+    - For module-layer errors, the origin symbol is `rust-module-error`, and the standard symbol is the original symbol that `emacs-module.c` uses.
     - For Rust-layer errors, the origin symbol is `rust-error`.
-- The signal data has the same shape as the standard symbol's data shape in Emacs 31.
+- The signal data has the same shape as the standard symbol's data shape in Emacs 31. For example, `rust-module-wrong-type` data is `(integerp "3")`, like `wrong-type-argument`.
 
 `Signal`, `Throw`, and `ModuleError::Signal` are raised again unchanged. Lisp code sees the original symbol and data. `ModuleError::Signal` has no `rust-` symbol.
 
@@ -96,12 +109,19 @@ Instead of handling the module-layer and Rust-layer errors above, Rust module fu
 ErrorKind
 ├── Signal, Throw            from Lisp code
 ├── Module(ModuleError)      the module layer (emacs-module.c) rejected the call
+│   ├── WrongType            expected: LispType
+│   ├── NonUnicodeString
+│   ├── InvalidUtf8
 │   └── Signal               no typed variant
 └── Rust(RustError)          this crate's Rust layer rejected the value
     └── WrongTypeUserPtr
 ```
 ```
 error                                      + standard symbol
+├── rust-module-error
+│   ├── rust-module-wrong-type             + wrong-type-argument
+│   ├── rust-module-non-unicode-string     + wrong-type-argument
+│   └── rust-module-invalid-utf-8          + wrong-type-argument
 ├── rust-error
 │   └── rust-wrong-type-user-ptr           + wrong-type-argument
 └── rust-panic
@@ -109,9 +129,11 @@ error                                      + standard symbol
 
 | Variant | Data |
 |---|---|
+| `WrongType` | `(PREDICATE VALUE)` |
 | `WrongTypeUserPtr` | `(EXPECTED VALUE)` |
 
 - `EXPECTED` is the Rust type name, not a predicate.
+- `PREDICATE` is the Lisp type predicate that the value failed, for example `integerp` or `user-ptrp`. Some, for example `utf-8-string-p`, are not functions.
 
 ```rust
 // May signal `rust-wrong-type-user-ptr` if `value` holds a different type of hash map,

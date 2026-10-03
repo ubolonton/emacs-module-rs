@@ -38,6 +38,12 @@ impl<'e> Vector<'e> {
         Self { value, len }
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Vector`](crate::LispType::Vector) | `rust-module-wrong-type` |
+    /// | The errors of `T`'s [`FromLisp`](crate::FromLisp) impl | See that impl |
     pub fn get<T: FromLisp<'e>>(&self, i: usize) -> Result<T> {
         let v = self.value;
         let env = v.env;
@@ -48,6 +54,11 @@ impl<'e> Vector<'e> {
         unsafe_raw_call_value_unprotected!(env, vec_get, v.raw, i as isize)?.into_rust()
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Vector`](crate::LispType::Vector) | `rust-module-wrong-type` |
     pub fn set<T: IntoLisp<'e>>(&self, i: usize, value: T) -> Result<()> {
         let v = self.value;
         let env = v.env;
@@ -74,6 +85,11 @@ impl<'e> Vector<'e> {
 }
 
 impl<'e> FromLisp<'e> for Vector<'e> {
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Vector`](crate::LispType::Vector) | `rust-module-wrong-type` |
     fn from_lisp(value: Value<'e>) -> Result<Vector<'e>> {
         let env = value.env;
         let len = unsafe_raw_call!(env, vec_size, value.raw)?.try_into()

@@ -11,6 +11,7 @@ use crate::{
     GlobalRef,
     global::OnceGlobalRef,
     symbol::{self, IntoLispSymbol},
+    subr,
     call::IntoLispArgs,
 };
 
@@ -91,6 +92,26 @@ pub enum ErrorKind {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ModuleError {
+    /// The value has the wrong Lisp type. Lisp signal: `rust-module-wrong-type`, with data
+    /// `(PREDICATE VALUE)`.
+    #[error("Wrong type argument: expected {expected:?}")]
+    #[non_exhaustive]
+    WrongType { expected: LispType, value: TempValue },
+
+    /// The multibyte string has chars outside Unicode, so it has no UTF-8 encoding. Emacs 27+
+    /// checks this. Lisp signal: `rust-module-non-unicode-string`, with data
+    /// `(unicode-string-p VALUE)`.
+    #[error("Not a Unicode string")]
+    #[non_exhaustive]
+    NonUnicodeString { value: TempValue },
+
+    /// Emacs rejected bytes from Rust, because they are not valid UTF-8. Emacs 28+ checks this.
+    /// Safe Rust code cannot cause it, because a `&str` is always valid UTF-8. Lisp signal:
+    /// `rust-module-invalid-utf-8`, with data `(utf-8-string-p VALUE)`.
+    #[error("Invalid UTF-8")]
+    #[non_exhaustive]
+    InvalidUtf8 { value: TempValue },
+
     /// A module-layer signal with no typed variant. If it propagates, Lisp code sees it unchanged.
     #[error("Module-layer signal: symbol={symbol:?} data={data:?}")]
     #[non_exhaustive]
@@ -138,6 +159,34 @@ pub enum RustError {
     #[error("expected: {expected}")]
     #[non_exhaustive]
     WrongTypeUserPtr { expected: &'static str, value: TempValue },
+}
+
+/// A Lisp type that the module layer checks. See [`ModuleError::WrongType`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum LispType {
+    Integer,
+    Float,
+    String,
+    Vector,
+    UserPtr,
+    Process,
+    PipeProcess,
+}
+
+impl LispType {
+    /// The predicate that Lisp signal data uses for this type.
+    fn predicate(self) -> &'static OnceGlobalRef {
+        match self {
+            LispType::Integer => symbol::integerp,
+            LispType::Float => symbol::floatp,
+            LispType::String => symbol::stringp,
+            LispType::Vector => symbol::vectorp,
+            LispType::UserPtr => symbol::user_ptrp,
+            LispType::Process => symbol::processp,
+            LispType::PipeProcess => symbol::pipe_process_p,
+        }
+    }
 }
 
 /// A specialized [`Result`] type for Emacs's dynamic modules.
@@ -244,10 +293,12 @@ impl Env {
         match self.take_exit() {
             None => Ok(result),
             Some(Exit::Signal { symbol, data }) => {
-                let error = rule(self, symbol).unwrap_or(ModuleError::Signal {
-                    symbol: TempValue { raw: symbol },
-                    data: TempValue { raw: data },
-                });
+                let error = rule(self, symbol)
+                    .or_else(|| self.classify_wrong_type(symbol, data))
+                    .unwrap_or(ModuleError::Signal {
+                        symbol: TempValue { raw: symbol },
+                        data: TempValue { raw: data },
+                    });
                 Err(ErrorKind::Module(error).into())
             }
             // The module layer does not throw. Keep such an exit unchanged.
@@ -266,6 +317,48 @@ impl Env {
     pub(crate) fn is_symbol(&self, raw: emacs_value, symbol: &OnceGlobalRef) -> bool {
         // SAFETY: `raw` comes from the pending exit of this env, which is still live.
         (unsafe { Value::new(raw, self) }) == *symbol
+    }
+
+    /// The generic rule: classifies a `wrong-type-argument` signal from the module layer. Returns
+    /// `None` for other symbols, and for predicates with no typed variant.
+    ///
+    /// The data of `wrong-type-argument` is `(PREDICATE VALUE)` on Emacs 25–32.
+    fn classify_wrong_type(&self, symbol: emacs_value, data: emacs_value) -> Option<ModuleError> {
+        if !self.is_symbol(symbol, symbol::wrong_type_argument) {
+            return None;
+        }
+        // SAFETY: `data` comes from the pending exit of this env, which is still live. The calls
+        // below run Lisp code, so protect `data` against GC bug 31238.
+        let data = unsafe { Value::new(data, self) }.protect();
+        // If these calls fail, the signal stays unclassified.
+        let predicate = self.call(subr::car, [data]).ok()?;
+        let value = TempValue::from_value(self.call(subr::cadr, [data]).ok()?);
+        // Emacs 27's `extract_integer` signals `numberp`, not `integerp`, for a non-number.
+        // Confirmed by running the integration tests on Emacs 25-32: 27 is the only version that
+        // does this.
+        let expected = if predicate == *symbol::integerp || predicate == *symbol::numberp {
+            LispType::Integer
+        } else if predicate == *symbol::floatp {
+            LispType::Float
+        } else if predicate == *symbol::stringp {
+            LispType::String
+        } else if predicate == *symbol::vectorp {
+            LispType::Vector
+        // Emacs 25 says `user-ptr`. Later versions say `user-ptrp`.
+        } else if predicate == *symbol::user_ptrp || predicate == *symbol::user_ptr {
+            LispType::UserPtr
+        } else if predicate == *symbol::processp {
+            LispType::Process
+        } else if predicate == *symbol::pipe_process_p {
+            LispType::PipeProcess
+        } else if predicate == *symbol::unicode_string_p {
+            return Some(ModuleError::NonUnicodeString { value });
+        } else if predicate == *symbol::utf_8_string_p {
+            return Some(ModuleError::InvalidUtf8 { value });
+        } else {
+            return None;
+        };
+        Some(ModuleError::WrongType { expected, value })
     }
 
     /// Converts a Rust's `Result` to either a normal value, or a non-local exit in Lisp.
@@ -322,8 +415,22 @@ impl Env {
         self.define_error(
             symbol::rust_wrong_type_user_ptr,
             "Wrong type user-ptr",
-            (symbol::rust_error, self.intern("wrong-type-argument")?),
+            (symbol::rust_error, symbol::wrong_type_argument),
         )?;
+        // Module-layer errors. Each symbol uses the message of its standard parent, so printed
+        // errors do not change. See ADR 0003.
+        self.define_error(symbol::rust_module_error, "Emacs module error", (symbol::error, ))?;
+        for name in [
+            symbol::rust_module_wrong_type,
+            symbol::rust_module_non_unicode_string,
+            symbol::rust_module_invalid_utf_8,
+        ] {
+            self.define_error(
+                name,
+                "Wrong type argument",
+                (symbol::rust_module_error, symbol::wrong_type_argument),
+            )?;
+        }
         Ok(())
     }
 
@@ -357,6 +464,30 @@ impl Env {
     /// Same as [`Env::handle_known`].
     unsafe fn signal_module_error(&self, error: &ModuleError) -> Result<emacs_value> {
         match error {
+            ModuleError::WrongType { expected, value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_module_wrong_type,
+                    self.list((expected.predicate(), value))?,
+                )
+            }
+            ModuleError::NonUnicodeString { value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_module_non_unicode_string,
+                    self.list((symbol::unicode_string_p, value))?,
+                )
+            }
+            ModuleError::InvalidUtf8 { value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_module_invalid_utf_8,
+                    self.list((symbol::utf_8_string_p, value))?,
+                )
+            }
             // Lisp code sees an unclassified signal unchanged.
             // SAFETY: Guaranteed by the caller.
             ModuleError::Signal { symbol, data } => {

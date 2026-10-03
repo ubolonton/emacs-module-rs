@@ -21,7 +21,7 @@ macro_rules! use_functions {
 }
 
 use_functions! {
-    cons car cdr
+    cons car cdr cadr
     vector make_vector
     list
     message

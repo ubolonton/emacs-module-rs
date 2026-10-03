@@ -59,7 +59,8 @@ Emacs 25 and 26 have no bignums. So `extract_integer` cannot overflow there, but
 
 | `PRED` | Module functions | Emacs |
 |---|---|---|
-| `integerp`, `floatp`, `stringp`, `vectorp` | `extract_integer`, `extract_float`, `copy_string_contents`, `vec_*` | 25+ |
+| `integerp`, `floatp`, `stringp`, `vectorp` | `extract_integer`, `extract_float`, `copy_string_contents`, `vec_*` | 25+, except `extract_integer` on 27 |
+| `numberp` | `extract_integer` | 27 only |
 | `user-ptr` | `get_user_ptr`, `get_user_finalizer` | 25 |
 | `user-ptrp` | Same as `user-ptr` | 26+ |
 | `unicode-string-p` | `copy_string_contents`, multibyte string with chars outside Unicode | 27+ |

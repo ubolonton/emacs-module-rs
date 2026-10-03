@@ -58,6 +58,12 @@ pub trait Transfer: Sized + 'static {
 }
 
 impl<'e, T: Transfer> FromLisp<'e> for &'e T {
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::UserPtr`](crate::LispType::UserPtr) | `rust-module-wrong-type` |
+    /// | [`RustError::WrongTypeUserPtr`](crate::RustError::WrongTypeUserPtr) | `rust-wrong-type-user-ptr` |
     fn from_lisp(value: Value<'e>) -> Result<Self> {
         value.get_raw_pointer().map(|r| unsafe { &*r })
     }
@@ -131,6 +137,12 @@ impl<'e> Value<'e> {
     /// In general, prefer the `user-ptr` supported provided by the [`defun`] attr macro. Use this
     /// function only for special `user-ptr` types, such as newtypes wrapping opaque pointers.
     ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::UserPtr`](crate::LispType::UserPtr) | `rust-module-wrong-type` |
+    ///
     /// [`defun`]: attr.defun.html
     #[inline]
     pub fn get_user_ptr(self) -> Result<*mut os::raw::c_void> {
@@ -141,6 +153,12 @@ impl<'e> Value<'e> {
     ///
     /// In general, prefer the `user-ptr` supported provided by the [`defun`] attr macro. Use this
     /// function only for special `user-ptr` types, such as newtypes wrapping opaque pointers.
+    ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::UserPtr`](crate::LispType::UserPtr) | `rust-module-wrong-type` |
     ///
     /// [`defun`]: attr.defun.html
     #[inline]

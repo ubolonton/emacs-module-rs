@@ -27,6 +27,13 @@ use_symbols! {
     rust_error
     rust_panic
     rust_wrong_type_user_ptr
+    wrong_type_argument
+    integerp numberp floatp stringp vectorp user_ptr user_ptrp processp pipe_process_p
+    unicode_string_p utf_8_string_p
+    rust_module_error
+    rust_module_wrong_type
+    rust_module_non_unicode_string
+    rust_module_invalid_utf_8
 }
 
 pub trait IntoLispSymbol<'e> {
