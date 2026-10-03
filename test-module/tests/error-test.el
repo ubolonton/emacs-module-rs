@@ -87,6 +87,17 @@
   (should (equal (error-message-string (t/get-error (t/inc "3")))
                  "Wrong type argument: integerp, \"3\"")))
 
+(ert-deftest error::module-buffer-too-small ()
+  (should (equal (t/error:variant "copy-string-contents" "xyz" 3) "Module/BufferTooSmall"))
+  ;; Emacs 31 signals `memory-buffer-too-small'. Earlier versions signal `args-out-of-range'.
+  (let ((parents (append '(rust-module-error args-out-of-range)
+                         (when (>= emacs-major-version 31) '(memory-buffer-too-small)))))
+    ;; The data is (ACTUAL REQUIRED). The required size includes the null terminator.
+    (t/should-signal (t/conversion-copy-string-contents "xyz" 3)
+      'rust-module-buffer-too-small parents '(3 4))
+    (t/should-signal (t/conversion-copy-string-contents "" 0)
+      'rust-module-buffer-too-small parents '(0 1))))
+
 (ert-deftest error::module-non-unicode-string ()
   ;; Emacs 25 and 26 do not check this.
   (skip-unless (>= emacs-major-version 27))

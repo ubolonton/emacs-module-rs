@@ -124,6 +124,7 @@ fn describe_module(error: &ModuleError) -> String {
         ModuleError::WrongType { expected, .. } => format!("WrongType/{expected:?}"),
         ModuleError::NonUnicodeString { .. } => "NonUnicodeString".to_string(),
         ModuleError::InvalidUtf8 { .. } => "InvalidUtf8".to_string(),
+        ModuleError::BufferTooSmall { .. } => "BufferTooSmall".to_string(),
         _ => format!("Unknown: {error:?}"),
     }
 }

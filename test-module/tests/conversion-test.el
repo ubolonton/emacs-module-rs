@@ -38,11 +38,11 @@
 (ert-deftest conversion::string-basic ()
   (should (equal (t/to-uppercase "abc") "ABC"))
   ;; copy_string_contents copies the null terminator.
-  (should-error (t/conversion-copy-string-contents "xyz" 3) :type t/buffer-too-small-error-type)
-  (should-error (t/conversion-copy-string-contents "" 0) :type t/buffer-too-small-error-type)
+  (should-error (t/conversion-copy-string-contents "xyz" 3) :type 'rust-module-buffer-too-small)
+  (should-error (t/conversion-copy-string-contents "" 0) :type 'rust-module-buffer-too-small)
   (should (string= "xyz" (t/conversion-copy-string-contents "xyz" 4)))
   (should (string= "" (t/conversion-copy-string-contents "" 1)))
-  (should-error (t/conversion-copy-string-contents "abcxyz" 3) :type t/buffer-too-small-error-type))
+  (should-error (t/conversion-copy-string-contents "abcxyz" 3) :type 'rust-module-buffer-too-small))
 
 (ert-deftest conversion::string-unicode-to-bytes ()
   (dolist (multibyte-unicode-str

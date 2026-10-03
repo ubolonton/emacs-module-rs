@@ -112,6 +112,12 @@ pub enum ModuleError {
     #[non_exhaustive]
     InvalidUtf8 { value: TempValue },
 
+    /// The buffer for [`Value::copy_string_contents`] is too small. `required` includes the null
+    /// terminator. Lisp signal: `rust-module-buffer-too-small`, with data `(ACTUAL REQUIRED)`.
+    #[error("Buffer too small: {actual} bytes, {required} required")]
+    #[non_exhaustive]
+    BufferTooSmall { actual: usize, required: usize },
+
     /// A module-layer signal with no typed variant. If it propagates, Lisp code sees it unchanged.
     #[error("Module-layer signal: symbol={symbol:?} data={data:?}")]
     #[non_exhaustive]
@@ -431,6 +437,28 @@ impl Env {
                 (symbol::rust_module_error, symbol::wrong_type_argument),
             )?;
         }
+        // Emacs 31 signals `memory-buffer-too-small` for a too-small buffer. Earlier versions
+        // signal `args-out-of-range`. Keep both parents where both exist, so old handlers work.
+        let buffer_too_small_is_defined = self
+            .call("get", (symbol::memory_buffer_too_small, self.intern("error-conditions")?))?
+            .is_not_nil();
+        if buffer_too_small_is_defined {
+            self.define_error(
+                symbol::rust_module_buffer_too_small,
+                "Memory buffer too small",
+                (
+                    symbol::rust_module_error,
+                    symbol::args_out_of_range,
+                    symbol::memory_buffer_too_small,
+                ),
+            )?;
+        } else {
+            self.define_error(
+                symbol::rust_module_buffer_too_small,
+                "Memory buffer too small",
+                (symbol::rust_module_error, symbol::args_out_of_range),
+            )?;
+        }
         Ok(())
     }
 
@@ -488,6 +516,10 @@ impl Env {
                     self.list((symbol::utf_8_string_p, value))?,
                 )
             }
+            ModuleError::BufferTooSmall { actual, required } => self.signal_with(
+                symbol::rust_module_buffer_too_small,
+                self.list((*actual, *required))?,
+            ),
             // Lisp code sees an unclassified signal unchanged.
             // SAFETY: Guaranteed by the caller.
             ModuleError::Signal { symbol, data } => {

@@ -112,6 +112,7 @@ ErrorKind
 │   ├── WrongType            expected: LispType
 │   ├── NonUnicodeString
 │   ├── InvalidUtf8
+│   ├── BufferTooSmall
 │   └── Signal               no typed variant
 └── Rust(RustError)          this crate's Rust layer rejected the value
     └── WrongTypeUserPtr
@@ -121,7 +122,8 @@ error                                      + standard symbol
 ├── rust-module-error
 │   ├── rust-module-wrong-type             + wrong-type-argument
 │   ├── rust-module-non-unicode-string     + wrong-type-argument
-│   └── rust-module-invalid-utf-8          + wrong-type-argument
+│   ├── rust-module-invalid-utf-8          + wrong-type-argument
+│   └── rust-module-buffer-too-small       + args-out-of-range, memory-buffer-too-small (31+)
 ├── rust-error
 │   └── rust-wrong-type-user-ptr           + wrong-type-argument
 └── rust-panic
@@ -130,6 +132,7 @@ error                                      + standard symbol
 | Variant | Data |
 |---|---|
 | `WrongType` | `(PREDICATE VALUE)` |
+| `BufferTooSmall` | `(ACTUAL REQUIRED)` |
 | `WrongTypeUserPtr` | `(EXPECTED VALUE)` |
 
 - `EXPECTED` is the Rust type name, not a predicate.

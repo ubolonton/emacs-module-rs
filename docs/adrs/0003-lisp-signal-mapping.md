@@ -26,7 +26,7 @@ Root of the module hierarchy: `rust-module-error` won over `module-error`. Emacs
 - Each variant gets one symbol. The name is the root prefix plus the variant name in kebab case.
 - Each symbol has two parents: the origin root (`rust-error` or `rust-module-error`), and the standard signal for the same failure.
 - The data has the shape of the standard parent. The crate builds it from the payload, so it is the same on all Emacs versions.
-- Module-layer symbols use the message of the standard parent. Thus printed errors do not change.
+- Module-layer symbols use the message of the standard parent, so printed errors mostly do not change. Exception: on Emacs 25–30, the too-small-buffer message changes from "Args out of range" to "Memory buffer too small".
 - These do not change: `Signal`, `Throw`, errors that are not `ErrorKind`, and `rust-panic`.
 - `ModuleError::Signal` is raised again as-is. It keeps its standard symbol, without the module root.
 
