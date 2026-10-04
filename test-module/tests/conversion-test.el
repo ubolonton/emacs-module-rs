@@ -121,6 +121,32 @@
                                :type 'rust-invalid-utf-8)))
         (should (equal (cdr err) (list 'utf-8-string-p unibyte-str)))))))
 
+;; `Bytes' accepts any Lisp string. These cases need no `emacs-28'. `test-module-28' tests the
+;; other direction.
+(ert-deftest conversion::bytes-from-lisp ()
+  (dolist (case '(("abc" . [?a ?b ?c])
+                  ;; Not UTF-8, with a null byte in the middle.
+                  ("\377\0abc" . [#xff 0 ?a ?b ?c])
+                  ("" . [])
+                  ;; Multibyte Unicode string gives its UTF-8 encoding.
+                  ("é" . [#xc3 #xa9])))
+    (should (equal (t/conversion-bytes-to-vector-vec (car case)) (cdr case)))
+    (should (equal (t/conversion-bytes-to-vector-boxed (car case)) (cdr case)))))
+
+(ert-deftest conversion::bytes-from-lisp-multibyte-raw-byte ()
+  (let ((s (string-to-multibyte "\377")))
+    (if (>= emacs-major-version 27)
+        (should (equal (should-error (t/conversion-bytes-to-vector-vec s))
+                       `(rust-module-non-unicode-string unicode-string-p ,s)))
+      ;; Emacs 25 and 26 do not check it, and give the raw byte.
+      (should (equal (t/conversion-bytes-to-vector-vec s) [#xff])))))
+
+(ert-deftest conversion::bytes-from-lisp-wrong-type ()
+  (should (equal (should-error (t/conversion-bytes-to-vector-vec 5))
+                 '(rust-module-wrong-type stringp 5)))
+  (should (equal (should-error (t/conversion-bytes-to-vector-boxed nil))
+                 '(rust-module-wrong-type stringp nil))))
+
 (ert-deftest conversion::option-string ()
   (should (equal (t/conversion-to-lowercase-or-nil "CDE") "cde"))
   (should (equal (t/conversion-to-lowercase-or-nil nil) nil))

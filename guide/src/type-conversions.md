@@ -14,6 +14,7 @@ let f: f64 = value.into_rust()?; // error if Lisp value is nil
 
 let s = value.into_rust::<String>()?;
 let s: Option<&str> = value.into_rust()?; // None if Lisp value is nil
+let b: Bytes = value.into_rust()?; // raw bytes of a Lisp string
 ```
 
 It's better to declare input types for `#[defun]` than calling `.into_rust()`, unless delayed conversion is needed.
@@ -25,6 +26,7 @@ This is enabled for types that implement `IntoLisp`. Most built-in types are sup
 ```rust
 "abc".into_lisp(env)?;
 "a\0bc".into_lisp(env)?;
+Bytes(b"\xff\0").into_lisp(env)?; // unibyte string, needs feature emacs-28
 
 5.into_lisp(env)?;
 65.3.into_lisp(env)?;
@@ -61,21 +63,39 @@ features = ["nonzero-integer-conversion"]
 
 ## Strings
 
-Lisp strings are converted into Rust `String` structs.
+Use `String` for text. Use `Bytes` for binary data, or for text in an encoding other than UTF-8.
 
-- Unibyte strings:
-    - The Lisp side copies the raw bytes directly.
-    - The Rust side decodes the bytes, signaling `rust-invalid-utf-8` (`RustError::InvalidUtf8`) if they are not a valid UTF-8 sequence.
-- Multibyte strings:
-    - The Lisp side encodes the string into raw bytes and copies them.
-    - The Rust side decodes the bytes, doing the same validation as above.
-    - Since Emacs's internal coding system is a superset, when the string cannot be encoded via UTF-8:
-        - On Emacs 25 and 26, the Lisp side doesn't check for this, so the Rust side signals `rust-invalid-utf-8`.
-        - On Emacs 27+, the Lisp side signals `rust-module-non-unicode-string`, so the Rust side's check is redundant.
+```rust
+use emacs::Bytes;
+
+// (xor-bytes "\377\0" 1) returns "\376\1". Returning `Bytes` needs feature emacs-28.
+#[defun]
+fn xor_bytes(data: Bytes, key: u8) -> Result<Bytes> {
+    Ok(Bytes(data.0.iter().map(|b| b ^ key).collect()))
+}
+```
+
+Lisp to Rust conversion copies the bytes of a unibyte string, or the UTF-8 encoding of a multibyte string. `String` then validates them as UTF-8. `Bytes` does not.
+
+| Lisp value | `String` | `Bytes` |
+|---|---|---|
+| `"abc"` (unibyte) | `"abc"` | `b"abc"` |
+| `"\377"` (unibyte, not UTF-8) | `rust-invalid-utf-8` | `b"\xff"` |
+| `"é"` (multibyte) | `"é"` | `b"\xc3\xa9"` |
+| `(string-to-multibyte "\377")` (raw byte, no UTF-8 encoding) | `rust-module-non-unicode-string` † | `rust-module-non-unicode-string` † |
+| `5` | `rust-module-wrong-type` | `rust-module-wrong-type` |
+
+† Emacs 25 and 26 do not check this. `String` signals `rust-invalid-utf-8`. `Bytes` gives `b"\xff"`.
+
+Rust to Lisp conversion:
+- `&str` and `String` give a multibyte string, even for ASCII text.
+- `Bytes` gives a unibyte string. It needs the `emacs-28` feature, because the module API before Emacs 28 cannot make a unibyte string.
+
+`Bytes<T>` takes any `T: From<Vec<u8>>` from Lisp, e.g. `Bytes<Box<[u8]>>`, and any `T: AsRef<[u8]>` to Lisp, e.g. `Bytes<&[u8]>`. The default is `Vec<u8>`.
 
 To squeeze out some performance:
 - You can avoid allocating memory for `String` structs, by using `value.copy_string_contents(buffer)` with a large enough buffer.
-- You can avoid the redundant Rust side's check using `String::from_utf8_unchecked(value.clone_string_contents()?)`.
+- If you know the string is valid UTF-8, you can skip the Rust-side check with `String::from_utf8_unchecked(value.clone_string_contents()?)`.
 
 ## Equality
 

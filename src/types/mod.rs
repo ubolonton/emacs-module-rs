@@ -1,10 +1,11 @@
 use crate::{symbol, Env, Value, Result};
 
-pub use {user_ptr::Transfer, vector::Vector};
+pub use {bytes::Bytes, user_ptr::Transfer, vector::Vector};
 
 mod integer;
 mod float;
 mod string;
+mod bytes;
 
 mod user_ptr;
 mod vector;
