@@ -31,7 +31,7 @@ use_symbols! {
     rust_integer_out_of_range
     wrong_type_argument
     args_out_of_range memory_buffer_too_small overflow_error
-    integerp numberp floatp stringp vectorp user_ptr user_ptrp processp pipe_process_p
+    integerp floatp stringp vectorp user_ptr user_ptrp processp pipe_process_p
     unicode_string_p utf_8_string_p
     rust_module_error
     rust_module_wrong_type

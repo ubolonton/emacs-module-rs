@@ -1,7 +1,5 @@
 use std::convert::TryInto;
 
-use emacs_module::emacs_value;
-
 use super::*;
 use crate::{symbol, ModuleError, error::TempValue, subr, call::IntoLispArgs};
 
@@ -38,10 +36,10 @@ pub struct Vector<'e> {
 fn index_out_of_range<'e>(
     vector: Value<'e>,
     index: isize,
-) -> impl FnOnce(&Env, emacs_value) -> Option<ModuleError> + 'e {
-    move |env: &Env, symbol: emacs_value| {
-        let matches = env.is_symbol(symbol, symbol::args_out_of_range)
-            || env.is_symbol(symbol, symbol::overflow_error);
+) -> impl FnOnce(&Env, Value<'_>) -> Option<ModuleError> + 'e {
+    move |_, signal_symbol| {
+        let matches = signal_symbol == *symbol::args_out_of_range
+            || signal_symbol == *symbol::overflow_error;
         matches
             .then(|| ModuleError::IndexOutOfRange { vector: TempValue::from_value(vector), index })
     }

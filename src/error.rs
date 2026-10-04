@@ -320,18 +320,24 @@ impl Env {
     /// Handles a possible non-local exit after a module function other than `funcall`.
     ///
     /// A signal from such a function comes from the module layer. The call-site `rule` classifies
-    /// it first. It gets the raw signal symbol. A signal that no rule classifies becomes
-    /// [`ModuleError::Signal`]. See ADR 0002.
+    /// it first. It gets the signal symbol, as a [`Value`]. A signal that no rule classifies
+    /// becomes [`ModuleError::Signal`]. See ADR 0002.
     #[inline]
     pub(crate) fn handle_module_exit<T, R>(&self, result: T, rule: R) -> Result<T>
     where
-        R: FnOnce(&Env, emacs_value) -> Option<ModuleError>,
+        R: FnOnce(&Env, Value<'_>) -> Option<ModuleError>,
     {
         match self.take_exit() {
             None => Ok(result),
             Some(Exit::Signal { symbol, data }) => {
-                let error = rule(self, symbol)
-                    .or_else(|| self.classify_wrong_type(symbol, data))
+                // SAFETY: `symbol` and `data` come from `non_local_exit_get` of this env. They
+                // are local values of this env, so they stay valid while the env lives, also
+                // after `non_local_exit_clear` (which only clears the pending-exit slot, not the
+                // values themselves).
+                let signal_symbol = unsafe { Value::new(symbol, self) };
+                let signal_data = unsafe { Value::new(data, self) };
+                let error = rule(self, signal_symbol)
+                    .or_else(|| self.classify_wrong_type(signal_symbol, signal_data))
                     .unwrap_or(ModuleError::Signal {
                         symbol: TempValue { raw: symbol },
                         data: TempValue { raw: data },
@@ -350,30 +356,24 @@ impl Env {
         self.handle_module_exit(result, |_, _| None)
     }
 
-    /// Returns whether `raw` is the symbol `symbol`. Call-site rules use this.
-    pub(crate) fn is_symbol(&self, raw: emacs_value, symbol: &OnceGlobalRef) -> bool {
-        // SAFETY: `raw` comes from the pending exit of this env, which is still live.
-        (unsafe { Value::new(raw, self) }) == *symbol
-    }
-
     /// The generic rule: classifies a `wrong-type-argument` signal from the module layer. Returns
     /// `None` for other symbols, and for predicates with no typed variant.
     ///
     /// The data of `wrong-type-argument` is `(PREDICATE VALUE)` on Emacs 25–32.
-    fn classify_wrong_type(&self, symbol: emacs_value, data: emacs_value) -> Option<ModuleError> {
-        if !self.is_symbol(symbol, symbol::wrong_type_argument) {
+    fn classify_wrong_type(
+        &self,
+        signal_symbol: Value<'_>,
+        data: Value<'_>,
+    ) -> Option<ModuleError> {
+        if signal_symbol != *symbol::wrong_type_argument {
             return None;
         }
-        // SAFETY: `data` comes from the pending exit of this env, which is still live. The calls
-        // below run Lisp code, so protect `data` against GC bug 31238.
-        let data = unsafe { Value::new(data, self) }.protect();
+        // Protect `data` against GC bug 31238, since the calls below run Lisp code.
+        let data = data.protect();
         // If these calls fail, the signal stays unclassified.
         let predicate = self.call(subr::car, [data]).ok()?;
         let value = TempValue::from_value(self.call(subr::cadr, [data]).ok()?);
-        // Emacs 27's `extract_integer` signals `numberp`, not `integerp`, for a non-number.
-        // Confirmed by running the integration tests on Emacs 25-32: 27 is the only version that
-        // does this.
-        let expected = if predicate == *symbol::integerp || predicate == *symbol::numberp {
+        let expected = if predicate == *symbol::integerp {
             LispType::Integer
         } else if predicate == *symbol::floatp {
             LispType::Float

@@ -16,7 +16,7 @@ Rust check ───────────────────────
                                                       └─► handled by Rust code
 ```
 
-- **Classify:** `Env::handle_module_exit`, whose call-site `rule` has the signature `FnOnce(&Env, emacs_value) -> Option<ModuleError>` ([ADR 0002](adrs/0002-module-signal-classification.md)). `Env::handle_exit` is the case with no rule.
+- **Classify:** `Env::handle_module_exit`, whose call-site `rule` has the signature `FnOnce(&Env, Value<'_>) -> Option<ModuleError>`, where the `Value` is the signal symbol ([ADR 0002](adrs/0002-module-signal-classification.md)). `Env::handle_exit` is the case with no rule.
 - **Boundary:** `Env::maybe_exit` and `Env::handle_panic` ([ADR 0003](adrs/0003-lisp-signal-mapping.md)).
 
 ## Classification: module layer to Rust
@@ -30,6 +30,7 @@ Rust check ───────────────────────
    | `copy_string_contents` | `*len` is larger than the buffer, after the error | `BufferTooSmall` |
    | `vec_get`, `vec_set` | `args-out-of-range`, or `overflow-error` (25) | `IndexOutOfRange` |
    | `extract_integer` (27+), `make_integer` (25, 26) | `overflow-error` | `IntegerOutOfRange` |
+   | `extract_integer` | `wrong-type-argument`, any predicate | `WrongType` (`Integer`) |
 
 2. **Generic rule.** For `wrong-type-argument`, read `PRED` and `VALUE` from the data (`car`, `cadr`). Compare `PRED` with symbols cached by `use_symbols!`. A known `PRED` gives `WrongType`, or an encoding variant.
 3. **Fallback.** `ModuleError::Signal`, with the original symbol and data.
@@ -64,6 +65,8 @@ Emacs 25 and 26 have no bignums. So `extract_integer` cannot overflow there, but
 | `unicode-string-p` | `copy_string_contents`, multibyte string with chars outside Unicode | 27+ |
 | `utf-8-string-p` | `make_string`, bytes that are not UTF-8 | 28+ |
 | `processp`, `pipe-process-p` | `open_channel` | 28+ |
+
+`extract_integer`'s call-site rule handles `wrong-type-argument` itself (see the call-site rules table above), so the generic rule never sees `integerp` or `numberp` from it.
 
 These facts are the same on Emacs 25–32:
 

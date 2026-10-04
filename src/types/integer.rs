@@ -1,9 +1,7 @@
 use std::num::TryFromIntError;
 
-use emacs_module::emacs_value;
-
 use super::*;
-use crate::{error::TempValue, Error, ErrorKind, ModuleError, RustError};
+use crate::{error::TempValue, Error, ErrorKind, LispType, ModuleError, RustError};
 
 /// Normalizes the error of a narrowing `try_into` to [`TryFromIntError`], for [`out_of_range`].
 /// `i64 -> i64` (used by `NonZeroI64`) goes through `std`'s reflexive `TryFrom<T> for T`, whose
@@ -33,15 +31,32 @@ fn out_of_range<E: IntoTryFromIntError>(value: Option<Value<'_>>, source: E) -> 
     .into()
 }
 
-/// The call-site rule for `extract_integer` (Emacs 27+, bignums) and `make_integer` (Emacs 25,
-/// 26, no bignums). `value` is the Lisp value, if one exists.
-fn integer_out_of_range<'e>(
-    value: Option<Value<'e>>,
-) -> impl FnOnce(&Env, emacs_value) -> Option<ModuleError> + 'e {
-    move |env, raw_symbol| {
-        env.is_symbol(raw_symbol, symbol::overflow_error).then(|| {
-            ModuleError::IntegerOutOfRange { value: value.map(TempValue::from_value) }
-        })
+/// The call-site rule for `make_integer` (Emacs 25, 26, no bignums): an `i64` that does not fit a
+/// fixnum signals `overflow-error`. No Lisp value exists for the Rust `i64` that did not fit, so
+/// the payload is always `None`.
+fn integer_out_of_range(_env: &Env, signal_symbol: Value<'_>) -> Option<ModuleError> {
+    (signal_symbol == *symbol::overflow_error)
+        .then(|| ModuleError::IntegerOutOfRange { value: None })
+}
+
+/// The call-site rule for `extract_integer` (Emacs 27+, bignums). `CHECK_INTEGER` is its only
+/// type check, so any `wrong-type-argument` that it signals means the value is not an integer,
+/// whatever predicate Emacs used (`integerp`, or `numberp` on Emacs 27 only, see
+/// `docs/error-handling.md`). This also means the rule does not need to read the predicate.
+fn extract_integer_rule(
+    value: Value<'_>,
+) -> impl FnOnce(&Env, Value<'_>) -> Option<ModuleError> + '_ {
+    move |_, signal_symbol| {
+        if signal_symbol == *symbol::overflow_error {
+            Some(ModuleError::IntegerOutOfRange { value: Some(TempValue::from_value(value)) })
+        } else if signal_symbol == *symbol::wrong_type_argument {
+            Some(ModuleError::WrongType {
+                expected: LispType::Integer,
+                value: TempValue::from_value(value),
+            })
+        } else {
+            None
+        }
     }
 }
 
@@ -53,7 +68,7 @@ impl FromLisp<'_> for i64 {
     /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
     /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
     fn from_lisp(value: Value<'_>) -> Result<Self> {
-        unsafe_raw_call!(value.env, extract_integer, value.raw; integer_out_of_range(Some(value)))
+        unsafe_raw_call!(value.env, extract_integer, value.raw; extract_integer_rule(value))
     }
 }
 
@@ -157,7 +172,7 @@ impl IntoLisp<'_> for i64 {
     /// |---|---|
     /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 25, 26) | `rust-module-integer-out-of-range` |
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-        unsafe_raw_call_value_unprotected!(env, make_integer, self; integer_out_of_range(None))
+        unsafe_raw_call_value_unprotected!(env, make_integer, self; integer_out_of_range)
     }
 }
 

@@ -20,7 +20,8 @@ macro_rules! unsafe_raw_call_no_exit {
 /// Calls a raw function, then handles any pending non-local exit as a module-layer exit. Do not
 /// use this for `funcall`, whose exits come from Lisp code.
 ///
-/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`].
+/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`]: `FnOnce(&Env,
+/// Value<'_>) -> Option<ModuleError>`. The `Value` is the signal symbol.
 macro_rules! unsafe_raw_call {
     ($env:expr, $name:ident $(, $args:expr)* ; $rule:expr) => {
         {
@@ -40,7 +41,8 @@ macro_rules! unsafe_raw_call {
 /// Calls a raw function that returns an emacs_value, then handles any pending non-local exit.
 /// Returns a [`Value`].
 ///
-/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`].
+/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`]: `FnOnce(&Env,
+/// Value<'_>) -> Option<ModuleError>`. The `Value` is the signal symbol.
 ///
 /// [`Value`]: struct.Value.html
 macro_rules! unsafe_raw_call_value {
@@ -52,7 +54,8 @@ macro_rules! unsafe_raw_call_value {
 /// Like [`unsafe_raw_call_value!`], except that the returned [`Value`] is not protected against
 /// Emacs GC's [bug #31238], which caused [issue #2].
 ///
-/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`].
+/// The optional `; rule` is a call-site rule for [`Env::handle_module_exit`]: `FnOnce(&Env,
+/// Value<'_>) -> Option<ModuleError>`. The `Value` is the signal symbol.
 ///
 /// # Safety
 ///
