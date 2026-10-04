@@ -36,7 +36,7 @@ pub use self::{
     env::Env,
     value::Value,
     global::{GlobalRef, OnceGlobalRef},
-    types::{FromLisp, IntoLisp, Transfer, Vector},
+    types::{FromLisp, IntoLisp, Bytes, Transfer, Vector},
     func::CallEnv,
     error::{ErrorKind, LispType, ModuleError, RustError, Result, ResultExt, Error},
 };

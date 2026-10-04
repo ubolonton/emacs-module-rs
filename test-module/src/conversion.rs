@@ -1,6 +1,6 @@
 //! Testing type conversion between Lisp and Rust.
 
-use emacs::{defun, Env, IntoLisp, Result, Value, Vector};
+use emacs::{defun, Bytes, Env, IntoLisp, Result, Value, Vector};
 
 emacs::use_symbols! { nil }
 
@@ -33,16 +33,27 @@ fn copy_string_contents(v: Value, size: usize) -> Result<String> {
     Ok(String::from_utf8_lossy(s).to_string())
 }
 
-#[defun]
-fn string_to_bytes(v: Value) -> Result<Vector> {
-    let env = v.env;
-    let bytes = v.clone_string_contents()?;
-    let n = bytes.len();
-    let result = env.make_vector(n, nil)?;
-    for i in 0..n {
-        result.set(i, bytes[i])?;
+fn bytes_to_vector<'e>(env: &'e Env, bytes: &[u8]) -> Result<Vector<'e>> {
+    let result = env.make_vector(bytes.len(), nil)?;
+    for (i, byte) in bytes.iter().enumerate() {
+        result.set(i, *byte)?;
     }
     Ok(result)
+}
+
+#[defun]
+fn string_to_bytes(v: Value) -> Result<Vector> {
+    bytes_to_vector(v.env, &v.clone_string_contents()?)
+}
+
+#[defun]
+fn bytes_to_vector_vec(env: &Env, bytes: Bytes) -> Result<Vector> {
+    bytes_to_vector(env, &bytes.0)
+}
+
+#[defun]
+fn bytes_to_vector_boxed(env: &Env, bytes: Bytes<Box<[u8]>>) -> Result<Vector> {
+    bytes_to_vector(env, &bytes.0)
 }
 
 #[defun]

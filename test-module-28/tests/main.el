@@ -54,3 +54,22 @@
                                  :type 'rust-module-wrong-type)))
           (should (equal (cdr err) (list 'pipe-process-p proc))))
       (delete-process proc))))
+
+;;; ----------------------------------------------------------------------------
+;;; Bytes to unibyte string (Emacs 28+).
+
+(ert-deftest conversion::bytes-roundtrip ()
+  (skip-unless (>= emacs-major-version 28))
+  (dolist (s '("\377\0abc" "abc" ""))
+    (let ((result (t28/bytes-roundtrip s)))
+      (should (equal result s))
+      (should-not (multibyte-string-p result)))))
+
+(ert-deftest conversion::bytes-into-lisp ()
+  (skip-unless (>= emacs-major-version 28))
+  (let ((result (t28/bytes-static)))
+    (should (equal result "\377\0"))
+    (should-not (multibyte-string-p result)))
+  (let ((result (t28/bytes-all)))
+    (should (equal result (apply #'unibyte-string (number-sequence 0 255))))
+    (should-not (multibyte-string-p result))))
