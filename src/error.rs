@@ -186,14 +186,14 @@ pub enum RustError {
     /// The unibyte string is not valid UTF-8, so it cannot become a `String`. To get the bytes,
     /// convert to `Vec<u8>` instead. Lisp signal: `rust-invalid-utf-8`, with data
     /// `(utf-8-string-p VALUE)`.
-    #[error("Invalid UTF-8: {source}")]
+    #[error("Invalid UTF-8")]
     #[non_exhaustive]
     InvalidUtf8 { value: TempValue, source: FromUtf8Error },
 
     /// The integer does not fit in the target type. `value` is the Lisp value, or `None` when a
     /// Rust value does not fit in Lisp. Lisp signal: `rust-integer-out-of-range`, with data
     /// `(VALUE)`, or no data.
-    #[error("Integer out of range: {source}")]
+    #[error("Integer out of range")]
     #[non_exhaustive]
     IntegerOutOfRange { value: Option<TempValue>, source: TryFromIntError },
 }
@@ -761,5 +761,40 @@ impl<T, E: Display> ResultExt<T, E> for result::Result<T, E> {
         self.or_else(|err| env.signal(symbol, (
             format!("{}", err),
         )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `TempValue` that is never read back. Fine for `Display`, which never dereferences `raw`.
+    fn null_temp_value() -> TempValue {
+        TempValue { raw: std::ptr::null_mut() }
+    }
+
+    /// thiserror already shows a variant's `source` through `Error::source()`. If the variant's
+    /// own `#[error(...)]` message also interpolates `{source}`, a chain printer such as `{:#}`
+    /// shows the source text twice: once from the message, once from walking the chain.
+    #[test]
+    fn display_does_not_repeat_the_source_text_invalid_utf8() {
+        let source = String::from_utf8(vec![0xff]).unwrap_err();
+        let source_text = source.to_string();
+        let error: Error = ErrorKind::Rust(RustError::InvalidUtf8 {
+            value: null_temp_value(),
+            source,
+        }).into();
+        let text = format!("{:#}", error);
+        assert_eq!(text.matches(&source_text).count(), 1, "{text:?}");
+    }
+
+    #[test]
+    fn display_does_not_repeat_the_source_text_integer_out_of_range() {
+        let source = i64::try_from(u64::MAX).unwrap_err();
+        let source_text = source.to_string();
+        let error: Error =
+            ErrorKind::Rust(RustError::IntegerOutOfRange { value: None, source }).into();
+        let text = format!("{:#}", error);
+        assert_eq!(text.matches(&source_text).count(), 1, "{text:?}");
     }
 }
