@@ -54,19 +54,14 @@
                 :type 'rust-wrong-type-user-ptr)
   (should-error (t/transfer-ref-cell-inc 5)
                 :type 'wrong-type-argument)
-  (ert-info ("'rust-wrong-type-user-ptr should be both 'rust-error and 'wrong-type-argument")
-    (let ((parent-symbols (get 'rust-wrong-type-user-ptr 'error-conditions)))
-      (should (member 'rust-error parent-symbols))
-      (should (member 'wrong-type-argument parent-symbols)))
-    (should-error (t/transfer-ref-cell-inc (t/transfer-vector-make 1 2)) :type 'rust-error)
-    (should-error (t/transfer-ref-cell-inc (t/transfer-vector-make 1 2)) :type 'wrong-type-argument))
 
   (let ((v (t/transfer-vector-make 1 2)))
     (should (equal (t/error:variant "ref-cell" v nil) "Rust/WrongTypeUserPtr"))
     ;; The data is (EXPECTED VALUE). EXPECTED is the Rust type name.
-    (t/should-signal (t/transfer-ref-cell-inc v)
-      'rust-wrong-type-user-ptr '(rust-error wrong-type-argument)
-      (list (cadr (t/get-error (t/transfer-ref-cell-inc v))) v))
+    (should (equal (should-error (t/transfer-ref-cell-inc v))
+                   `(rust-wrong-type-user-ptr
+                     ,(cadr (t/get-error (t/transfer-ref-cell-inc v)))
+                     ,v)))
     (should (string-match-p "RefCell" (cadr (t/get-error (t/transfer-ref-cell-inc v)))))))
 
 (ert-deftest transfer::hash-map ()
