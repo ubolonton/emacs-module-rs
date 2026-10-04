@@ -96,23 +96,23 @@ impl Env {
         let mut len: isize = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);
-            let ok: bool = self.handle_exit(copy_string_contents(
+            let ok: bool = self.handle_module_exit(copy_string_contents(
                 self.raw,
                 value.raw,
                 ptr::null_mut(),
                 &mut len,
-            ))?;
+            ), |_, _| None)?;
             if !ok {
                 unreachable!("Emacs failed to give string's length but did not raise a signal");
             }
 
             let mut bytes = vec![0u8; len as usize];
-            let ok: bool = self.handle_exit(copy_string_contents(
+            let ok: bool = self.handle_module_exit(copy_string_contents(
                 self.raw,
                 value.raw,
                 bytes.as_mut_ptr() as *mut os::raw::c_char,
                 &mut len,
-            ))?;
+            ), |_, _| None)?;
             if !ok {
                 unreachable!("Emacs failed to copy string but did not raise a signal");
             }

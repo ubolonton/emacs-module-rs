@@ -334,13 +334,6 @@ impl Env {
         }
     }
 
-    /// Handles a possible non-local exit after a module function other than `funcall`, with no
-    /// call-site rule.
-    #[inline]
-    pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
-        self.handle_module_exit(result, |_, _| None)
-    }
-
     /// The generic rule: classifies a `wrong-type-argument` signal from the module layer. Returns
     /// `None` for other symbols, and for predicates with no typed variant.
     ///

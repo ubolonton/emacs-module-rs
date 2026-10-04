@@ -16,7 +16,7 @@ Rust check ───────────────────────
                                                       └─► handled by Rust code
 ```
 
-- **Classify:** `Env::handle_module_exit`, whose call-site `rule` has the signature `FnOnce(&Env, Value<'_>) -> Option<ModuleError>`, where the `Value` is the signal symbol ([ADR 0002](adrs/0002-module-signal-classification.md)). `Env::handle_exit` is the case with no rule.
+- **Classify:** `Env::handle_module_exit`, whose call-site `rule` has the signature `FnOnce(&Env, Value<'_>) -> Option<ModuleError>`, where the `Value` is the signal symbol ([ADR 0002](adrs/0002-module-signal-classification.md)).
 - **Boundary:** `Env::maybe_exit` and `Env::handle_panic` ([ADR 0003](adrs/0003-lisp-signal-mapping.md)).
 
 ## Classification: module layer to Rust
