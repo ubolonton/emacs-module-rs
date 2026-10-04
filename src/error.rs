@@ -10,8 +10,7 @@ use thiserror::Error;
 use emacs_module::*;
 
 use crate::{
-    Env, Value,
-    GlobalRef,
+    Env, Value, GlobalRef,
     global::OnceGlobalRef,
     symbol::{self, IntoLispSymbol},
     subr,
@@ -267,51 +266,33 @@ unsafe impl Send for TempValue {}
 
 unsafe impl Sync for TempValue {}
 
-/// A pending non-local exit, read and cleared by [`Env::take_exit`].
-enum Exit {
-    Signal { symbol: emacs_value, data: emacs_value },
-    Throw { tag: emacs_value, value: emacs_value },
-}
-
-impl Exit {
-    /// Converts a non-local exit from Lisp code into the matching [`ErrorKind`]. Used by
-    /// [`Env::handle_lisp_exit`] for both arms, and by [`Env::handle_module_exit`] for the `Throw`
-    /// arm: a throw never comes from the module layer, so it keeps this same conversion there too.
-    fn into_error(self) -> ErrorKind {
-        match self {
-            Exit::Signal { symbol, data } => ErrorKind::Signal {
-                symbol: TempValue { raw: symbol },
-                data: TempValue { raw: data },
-            },
-            Exit::Throw { tag, value } => ErrorKind::Throw {
-                tag: TempValue { raw: tag },
-                value: TempValue { raw: value },
-            },
-        }
-    }
-}
-
 impl Env {
     /// Reads and clears the pending non-local exit. Returns `None` if the last call returned
-    /// normally.
-    fn take_exit(&self) -> Option<Exit> {
+    /// normally. Otherwise, returns the matching [`ErrorKind::Signal`] or [`ErrorKind::Throw`].
+    fn take_exit(&self) -> Option<ErrorKind> {
         let mut first = MaybeUninit::uninit();
         let mut second = MaybeUninit::uninit();
         // TODO: Check whether calling non_local_exit_check first makes a difference in performance.
         let status = self.non_local_exit_get(&mut first, &mut second);
         // SAFETY: Emacs writes both values for the statuses SIGNAL and THROW.
-        let exit = match status {
+        let error = match status {
             RETURN => return None,
             SIGNAL => unsafe {
-                Exit::Signal { symbol: first.assume_init(), data: second.assume_init() }
+                ErrorKind::Signal {
+                    symbol: TempValue { raw: first.assume_init() },
+                    data: TempValue { raw: second.assume_init() },
+                }
             },
             THROW => unsafe {
-                Exit::Throw { tag: first.assume_init(), value: second.assume_init() }
+                ErrorKind::Throw {
+                    tag: TempValue { raw: first.assume_init() },
+                    value: TempValue { raw: second.assume_init() },
+                }
             },
             _ => panic!("Unexpected non local exit status {}", status),
         };
         self.non_local_exit_clear();
-        Some(exit)
+        Some(error)
     }
 
     /// Handles a possible non-local exit after `funcall`. The exit comes from Lisp code, so it
@@ -320,7 +301,7 @@ impl Env {
     pub(crate) fn handle_lisp_exit<T>(&self, result: T) -> Result<T> {
         match self.take_exit() {
             None => Ok(result),
-            Some(exit) => Err(exit.into_error().into()),
+            Some(error) => Err(error.into()),
         }
     }
 
@@ -336,23 +317,20 @@ impl Env {
     {
         match self.take_exit() {
             None => Ok(result),
-            Some(Exit::Signal { symbol, data }) => {
-                // SAFETY: `symbol` and `data` come from `non_local_exit_get` of this env. They
-                // are local values of this env, so they stay valid while the env lives, also
+            Some(ErrorKind::Signal { symbol, data }) => {
+                // SAFETY: `symbol.raw` and `data.raw` come from `non_local_exit_get` of this env.
+                // They are local values of this env, so they stay valid while the env lives, also
                 // after `non_local_exit_clear` (which only clears the pending-exit slot, not the
                 // values themselves).
-                let signal_symbol = unsafe { Value::new(symbol, self) };
-                let signal_data = unsafe { Value::new(data, self) };
+                let signal_symbol = unsafe { Value::new(symbol.raw, self) };
+                let signal_data = unsafe { Value::new(data.raw, self) };
                 let error = rule(self, signal_symbol)
                     .or_else(|| self.classify_wrong_type(signal_symbol, signal_data))
-                    .unwrap_or(ModuleError::Signal {
-                        symbol: TempValue { raw: symbol },
-                        data: TempValue { raw: data },
-                    });
+                    .unwrap_or(ModuleError::Signal { symbol, data });
                 Err(ErrorKind::Module(error).into())
             }
             // The module layer does not throw. Keep such an exit unchanged.
-            Some(exit @ Exit::Throw { .. }) => Err(exit.into_error().into()),
+            Some(error) => Err(error.into()),
         }
     }
 
@@ -432,7 +410,9 @@ impl Env {
                 if let Err(error) = m {
                     m = match error.downcast::<ErrorKind>() {
                         // TODO: Explain safety.
-                        Ok(err) => unsafe { return self.handle_known(&*err); },
+                        Ok(err) => unsafe {
+                            return self.handle_known(&*err);
+                        },
                         Err(error) => Err(error),
                     }
                 }
@@ -459,7 +439,8 @@ impl Env {
                 if let Err(error) = m {
                     m = Ok(format!("{:#?}", error));
                 }
-                self.signal_internal(symbol::rust_panic, &m.expect("Logic error")).expect("Fail to signal panic")
+                self.signal_internal(symbol::rust_panic, &m.expect("Logic error"))
+                    .expect("Fail to signal panic")
             }
         }
     }
@@ -467,8 +448,8 @@ impl Env {
     pub(crate) fn define_core_errors(&self) -> Result<()> {
         // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
         // not a sub-type of 'error.
-        self.define_error(symbol::rust_panic, "Rust panic", (symbol::error, ))?;
-        self.define_error(symbol::rust_error, "Rust error", (symbol::error, ))?;
+        self.define_error(symbol::rust_panic, "Rust panic", (symbol::error,))?;
+        self.define_error(symbol::rust_error, "Rust error", (symbol::error,))?;
         self.define_error(
             symbol::rust_wrong_type_user_ptr,
             "Wrong type user-ptr",
@@ -476,7 +457,7 @@ impl Env {
         )?;
         // Module-layer errors. Each symbol uses the message of its standard parent, so printed
         // errors do not change. See ADR 0003.
-        self.define_error(symbol::rust_module_error, "Emacs module error", (symbol::error, ))?;
+        self.define_error(symbol::rust_module_error, "Emacs module error", (symbol::error,))?;
         for name in [
             symbol::rust_module_wrong_type,
             symbol::rust_module_non_unicode_string,
@@ -700,14 +681,21 @@ impl Env {
     ///
     /// [`define-error`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Error-Symbols.html
     pub fn define_error<'e, N, P>(&'e self, name: N, message: &str, parents: P) -> Result<Value<'e>>
-        where N: IntoLispSymbol<'e>, P: IntoLispArgs<'e> {
+    where
+        N: IntoLispSymbol<'e>,
+        P: IntoLispArgs<'e>,
+    {
         self.call("define-error", (name.into_lisp_symbol(self)?, message, self.list(parents)?))
     }
 
     /// Signals a Lisp error. This is the equivalent of the Lisp function's [`signal`].
     ///
     /// [`signal`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Signaling-Errors.html#index-signal
-    pub fn signal<'e, S, D, T>(&'e self, symbol: S, data: D) -> Result<T> where S: IntoLispSymbol<'e>, D: IntoLispArgs<'e> {
+    pub fn signal<'e, S, D, T>(&'e self, symbol: S, data: D) -> Result<T>
+    where
+        S: IntoLispSymbol<'e>,
+        D: IntoLispArgs<'e>,
+    {
         let symbol = TempValue { raw: symbol.into_lisp_symbol(self)?.raw };
         let data = TempValue { raw: self.list(data)?.raw };
         Err(ErrorKind::Signal { symbol, data }.into())
@@ -730,7 +718,11 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    pub(crate) unsafe fn non_local_exit_throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn non_local_exit_throw(
+        &self,
+        tag: emacs_value,
+        value: emacs_value,
+    ) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
@@ -739,7 +731,11 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    pub(crate) unsafe fn non_local_exit_signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn non_local_exit_signal(
+        &self,
+        symbol: emacs_value,
+        data: emacs_value,
+    ) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }
@@ -753,14 +749,17 @@ pub trait ResultExt<T, E> {
     /// associated signal data will be a string formatted with [`Display::fmt`].
     ///
     /// If the result is an [`Ok`], it is returned unchanged.
-    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T> where S: IntoLispSymbol<'e>;
+    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T>
+    where
+        S: IntoLispSymbol<'e>;
 }
 
 impl<T, E: Display> ResultExt<T, E> for result::Result<T, E> {
-    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T> where S: IntoLispSymbol<'e> {
-        self.or_else(|err| env.signal(symbol, (
-            format!("{}", err),
-        )))
+    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T>
+    where
+        S: IntoLispSymbol<'e>,
+    {
+        self.or_else(|err| env.signal(symbol, (format!("{}", err),)))
     }
 }
 
@@ -780,10 +779,8 @@ mod tests {
     fn display_does_not_repeat_the_source_text_invalid_utf8() {
         let source = String::from_utf8(vec![0xff]).unwrap_err();
         let source_text = source.to_string();
-        let error: Error = ErrorKind::Rust(RustError::InvalidUtf8 {
-            value: null_temp_value(),
-            source,
-        }).into();
+        let error: Error =
+            ErrorKind::Rust(RustError::InvalidUtf8 { value: null_temp_value(), source }).into();
         let text = format!("{:#}", error);
         assert_eq!(text.matches(&source_text).count(), 1, "{text:?}");
     }
