@@ -124,6 +124,14 @@ pub enum ModuleError {
     #[non_exhaustive]
     IndexOutOfRange { vector: TempValue, index: isize },
 
+    /// The integer does not fit. Emacs 27+: a Lisp bignum does not fit in `i64` (`value` is the
+    /// bignum). Emacs 25, 26: an `i64` does not fit in a fixnum (`value` is `None`, because no
+    /// Lisp value exists). Lisp signal: `rust-module-integer-out-of-range`, with data `(VALUE)`,
+    /// or no data.
+    #[error("Integer out of range")]
+    #[non_exhaustive]
+    IntegerOutOfRange { value: Option<TempValue> },
+
     /// A module-layer signal with no typed variant. If it propagates, Lisp code sees it unchanged.
     #[error("Module-layer signal: symbol={symbol:?} data={data:?}")]
     #[non_exhaustive]
@@ -470,6 +478,11 @@ impl Env {
             "Args out of range",
             (symbol::rust_module_error, symbol::args_out_of_range),
         )?;
+        self.define_error(
+            symbol::rust_module_integer_out_of_range,
+            "Arithmetic overflow error",
+            (symbol::rust_module_error, symbol::overflow_error),
+        )?;
         Ok(())
     }
 
@@ -538,6 +551,14 @@ impl Env {
                     symbol::rust_module_index_out_of_range,
                     self.list((vector, *index))?,
                 )
+            }
+            ModuleError::IntegerOutOfRange { value } => {
+                let data = match value {
+                    // SAFETY: Guaranteed by the caller.
+                    Some(value) => self.list((unsafe { value.value(self) },))?,
+                    None => symbol::nil.bind(self),
+                };
+                self.signal_with(symbol::rust_module_integer_out_of_range, data)
             }
             // Lisp code sees an unclassified signal unchanged.
             // SAFETY: Guaranteed by the caller.

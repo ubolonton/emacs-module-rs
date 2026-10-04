@@ -126,6 +126,7 @@ fn describe_module(error: &ModuleError) -> String {
         ModuleError::InvalidUtf8 { .. } => "InvalidUtf8".to_string(),
         ModuleError::BufferTooSmall { .. } => "BufferTooSmall".to_string(),
         ModuleError::IndexOutOfRange { .. } => "IndexOutOfRange".to_string(),
+        ModuleError::IntegerOutOfRange { .. } => "IntegerOutOfRange".to_string(),
         _ => format!("Unknown: {error:?}"),
     }
 }

@@ -42,7 +42,11 @@ Integer conversion is lossless by default, which means that a module will signal
 - A `#[defun]` expecting `u8` gets passed `-1`.
 - A `#[defun]` returning `u64` returns a value larger than `i64::max_value()`.
 
-To disable this behavior, use the `lossy-integer-conversion` feature:
+On Emacs 25 and 26, which have no bignums, the module layer itself can reject a Rust integer that does not fit a fixnum. This signals `rust-module-integer-out-of-range` (`ModuleError::IntegerOutOfRange`) instead.
+
+The reverse also happens. On Emacs 27+, which support bignums, a Lisp integer outside the `i64` range signals `rust-module-integer-out-of-range` (`ModuleError::IntegerOutOfRange`), for every target type, for example `i8` or `u64`. This happens even with `lossy-integer-conversion`: extracting the `i64` itself fails, before any Rust-side narrowing runs.
+
+To disable Rust-side narrowing checks, use the `lossy-integer-conversion` feature:
 
 ```toml
 [dependencies.emacs]

@@ -37,6 +37,7 @@ use_symbols! {
     rust_module_invalid_utf_8
     rust_module_buffer_too_small
     rust_module_index_out_of_range
+    rust_module_integer_out_of_range
 }
 
 pub trait IntoLispSymbol<'e> {

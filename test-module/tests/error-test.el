@@ -118,3 +118,17 @@
       'rust-module-index-out-of-range '(rust-module-error args-out-of-range) (list v -1))
     (t/should-signal (t/conversion-vec-set v 4 'a)
       'rust-module-index-out-of-range '(rust-module-error args-out-of-range) (list v 4))))
+
+(ert-deftest error::module-integer-out-of-range ()
+  (let ((parents '(rust-module-error overflow-error)))
+    (if t/support-bignum-p
+        (let ((big (expt 2 64)))
+          (should (equal (t/error:variant "i64" big nil) "Module/IntegerOutOfRange"))
+          (t/should-signal (t/inc big) 'rust-module-integer-out-of-range parents (list big))
+          ;; With bignums, `make_integer' does not fail.
+          (should (equal (t/error:variant "i64-max-into-lisp" nil nil) nil)))
+      ;; Without bignums, `make_integer' fails for an `i64' outside the fixnum range. No Lisp
+      ;; value exists for it, so the data is empty.
+      (should (equal (t/error:variant "i64-max-into-lisp" nil nil) "Module/IntegerOutOfRange"))
+      (t/should-signal (t/inc most-positive-fixnum)
+        'rust-module-integer-out-of-range parents nil))))

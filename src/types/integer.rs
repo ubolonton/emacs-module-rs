@@ -1,4 +1,19 @@
+use emacs_module::emacs_value;
+
 use super::*;
+use crate::{error::TempValue, ModuleError};
+
+/// The call-site rule for `extract_integer` (Emacs 27+, bignums) and `make_integer` (Emacs 25,
+/// 26, no bignums). `value` is the Lisp value, if one exists.
+fn integer_out_of_range<'e>(
+    value: Option<Value<'e>>,
+) -> impl FnOnce(&Env, emacs_value) -> Option<ModuleError> + 'e {
+    move |env, raw_symbol| {
+        env.is_symbol(raw_symbol, symbol::overflow_error).then(|| {
+            ModuleError::IntegerOutOfRange { value: value.map(TempValue::from_value) }
+        })
+    }
+}
 
 impl FromLisp<'_> for i64 {
     /// # Errors
@@ -6,8 +21,9 @@ impl FromLisp<'_> for i64 {
     /// | Rust variant | Lisp signal, if the error propagates |
     /// |---|---|
     /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
+    /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
     fn from_lisp(value: Value<'_>) -> Result<Self> {
-        unsafe_raw_call!(value.env, extract_integer, value.raw)
+        unsafe_raw_call!(value.env, extract_integer, value.raw; integer_out_of_range(Some(value)))
     }
 }
 
@@ -19,6 +35,7 @@ macro_rules! int_from_lisp {
             /// | Rust variant | Lisp signal, if the error propagates |
             /// |---|---|
             /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
+            /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
             #[cfg(not(feature = "lossy-integer-conversion"))]
             fn from_lisp(value: Value<'_>) -> Result<$name> {
                 let i: i64 = value.into_rust()?;
@@ -30,6 +47,7 @@ macro_rules! int_from_lisp {
             /// | Rust variant | Lisp signal, if the error propagates |
             /// |---|---|
             /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
+            /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
             #[cfg(feature = "lossy-integer-conversion")]
             fn from_lisp(value: Value<'_>) -> Result<$name> {
                 let i: i64 = value.into_rust()?;
@@ -60,6 +78,7 @@ macro_rules! nonzero_int_from_lisp {
             /// | Rust variant | Lisp signal, if the error propagates |
             /// |---|---|
             /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
+            /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
             #[cfg(not(feature = "lossy-integer-conversion"))]
             fn from_lisp(value: Value<'_>) -> Result<std::num::$name> {
                 let i: i64 = value.into_rust()?;
@@ -72,6 +91,7 @@ macro_rules! nonzero_int_from_lisp {
             /// | Rust variant | Lisp signal, if the error propagates |
             /// |---|---|
             /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
+            /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
             #[cfg(feature = "lossy-integer-conversion")]
             fn from_lisp(value: Value<'_>) -> Result<std::num::$name> {
                 let i: i64 = value.into_rust()?;
@@ -97,8 +117,13 @@ nonzero_int_from_lisp!(NonZeroIsize(isize));
 // -------------------------------------------------------------------------------------------------
 
 impl IntoLisp<'_> for i64 {
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 25, 26) | `rust-module-integer-out-of-range` |
     fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-        unsafe_raw_call_value_unprotected!(env, make_integer, self)
+        unsafe_raw_call_value_unprotected!(env, make_integer, self; integer_out_of_range(None))
     }
 }
 
@@ -111,8 +136,27 @@ macro_rules! int_into_lisp {
             }
         }
     };
+    // Like the arm above, but for a type whose range can exceed the fixnum range on Emacs 25, 26.
+    ($name:ident, overflow) => {
+        impl IntoLisp<'_> for $name {
+            /// # Errors
+            ///
+            /// | Rust variant | Lisp signal, if the error propagates |
+            /// |---|---|
+            /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 25, 26) | `rust-module-integer-out-of-range` |
+            #[inline]
+            fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+                (self as i64).into_lisp(env)
+            }
+        }
+    };
     ($name:ident, lossless) => {
         impl IntoLisp<'_> for $name {
+            /// # Errors
+            ///
+            /// | Rust variant | Lisp signal, if the error propagates |
+            /// |---|---|
+            /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 25, 26) | `rust-module-integer-out-of-range` |
             fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
                 let i: i64 = self.try_into()?;
                 i.into_lisp(env)
@@ -131,11 +175,11 @@ int_into_lisp!(u32);
 
 // Types where `as i64` is lossy.
 #[cfg(feature = "lossy-integer-conversion")]
-int_into_lisp!(isize);
+int_into_lisp!(isize, overflow);
 #[cfg(feature = "lossy-integer-conversion")]
-int_into_lisp!(u64);
+int_into_lisp!(u64, overflow);
 #[cfg(feature = "lossy-integer-conversion")]
-int_into_lisp!(usize);
+int_into_lisp!(usize, overflow);
 #[cfg(not(feature = "lossy-integer-conversion"))]
 int_into_lisp!(isize, lossless);
 #[cfg(not(feature = "lossy-integer-conversion"))]
