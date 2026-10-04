@@ -8,13 +8,9 @@ use super::*;
 /// `Vec<u8>` would block a future generic `impl<T: IntoLisp> IntoLisp for Vec<T>`, which would turn
 /// `Vec<u8>` into a Lisp vector of integers.
 ///
-/// | Direction | Lisp side |
-/// |---|---|
-/// | [`FromLisp`] | Any string. A unibyte string gives its bytes. A multibyte string gives its UTF-8 encoding. |
-/// | [`IntoLisp`] (feature `emacs-28`) | A unibyte string. |
-///
-/// [`IntoLisp`] needs the `emacs-28` feature, because the module API before Emacs 28 cannot make a
-/// unibyte string.
+/// From Lisp, it takes the bytes of a unibyte string, or the UTF-8 encoding of a multibyte string.
+/// To Lisp, it gives a unibyte string. This direction needs the `emacs-28` feature, because the
+/// module API before Emacs 28 cannot make a unibyte string. See the [guide] for edge cases.
 ///
 /// # Examples
 ///
@@ -30,6 +26,7 @@ use super::*;
 /// ```
 ///
 /// [`serde_bytes`]: https://docs.rs/serde_bytes
+/// [guide]: https://ubolonton.github.io/emacs-module-rs/latest/type-conversions.html#strings
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Bytes<T = Vec<u8>>(pub T);
 
