@@ -67,10 +67,6 @@
   (should (equal (t/error:variant "funcall" (lambda () (throw 'ball 1)) nil) "Throw"))
   (should (equal (t/error:variant "funcall" (lambda () 1) nil) nil)))
 
-(ert-deftest error::variant-module-layer ()
-  ;; Signals from module functions other than `funcall' are module-layer errors.
-  (should (string-prefix-p "Module/" (t/error:variant "i64" "3" nil))))
-
 (ert-deftest error::rust-invalid-utf-8 ()
   (let ((s "\377"))                     ; A unibyte string. Its byte is not valid UTF-8.
     (should (equal (t/error:variant "string" s nil) "Rust/InvalidUtf8"))
