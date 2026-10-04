@@ -76,6 +76,12 @@ impl<'e> Value<'e> {
         FromLisp::from_lisp(self)
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::UserPtr`](crate::LispType::UserPtr) | `rust-module-wrong-type` |
+    /// | [`RustError::WrongTypeUserPtr`](crate::RustError::WrongTypeUserPtr) | `rust-wrong-type-user-ptr` |
     #[inline]
     pub fn into_ref<T: 'static>(self) -> Result<Ref<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
@@ -83,6 +89,12 @@ impl<'e> Value<'e> {
         Ok(container.try_borrow()?)
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::UserPtr`](crate::LispType::UserPtr) | `rust-module-wrong-type` |
+    /// | [`RustError::WrongTypeUserPtr`](crate::RustError::WrongTypeUserPtr) | `rust-wrong-type-user-ptr` |
     #[inline]
     pub fn into_ref_mut<T: 'static>(self) -> Result<RefMut<'e, T>> {
         let container: &RefCell<T> = self.into_rust()?;
@@ -91,6 +103,13 @@ impl<'e> Value<'e> {
     }
 
     /// Returns a mutable reference to the underlying Rust data wrapped by this value.
+    ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::UserPtr`](crate::LispType::UserPtr) | `rust-module-wrong-type` |
+    /// | [`RustError::WrongTypeUserPtr`](crate::RustError::WrongTypeUserPtr) | `rust-wrong-type-user-ptr` |
     ///
     /// # Safety
     ///
@@ -114,10 +133,22 @@ impl<'e> Value<'e> {
         })
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ErrorKind::Signal`](crate::ErrorKind::Signal), from Lisp code | As raised |
+    /// | The errors of `T`'s [`FromLisp`](crate::FromLisp) impl | See that impl |
     pub fn car<T: FromLisp<'e>>(self) -> Result<T> {
         self.env.call(subr::car, (self,))?.into_rust()
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ErrorKind::Signal`](crate::ErrorKind::Signal), from Lisp code | As raised |
+    /// | The errors of `T`'s [`FromLisp`](crate::FromLisp) impl | See that impl |
     pub fn cdr<T: FromLisp<'e>>(self) -> Result<T> {
         self.env.call(subr::cdr, (self,))?.into_rust()
     }

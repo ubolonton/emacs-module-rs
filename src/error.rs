@@ -184,8 +184,8 @@ pub enum RustError {
     WrongTypeUserPtr { expected: &'static str, value: TempValue },
 
     /// The unibyte string is not valid UTF-8, so it cannot become a `String`. To get the bytes,
-    /// convert to `Vec<u8>` instead. Lisp signal: `rust-invalid-utf-8`, with data
-    /// `(utf-8-string-p VALUE)`.
+    /// use [`Value::clone_string_contents`](crate::Value::clone_string_contents) instead. Lisp
+    /// signal: `rust-invalid-utf-8`, with data `(utf-8-string-p VALUE)`.
     #[error("Invalid UTF-8")]
     #[non_exhaustive]
     InvalidUtf8 { value: TempValue, source: FromUtf8Error },
