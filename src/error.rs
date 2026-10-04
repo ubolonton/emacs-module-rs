@@ -1,5 +1,5 @@
 #[doc(no_inline)]
-use std::{any::Any, fmt::Display, mem::MaybeUninit, result, thread};
+use std::{any::Any, fmt::Display, mem::MaybeUninit, result, string::FromUtf8Error, thread};
 
 pub use anyhow::{self, Error};
 use thiserror::Error;
@@ -179,6 +179,13 @@ pub enum RustError {
     #[error("expected: {expected}")]
     #[non_exhaustive]
     WrongTypeUserPtr { expected: &'static str, value: TempValue },
+
+    /// The unibyte string is not valid UTF-8, so it cannot become a `String`. To get the bytes,
+    /// convert to `Vec<u8>` instead. Lisp signal: `rust-invalid-utf-8`, with data
+    /// `(utf-8-string-p VALUE)`.
+    #[error("Invalid UTF-8: {source}")]
+    #[non_exhaustive]
+    InvalidUtf8 { value: TempValue, source: FromUtf8Error },
 }
 
 /// A Lisp type that the module layer checks. See [`ModuleError::WrongType`].
@@ -483,6 +490,11 @@ impl Env {
             "Arithmetic overflow error",
             (symbol::rust_module_error, symbol::overflow_error),
         )?;
+        self.define_error(
+            symbol::rust_invalid_utf_8,
+            "Invalid UTF-8",
+            (symbol::rust_error, symbol::wrong_type_argument),
+        )?;
         Ok(())
     }
 
@@ -579,6 +591,14 @@ impl Env {
                 // SAFETY: Guaranteed by the caller.
                 let value = unsafe { value.value(self) };
                 self.signal_with(symbol::rust_wrong_type_user_ptr, self.list((*expected, value))?)
+            }
+            RustError::InvalidUtf8 { value, .. } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_invalid_utf_8,
+                    self.list((symbol::utf_8_string_p, value))?,
+                )
             }
         }
     }

@@ -1,7 +1,7 @@
 use std::{os, ptr, cmp};
 
 use super::*;
-use crate::ModuleError;
+use crate::{ModuleError, ErrorKind, RustError, error::TempValue};
 
 impl FromLisp<'_> for String {
     /// # Errors
@@ -10,9 +10,13 @@ impl FromLisp<'_> for String {
     /// |---|---|
     /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
     /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
+    /// | [`RustError::InvalidUtf8`](crate::RustError::InvalidUtf8) | `rust-invalid-utf-8` |
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.clone_string_contents()?;
-        String::from_utf8(bytes).map_err(|e| e.into())
+        String::from_utf8(bytes).map_err(|source| {
+            let value = TempValue::from_value(value);
+            ErrorKind::Rust(RustError::InvalidUtf8 { value, source }).into()
+        })
     }
 }
 

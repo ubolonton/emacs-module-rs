@@ -116,10 +116,9 @@
       ;; Multibyte representation is rejected on the Emacs side.
       (should (eq (cadr err) 'unicode-string-p))
       ;; Unibyte representation is rejected on the Rust side.
-      (should (string-match-p
-               "invalid utf-8 sequence"
-               (cadr (should-error (t/conversion-string-roundtrip unibyte-str)
-                                   :type 'rust-error)))))))
+      (let ((err (should-error (t/conversion-string-roundtrip unibyte-str)
+                               :type 'rust-invalid-utf-8)))
+        (should (equal (cdr err) (list 'utf-8-string-p unibyte-str)))))))
 
 (ert-deftest conversion::option-string ()
   (should (equal (t/conversion-to-lowercase-or-nil "CDE") "cde"))

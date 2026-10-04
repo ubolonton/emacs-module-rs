@@ -134,6 +134,7 @@ fn describe_module(error: &ModuleError) -> String {
 fn describe_rust(error: &RustError) -> String {
     match error {
         RustError::WrongTypeUserPtr { .. } => "WrongTypeUserPtr".to_string(),
+        RustError::InvalidUtf8 { .. } => "InvalidUtf8".to_string(),
         _ => format!("Unknown: {error:?}"),
     }
 }

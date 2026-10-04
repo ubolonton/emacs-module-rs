@@ -70,6 +70,9 @@ match error.downcast_ref::<ErrorKind>() {
     Some(ErrorKind::Module(WrongType { expected: LispType::Integer, .. })) => {
         env.message("Expected an integer")?;
     }
+    Some(ErrorKind::Rust(InvalidUtf8 { .. })) => {
+        env.message("Not valid UTF-8")?;
+    }
     // `ModuleError` and `RustError` can grow new variants in a minor release.
     _ => return Err(error),
 }
@@ -101,7 +104,7 @@ Instead of handling the module-layer and Rust-layer errors above, Rust module fu
 - The error symbol has 2 parent symbols: the origin symbol and the standard symbol.
     - For module-layer errors, the origin symbol is `rust-module-error`, and the standard symbol is the original symbol that `emacs-module.c` uses.
     - For Rust-layer errors, the origin symbol is `rust-error`.
-- The signal data has the same shape as the standard symbol's data shape in Emacs 31. For example, `rust-module-wrong-type` data is `(integerp "3")`, like `wrong-type-argument`.
+- The signal data has the same shape as the standard symbol's data shape in Emacs 31. For example, `rust-module-wrong-type` data is `(integerp "3")`, like `wrong-type-argument`, `rust-invalid-utf-8` data is `(utf-8-string-p "\377")`.
 
 `Signal`, `Throw`, and `ModuleError::Signal` are raised again unchanged. Lisp code sees the original symbol and data. `ModuleError::Signal` has no `rust-` symbol.
 
@@ -117,7 +120,8 @@ ErrorKind
 │   ├── IntegerOutOfRange
 │   └── Signal               no typed variant
 └── Rust(RustError)          this crate's Rust layer rejected the value
-    └── WrongTypeUserPtr
+    ├── WrongTypeUserPtr
+    └── InvalidUtf8
 ```
 ```
 error                                      + standard symbol
@@ -129,7 +133,8 @@ error                                      + standard symbol
 │   ├── rust-module-index-out-of-range     + args-out-of-range
 │   └── rust-module-integer-out-of-range   + overflow-error
 ├── rust-error
-│   └── rust-wrong-type-user-ptr           + wrong-type-argument
+│   ├── rust-wrong-type-user-ptr           + wrong-type-argument
+│   └── rust-invalid-utf-8                 + wrong-type-argument
 └── rust-panic
 ```
 

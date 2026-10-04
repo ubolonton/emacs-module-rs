@@ -71,6 +71,14 @@
   ;; Signals from module functions other than `funcall' are module-layer errors.
   (should (string-prefix-p "Module/" (t/error:variant "i64" "3" nil))))
 
+(ert-deftest error::rust-invalid-utf-8 ()
+  (let ((s "\377"))                     ; A unibyte string. Its byte is not valid UTF-8.
+    (should (equal (t/error:variant "string" s nil) "Rust/InvalidUtf8"))
+    ;; Conversion to bytes does not check UTF-8.
+    (should (equal (t/error:variant "bytes" s nil) nil))
+    (t/should-signal (t/to-uppercase s)
+      'rust-invalid-utf-8 '(rust-error wrong-type-argument) (list 'utf-8-string-p s))))
+
 (ert-deftest error::module-wrong-type ()
   (dolist (case '(("i64" "3" "Module/WrongType/Integer")
                   ("f64" "x" "Module/WrongType/Float")

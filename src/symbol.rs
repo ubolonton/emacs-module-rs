@@ -27,6 +27,7 @@ use_symbols! {
     rust_error
     rust_panic
     rust_wrong_type_user_ptr
+    rust_invalid_utf_8
     wrong_type_argument
     args_out_of_range memory_buffer_too_small overflow_error
     integerp numberp floatp stringp vectorp user_ptr user_ptrp processp pipe_process_p

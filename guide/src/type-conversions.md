@@ -65,10 +65,10 @@ Lisp strings are converted into Rust `String` structs.
 
 - Unibyte strings:
     - The Lisp side copies  the raw bytes directly.
-    - The Rust side decodes the bytes, signaling `rust-error` if they are not a valid UTF-8 sequence.
+    - The Rust side decodes the bytes, signaling `rust-invalid-utf-8` (`RustError::InvalidUtf8`) if they are not a valid UTF-8 sequence.
 - Multibyte strings:
     - The Lisp side encodes the string into raw bytes, signaling `rust-module-non-unicode-string` (`ModuleError::NonUnicodeString`) if it cannot be encoded via UTF-8. (Emacs's internal coding system is a superset.)
-    - The Rust side decodes the bytes, never signaling `rust-error`. (Emacs bugs not withstanding.) If you want to skip this validation, use `String::from_utf8_unchecked(value.clone_string_contents()?)`.
+    - The Rust side decodes the bytes, never signaling `rust-invalid-utf-8` (`RustError::InvalidUtf8`). (Emacs bugs not withstanding.) If you want to skip this validation, use `String::from_utf8_unchecked(value.clone_string_contents()?)`.
 
 If you don't want to allocate memory for `String` structs, and have a large-enough buffer, use `value.copy_string_contents(buffer)`.
 
