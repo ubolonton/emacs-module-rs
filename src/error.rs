@@ -1,5 +1,8 @@
 #[doc(no_inline)]
-use std::{any::Any, fmt::Display, mem::MaybeUninit, result, string::FromUtf8Error, thread};
+use std::{
+    any::Any, fmt::Display, mem::MaybeUninit, num::TryFromIntError, result, string::FromUtf8Error,
+    thread,
+};
 
 pub use anyhow::{self, Error};
 use thiserror::Error;
@@ -186,6 +189,13 @@ pub enum RustError {
     #[error("Invalid UTF-8: {source}")]
     #[non_exhaustive]
     InvalidUtf8 { value: TempValue, source: FromUtf8Error },
+
+    /// The integer does not fit in the target type. `value` is the Lisp value, or `None` when a
+    /// Rust value does not fit in Lisp. Lisp signal: `rust-integer-out-of-range`, with data
+    /// `(VALUE)`, or no data.
+    #[error("Integer out of range: {source}")]
+    #[non_exhaustive]
+    IntegerOutOfRange { value: Option<TempValue>, source: TryFromIntError },
 }
 
 /// A Lisp type that the module layer checks. See [`ModuleError::WrongType`].
@@ -495,6 +505,11 @@ impl Env {
             "Invalid UTF-8",
             (symbol::rust_error, symbol::wrong_type_argument),
         )?;
+        self.define_error(
+            symbol::rust_integer_out_of_range,
+            "Integer out of range",
+            (symbol::rust_error, symbol::overflow_error),
+        )?;
         Ok(())
     }
 
@@ -599,6 +614,14 @@ impl Env {
                     symbol::rust_invalid_utf_8,
                     self.list((symbol::utf_8_string_p, value))?,
                 )
+            }
+            RustError::IntegerOutOfRange { value, .. } => {
+                let data = match value {
+                    // SAFETY: Guaranteed by the caller.
+                    Some(value) => self.list((unsafe { value.value(self) },))?,
+                    None => symbol::nil.bind(self),
+                };
+                self.signal_with(symbol::rust_integer_out_of_range, data)
             }
         }
     }

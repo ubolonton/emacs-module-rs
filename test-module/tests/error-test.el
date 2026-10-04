@@ -140,3 +140,14 @@
       (should (equal (t/error:variant "i64-max-into-lisp" nil nil) "Module/IntegerOutOfRange"))
       (t/should-signal (t/inc most-positive-fixnum)
         'rust-module-integer-out-of-range parents nil))))
+
+(ert-deftest error::rust-integer-out-of-range ()
+  (should (equal (t/error:variant "u8" 256 nil) "Rust/IntegerOutOfRange"))
+  (should (equal (t/error:variant "u8" -1 nil) "Rust/IntegerOutOfRange"))
+  (should (equal (t/error:variant "nonzero-u8" 0 nil) "Rust/IntegerOutOfRange"))
+  (should (equal (t/error:variant "u64-max-into-lisp" nil nil) "Rust/IntegerOutOfRange"))
+  (let ((parents '(rust-error overflow-error)))
+    (t/should-signal (t/conversion-identity-i8 128) 'rust-integer-out-of-range parents '(128))
+    (t/should-signal (t/conversion-identity-u8 -1) 'rust-integer-out-of-range parents '(-1))
+    ;; No Lisp value exists for a Rust value that does not fit in Lisp, so the data is empty.
+    (t/should-signal (t/conversion-u64-overflow) 'rust-integer-out-of-range parents nil)))

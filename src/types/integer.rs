@@ -1,7 +1,37 @@
+use std::num::TryFromIntError;
+
 use emacs_module::emacs_value;
 
 use super::*;
-use crate::{error::TempValue, ModuleError};
+use crate::{error::TempValue, Error, ErrorKind, ModuleError, RustError};
+
+/// Normalizes the error of a narrowing `try_into` to [`TryFromIntError`], for [`out_of_range`].
+/// `i64 -> i64` (used by `NonZeroI64`) goes through `std`'s reflexive `TryFrom<T> for T`, whose
+/// error is [`Infallible`](std::convert::Infallible), not `TryFromIntError`.
+trait IntoTryFromIntError {
+    fn into_try_from_int_error(self) -> TryFromIntError;
+}
+
+impl IntoTryFromIntError for TryFromIntError {
+    fn into_try_from_int_error(self) -> TryFromIntError {
+        self
+    }
+}
+
+impl IntoTryFromIntError for std::convert::Infallible {
+    fn into_try_from_int_error(self) -> TryFromIntError {
+        match self {}
+    }
+}
+
+/// Returns [`RustError::IntegerOutOfRange`]. `value` is the Lisp value, if one exists.
+fn out_of_range<E: IntoTryFromIntError>(value: Option<Value<'_>>, source: E) -> Error {
+    ErrorKind::Rust(RustError::IntegerOutOfRange {
+        value: value.map(TempValue::from_value),
+        source: source.into_try_from_int_error(),
+    })
+    .into()
+}
 
 /// The call-site rule for `extract_integer` (Emacs 27+, bignums) and `make_integer` (Emacs 25,
 /// 26, no bignums). `value` is the Lisp value, if one exists.
@@ -36,10 +66,11 @@ macro_rules! int_from_lisp {
             /// |---|---|
             /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
             /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
+            /// | [`RustError::IntegerOutOfRange`](crate::RustError::IntegerOutOfRange) | `rust-integer-out-of-range` |
             #[cfg(not(feature = "lossy-integer-conversion"))]
             fn from_lisp(value: Value<'_>) -> Result<$name> {
                 let i: i64 = value.into_rust()?;
-                Ok(i.try_into()?)
+                i.try_into().map_err(|source| out_of_range(Some(value), source))
             }
 
             /// # Errors
@@ -79,11 +110,13 @@ macro_rules! nonzero_int_from_lisp {
             /// |---|---|
             /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
             /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
+            /// | [`RustError::IntegerOutOfRange`](crate::RustError::IntegerOutOfRange) | `rust-integer-out-of-range` |
             #[cfg(not(feature = "lossy-integer-conversion"))]
             fn from_lisp(value: Value<'_>) -> Result<std::num::$name> {
                 let i: i64 = value.into_rust()?;
-                let i: $primitive = i.try_into()?;
-                Ok(i.try_into()?)
+                let i: $primitive =
+                    i.try_into().map_err(|source| out_of_range(Some(value), source))?;
+                i.try_into().map_err(|source| out_of_range(Some(value), source))
             }
 
             /// # Errors
@@ -92,11 +125,12 @@ macro_rules! nonzero_int_from_lisp {
             /// |---|---|
             /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Integer`](crate::LispType::Integer) | `rust-module-wrong-type` |
             /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 27+) | `rust-module-integer-out-of-range` |
+            /// | [`RustError::IntegerOutOfRange`](crate::RustError::IntegerOutOfRange) | `rust-integer-out-of-range` |
             #[cfg(feature = "lossy-integer-conversion")]
             fn from_lisp(value: Value<'_>) -> Result<std::num::$name> {
                 let i: i64 = value.into_rust()?;
                 let i: $primitive = i as $primitive;
-                Ok(i.try_into()?)
+                i.try_into().map_err(|source| out_of_range(Some(value), source))
             }
         }
     }
@@ -157,8 +191,9 @@ macro_rules! int_into_lisp {
             /// | Rust variant | Lisp signal, if the error propagates |
             /// |---|---|
             /// | [`ModuleError::IntegerOutOfRange`](crate::ModuleError::IntegerOutOfRange) (Emacs 25, 26) | `rust-module-integer-out-of-range` |
+            /// | [`RustError::IntegerOutOfRange`](crate::RustError::IntegerOutOfRange) | `rust-integer-out-of-range` |
             fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
-                let i: i64 = self.try_into()?;
+                let i: i64 = self.try_into().map_err(|source| out_of_range(None, source))?;
                 i.into_lisp(env)
             }
         }
@@ -193,6 +228,9 @@ macro_rules! nonzero_int_into_lisp {
     ($name:ident) => {
         #[cfg(feature = "nonzero-integer-conversion")]
         impl IntoLisp<'_> for std::num::$name {
+            /// # Errors
+            ///
+            /// Returns the errors of the [`IntoLisp`] impl of the primitive type.
             #[inline]
             fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
                 self.get().into_lisp(env)

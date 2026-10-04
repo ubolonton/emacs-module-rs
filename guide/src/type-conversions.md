@@ -38,7 +38,7 @@ It's better to declare return type for `#[defun]` than calling `.into_lisp(env)`
 
 ## Integers
 
-Integer conversion is lossless by default, which means that a module will signal an "out of range" `rust-error` in cases such as:
+Integer conversion is lossless by default. Rust code signals `rust-integer-out-of-range` (`RustError::IntegerOutOfRange`) when a value does not fit the target type, in cases such as:
 - A `#[defun]` expecting `u8` gets passed `-1`.
 - A `#[defun]` returning `u64` returns a value larger than `i64::max_value()`.
 

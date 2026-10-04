@@ -17,16 +17,9 @@
   (should (= -128 (t/conversion-identity-i8 -128)))
   (should (= 255 (t/conversion-identity-u8 255)))
 
-  ;; FIX: Don't rely on error's string representation.
-  (should (string-match-p
-           "out of range"
-           (cadr (should-error (t/conversion-u64-overflow) :type 'rust-error))))
-  (should (string-match-p
-           "out of range"
-           (cadr (should-error (t/conversion-identity-i8 128) :type 'rust-error))))
-  (should (string-match-p
-           "out of range"
-           (cadr (should-error (t/conversion-identity-u8 -1) :type 'rust-error)))))
+  (should-error (t/conversion-u64-overflow) :type 'rust-integer-out-of-range)
+  (should-error (t/conversion-identity-i8 128) :type 'rust-integer-out-of-range)
+  (should-error (t/conversion-identity-u8 -1) :type 'rust-integer-out-of-range))
 
 (ert-deftest conversion::passthrough ()
   (let ((x "x"))

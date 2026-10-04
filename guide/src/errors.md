@@ -121,7 +121,8 @@ ErrorKind
 │   └── Signal               no typed variant
 └── Rust(RustError)          this crate's Rust layer rejected the value
     ├── WrongTypeUserPtr
-    └── InvalidUtf8
+    ├── InvalidUtf8
+    └── IntegerOutOfRange
 ```
 ```
 error                                      + standard symbol
@@ -134,7 +135,8 @@ error                                      + standard symbol
 │   └── rust-module-integer-out-of-range   + overflow-error
 ├── rust-error
 │   ├── rust-wrong-type-user-ptr           + wrong-type-argument
-│   └── rust-invalid-utf-8                 + wrong-type-argument
+│   ├── rust-invalid-utf-8                 + wrong-type-argument
+│   └── rust-integer-out-of-range          + overflow-error
 └── rust-panic
 ```
 
