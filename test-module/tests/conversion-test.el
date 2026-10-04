@@ -65,12 +65,16 @@
                   (encode-coding-string "Nguyễn Tuấn Anh" 'vietnamese-vscii) 'utf-8-emacs)
                  (decode-coding-string
                   (encode-coding-string "阮俊英" 'chinese-big5) 'utf-8-emacs)))
-    (let ((err (should-error
-                (t/conversion-string-to-bytes multibyte-non-unicode-str)
-                :type 'wrong-type-argument))
-          (unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
-      ;; Multibyte representation is rejected.
-      (should (eq (cadr err) 'unicode-string-p))
+    (let ((unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
+      ;; Multibyte representation is rejected in Emacs 27+.
+      (if (>= emacs-major-version 27)
+          (let ((err (should-error
+                      (t/conversion-string-to-bytes multibyte-non-unicode-str)
+                      :type 'wrong-type-argument)))
+            (should (eq (cadr err) 'unicode-string-p)))
+        ;; Emacs 25 and 26 copy the unibyte bytes instead.
+        (should (equal (t/conversion-string-to-bytes multibyte-non-unicode-str)
+                       (vconcat unibyte-str))))
       ;; Unibyte representation is accepted.
       (should (equal (t/conversion-string-to-bytes unibyte-str)
                      (vconcat unibyte-str))))))
@@ -106,8 +110,12 @@
                 (t/conversion-string-roundtrip multibyte-non-unicode-str)
                 :type 'wrong-type-argument))
           (unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
-      ;; Multibyte representation is rejected on the Emacs side.
-      (should (eq (cadr err) 'unicode-string-p))
+      ;; Multibyte representation is rejected on the Emacs side in Emacs 27+.
+      (should (equal (cdr err)
+                     (if (>= emacs-major-version 27)
+                         (list 'unicode-string-p multibyte-non-unicode-str)
+                       ;; Emacs 25 and 26 do not check it, so the Rust side rejects it.
+                       (list 'utf-8-string-p multibyte-non-unicode-str))))
       ;; Unibyte representation is rejected on the Rust side.
       (let ((err (should-error (t/conversion-string-roundtrip unibyte-str)
                                :type 'rust-invalid-utf-8)))

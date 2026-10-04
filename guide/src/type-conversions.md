@@ -64,13 +64,18 @@ features = ["nonzero-integer-conversion"]
 Lisp strings are converted into Rust `String` structs.
 
 - Unibyte strings:
-    - The Lisp side copies  the raw bytes directly.
+    - The Lisp side copies the raw bytes directly.
     - The Rust side decodes the bytes, signaling `rust-invalid-utf-8` (`RustError::InvalidUtf8`) if they are not a valid UTF-8 sequence.
 - Multibyte strings:
-    - The Lisp side encodes the string into raw bytes, signaling `rust-module-non-unicode-string` (`ModuleError::NonUnicodeString`) if it cannot be encoded via UTF-8. (Emacs's internal coding system is a superset.)
-    - The Rust side decodes the bytes, never signaling `rust-invalid-utf-8` (`RustError::InvalidUtf8`). (Emacs bugs not withstanding.) If you want to skip this validation, use `String::from_utf8_unchecked(value.clone_string_contents()?)`.
+    - The Lisp side encodes the string into raw bytes and copies them.
+    - The Rust side decodes the bytes, doing the same validation as above.
+    - Since Emacs's internal coding system is a superset, when the string cannot be encoded via UTF-8:
+        - On Emacs 25 and 26, the Lisp side doesn't check for this, so the Rust side signals `rust-invalid-utf-8`.
+        - On Emacs 27+, the Lisp side signals `rust-module-non-unicode-string`, so the Rust side's check is redundant.
 
-If you don't want to allocate memory for `String` structs, and have a large-enough buffer, use `value.copy_string_contents(buffer)`.
+To squeeze out some performance:
+- You can avoid allocating memory for `String` structs, by using `value.copy_string_contents(buffer)` with a large enough buffer.
+- You can avoid the redundant Rust side's check using `String::from_utf8_unchecked(value.clone_string_contents()?)`.
 
 ## Equality
 
