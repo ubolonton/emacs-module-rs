@@ -95,6 +95,12 @@
   (should (equal (error-message-string (t/get-error (t/inc "3")))
                  "Wrong type argument: integerp, \"3\"")))
 
+(ert-deftest error::propagate-bare-module-error ()
+  ;; Code that takes a `ModuleError' out of `ErrorKind' and propagates it alone with `?' still
+  ;; gets the typed Lisp signal, not a generic `rust-error'.
+  (t/should-signal (t/error:propagate-bare-module-error "3")
+    'rust-module-wrong-type '(rust-module-error wrong-type-argument) '(integerp "3")))
+
 (ert-deftest error::module-buffer-too-small ()
   (should (equal (t/error:variant "copy-string-contents" "xyz" 3) "Module/BufferTooSmall"))
   ;; Emacs 31 signals `memory-buffer-too-small'. Earlier versions signal `args-out-of-range'.

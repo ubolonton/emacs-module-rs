@@ -106,6 +106,21 @@ fn variant<'e>(
     Ok(result.err().map(|error| describe(&error)))
 }
 
+/// Convert VALUE to an `i64`, then propagate the resulting `ModuleError` on its own, without the
+/// `ErrorKind` wrapper around it. This simulates user code that takes the inner error out of an
+/// `ErrorKind` (for example, to inspect it) and re-propagates it with `?`.
+#[defun(mod_in_name = false, name = "error:propagate-bare-module-error")]
+fn propagate_bare_module_error(value: Value<'_>) -> Result<i64> {
+    match value.into_rust::<i64>() {
+        Ok(i) => Ok(i),
+        Err(error) => match error.downcast::<ErrorKind>() {
+            Ok(ErrorKind::Module(module_error)) => Err(module_error.into()),
+            Ok(other) => Err(other.into()),
+            Err(error) => Err(error),
+        },
+    }
+}
+
 /// Return the variant path of ERROR, e.g. "Module/WrongType/Integer".
 fn describe(error: &emacs::Error) -> String {
     // `ErrorKind` is exhaustive, so this match must not need a `_` arm.

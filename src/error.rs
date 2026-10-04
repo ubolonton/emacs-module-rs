@@ -410,15 +410,8 @@ impl Env {
     pub(crate) unsafe fn maybe_exit(&self, result: Result<Value<'_>>) -> emacs_value {
         match result {
             Ok(v) => v.raw,
-            Err(error) => match error.downcast_ref::<ErrorKind>() {
-                Some(err) => {
-                    // SAFETY: TempValue's raw values remain live for the duration of this error.
-                    unsafe { self.handle_known(err) }
-                }
-                _ => self
-                    .signal_internal(symbol::rust_error, &format!("{}", error))
-                    .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
-            },
+            // SAFETY: TempValue's raw values remain live for the duration of this error.
+            Err(error) => unsafe { self.handle_error(&error) },
         }
     }
 
@@ -440,6 +433,26 @@ impl Env {
                     m = match error.downcast::<ErrorKind>() {
                         // TODO: Explain safety.
                         Ok(err) => unsafe { return self.handle_known(&*err); },
+                        Err(error) => Err(error),
+                    }
+                }
+                // A bare `ModuleError` or `RustError`, taken out of an `ErrorKind` and panicked
+                // with directly, still gets its own signal. See `Env::handle_error`.
+                if let Err(error) = m {
+                    m = match error.downcast::<ModuleError>() {
+                        Ok(err) => {
+                            let raised = unsafe { self.signal_module_error(&err) };
+                            return self.signal_or_fallback(raised, &*err);
+                        }
+                        Err(error) => Err(error),
+                    }
+                }
+                if let Err(error) = m {
+                    m = match error.downcast::<RustError>() {
+                        Ok(err) => {
+                            let raised = unsafe { self.signal_rust_error(&err) };
+                            return self.signal_or_fallback(raised, &*err);
+                        }
                         Err(error) => Err(error),
                     }
                 }
@@ -537,9 +550,47 @@ impl Env {
             ErrorKind::Module(error) => unsafe { self.signal_module_error(error) },
             ErrorKind::Rust(error) => unsafe { self.signal_rust_error(error) },
         };
+        self.signal_or_fallback(raised, err)
+    }
+
+    /// Converts `error` into a Lisp signal. `error` is usually an [`ErrorKind`] (ADR 0003), but
+    /// user code can also take a bare [`ModuleError`] or [`RustError`] out of an `ErrorKind` (for
+    /// example, to inspect it) and propagate it on its own with `?`; this still gets the mapping
+    /// of its type, instead of falling through to a generic `rust-error`. Anything else becomes a
+    /// generic `rust-error`, with `error`'s `Display` as the message.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`Env::handle_known`].
+    unsafe fn handle_error(&self, error: &Error) -> emacs_value {
+        if let Some(err) = error.downcast_ref::<ErrorKind>() {
+            // SAFETY: Guaranteed by the caller.
+            return unsafe { self.handle_known(err) };
+        }
+        if let Some(err) = error.downcast_ref::<ModuleError>() {
+            // SAFETY: Guaranteed by the caller.
+            let raised = unsafe { self.signal_module_error(err) };
+            return self.signal_or_fallback(raised, error);
+        }
+        if let Some(err) = error.downcast_ref::<RustError>() {
+            // SAFETY: Guaranteed by the caller.
+            let raised = unsafe { self.signal_rust_error(err) };
+            return self.signal_or_fallback(raised, error);
+        }
+        self.signal_internal(symbol::rust_error, &format!("{}", error))
+            .unwrap_or_else(|_| panic!("Failed to signal {}", error))
+    }
+
+    /// Raises `raised`'s signal. If raising it fails, falls back to a generic `rust-error`, with
+    /// `display`'s `Display` as the message.
+    fn signal_or_fallback(
+        &self,
+        raised: Result<emacs_value>,
+        display: &dyn Display,
+    ) -> emacs_value {
         raised.unwrap_or_else(|_| {
-            self.signal_internal(symbol::rust_error, &format!("{}", err))
-                .unwrap_or_else(|_| panic!("Failed to signal {}", err))
+            self.signal_internal(symbol::rust_error, &format!("{}", display))
+                .unwrap_or_else(|_| panic!("Failed to signal {}", display))
         })
     }
 
