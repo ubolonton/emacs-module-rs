@@ -238,9 +238,16 @@ pub type Result<T> = result::Result<T, Error>;
 impl TempValue {
     /// Keeps a Lisp value in an error. To read it back, use the `unsafe` method [`value`].
     ///
+    /// Protects the value, so that it stays live until the error is read or dropped. Some kept
+    /// values come from calls that do not protect their own result, such as the element that
+    /// `Vector::get` reads before it decides that the element itself is the failure. On Emacs
+    /// 25/26 ([GC bug #31238]), such a value is otherwise live only while something else, such as
+    /// the vector, still references it.
+    ///
     /// [`value`]: TempValue::value
+    /// [GC bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
     pub(crate) fn from_value(value: Value<'_>) -> Self {
-        Self { raw: value.raw }
+        Self { raw: value.protect().raw }
     }
 
     /// # Safety
