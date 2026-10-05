@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Breaking (Rust): `WrongTypeUserPtr` moved to `RustError`. Module-layer failures from APIs other than `funcall` are no longer `ErrorKind::Signal`.
     - Breaking (Lisp): the error symbols and data of these failures changed. `condition-case` on the standard signals still works.
     - See the [error handling guide](guide/src/errors.md) for the full hierarchy.
+- Added conversions between Lisp strings and byte chunks (`Vec<u8>`, `Box<[u8]>`, `&[u8]`), without UTF-8 validation. See the [type conversion guide](guide/src/type-conversions.md#strings).
+    - Conversion to Lisp gives a unibyte string, and needs the `emacs-28` feature.
 
 ## [0.21.0] - 2026-03-18
 - Added `emacs-28` feature with `Env::open_channel` for pipe-based communication (Emacs 28+).
