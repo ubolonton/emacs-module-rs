@@ -1,6 +1,6 @@
 //! Testing type conversion between Lisp and Rust.
 
-use emacs::{defun, Bytes, Env, IntoLisp, Result, Value, Vector};
+use emacs::{defun, Env, IntoLisp, Result, Value, Vector};
 
 emacs::use_symbols! { nil }
 
@@ -47,13 +47,13 @@ fn string_to_bytes(v: Value) -> Result<Vector> {
 }
 
 #[defun]
-fn bytes_to_vector_vec(env: &Env, bytes: Bytes) -> Result<Vector> {
-    bytes_to_vector(env, &bytes.0)
+fn bytes_to_vector_vec(env: &Env, bytes: Vec<u8>) -> Result<Vector> {
+    bytes_to_vector(env, &bytes)
 }
 
 #[defun]
-fn bytes_to_vector_boxed(env: &Env, bytes: Bytes<Box<[u8]>>) -> Result<Vector> {
-    bytes_to_vector(env, &bytes.0)
+fn bytes_to_vector_boxed(env: &Env, bytes: Box<[u8]>) -> Result<Vector> {
+    bytes_to_vector(env, &bytes)
 }
 
 #[defun]

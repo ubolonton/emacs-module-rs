@@ -121,8 +121,8 @@
                                :type 'rust-invalid-utf-8)))
         (should (equal (cdr err) (list 'utf-8-string-p unibyte-str)))))))
 
-;; `Bytes' accepts any Lisp string. These cases need no `emacs-28'. `test-module-28' tests the
-;; other direction.
+;; `Vec<u8>' and `Box<[u8]>' accept any Lisp string. These cases need no `emacs-28'.
+;; `test-module-28' tests the other direction.
 (ert-deftest conversion::bytes-from-lisp ()
   (dolist (case '(("abc" . [?a ?b ?c])
                   ;; Not UTF-8, with a null byte in the middle.

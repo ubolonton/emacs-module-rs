@@ -45,6 +45,62 @@ impl IntoLisp<'_> for String {
     }
 }
 
+// These byte chunk impls block a generic `Vec<T>`/`&[T]` conversion to and from a Lisp vector or
+// list, because `u8` is already `FromLisp` and `IntoLisp`. We don't want those anyway, as they
+// would be an expensive abstraction, on top of the vector vs. list ambiguity.
+impl FromLisp<'_> for Vec<u8> {
+    /// Gives the raw bytes of a Lisp string, without UTF-8 validation.
+    ///
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
+    /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
+        value.clone_string_contents()
+    }
+}
+
+impl FromLisp<'_> for Box<[u8]> {
+    fn from_lisp(value: Value<'_>) -> Result<Self> {
+        Vec::<u8>::from_lisp(value).map(Vec::into_boxed_slice)
+    }
+}
+
+#[cfg(feature = "emacs-28")]
+impl IntoLisp<'_> for &[u8] {
+    /// Gives a unibyte string. Needs the `emacs-28` feature, because the module API before Emacs 28
+    /// cannot make a unibyte string.
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+        let len = self.len();
+        let ptr = self.as_ptr();
+        // Safety: ptr and len are valid, coming from a slice.
+        unsafe_raw_call_value!(env, make_unibyte_string, ptr.cast(), len as isize)
+    }
+}
+
+#[cfg(feature = "emacs-28")]
+impl IntoLisp<'_> for &Vec<u8> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+        self.as_slice().into_lisp(env)
+    }
+}
+
+#[cfg(feature = "emacs-28")]
+impl IntoLisp<'_> for Vec<u8> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+        self.as_slice().into_lisp(env)
+    }
+}
+
+#[cfg(feature = "emacs-28")]
+impl IntoLisp<'_> for Box<[u8]> {
+    fn into_lisp(self, env: &Env) -> Result<Value<'_>> {
+        (*self).into_lisp(env)
+    }
+}
+
 impl<'e> Value<'e> {
     /// Copies the content of this Lisp string value to the given buffer as a null-terminated UTF-8
     /// string. Returns the copied bytes, excluding the null terminator.

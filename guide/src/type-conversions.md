@@ -14,7 +14,7 @@ let f: f64 = value.into_rust()?; // error if Lisp value is nil
 
 let s = value.into_rust::<String>()?;
 let s: Option<&str> = value.into_rust()?; // None if Lisp value is nil
-let b: Bytes = value.into_rust()?; // raw bytes of a Lisp string
+let b: Vec<u8> = value.into_rust()?; // raw bytes of a Lisp string
 ```
 
 It's better to declare input types for `#[defun]` than calling `.into_rust()`, unless delayed conversion is needed.
@@ -26,7 +26,7 @@ This is enabled for types that implement `IntoLisp`. Most built-in types are sup
 ```rust
 "abc".into_lisp(env)?;
 "a\0bc".into_lisp(env)?;
-Bytes(b"\xff\0").into_lisp(env)?; // unibyte string, needs feature emacs-28
+b"\xff\0".into_lisp(env)?; // unibyte string, needs feature emacs-28
 
 5.into_lisp(env)?;
 65.3.into_lisp(env)?;
@@ -63,21 +63,19 @@ features = ["nonzero-integer-conversion"]
 
 ## Strings
 
-Use `String` for text. Use `Bytes` for binary data, or for text in an encoding other than UTF-8.
+Use `String` for text. Use `Vec<u8>` for binary data, or for text in an encoding other than UTF-8.
 
 ```rust
-use emacs::Bytes;
-
-// (xor-bytes "\377\0" 1) returns "\376\1". Returning `Bytes` needs feature emacs-28.
+// (xor-bytes "\377\0" 1) returns "\376\1". Returning `Vec<u8>` needs feature emacs-28.
 #[defun]
-fn xor_bytes(data: Bytes, key: u8) -> Result<Bytes> {
-    Ok(Bytes(data.0.iter().map(|b| b ^ key).collect()))
+fn xor_bytes(data: Vec<u8>, key: u8) -> Result<Vec<u8>> {
+    Ok(data.iter().map(|b| b ^ key).collect())
 }
 ```
 
-Lisp to Rust conversion copies the bytes of a unibyte string, or the UTF-8 encoding of a multibyte string. `String` then validates them as UTF-8. `Bytes` does not.
+Lisp to Rust conversion copies the bytes of a unibyte string, or the UTF-8 encoding of a multibyte string. `String` then validates them as UTF-8. `Vec<u8>` does not.
 
-| Lisp value | `String` | `Bytes` |
+| Lisp value | `String` | `Vec<u8>` |
 |---|---|---|
 | `"abc"` (unibyte) | `"abc"` | `b"abc"` |
 | `"\377"` (unibyte, not UTF-8) | `rust-invalid-utf-8` | `b"\xff"` |
@@ -85,13 +83,13 @@ Lisp to Rust conversion copies the bytes of a unibyte string, or the UTF-8 encod
 | `(string-to-multibyte "\377")` (raw byte, no UTF-8 encoding) | `rust-module-non-unicode-string` † | `rust-module-non-unicode-string` † |
 | `5` | `rust-module-wrong-type` | `rust-module-wrong-type` |
 
-† Emacs 25 and 26 do not check this. `String` signals `rust-invalid-utf-8`. `Bytes` gives `b"\xff"`.
+† Emacs 25 and 26 do not check this. `String` signals `rust-invalid-utf-8`. `Vec<u8>` gives `b"\xff"`.
 
 Rust to Lisp conversion:
 - `&str` and `String` give a multibyte string, even for ASCII text.
-- `Bytes` gives a unibyte string. It needs the `emacs-28` feature, because the module API before Emacs 28 cannot make a unibyte string.
+- `&[u8]` and `Vec<u8>` give a unibyte string. They need the `emacs-28` feature, because the module API before Emacs 28 cannot make a unibyte string.
 
-`Bytes<T>` takes any `T: From<Vec<u8>>` from Lisp, e.g. `Bytes<Box<[u8]>>`, and any `T: AsRef<[u8]>` to Lisp, e.g. `Bytes<&[u8]>`. The default is `Vec<u8>`.
+Supported byte types: `Vec<u8>` and `Box<[u8]>` from Lisp; `&[u8]`, `&Vec<u8>`, `Vec<u8>`, and `Box<[u8]>` to Lisp. They convert to a Lisp string, not to a vector of integers.
 
 To squeeze out some performance:
 - You can avoid allocating memory for `String` structs, by using `value.copy_string_contents(buffer)` with a large enough buffer.
