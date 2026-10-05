@@ -143,7 +143,7 @@ checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 
 [[package]]
 name = "emacs"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "anyhow",
  "ctor",
@@ -155,7 +155,7 @@ dependencies = [
 
 [[package]]
 name = "emacs-macros"
-version = "0.17.0"
+version = "0.22.0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -165,7 +165,7 @@ dependencies = [
 
 [[package]]
 name = "emacs_module"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bindgen",
 ]
