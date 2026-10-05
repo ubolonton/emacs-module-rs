@@ -87,18 +87,13 @@ impl<'e> Value<'e> {
     /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
     #[inline]
     pub fn clone_string_contents(self) -> Result<Vec<u8>> {
-        self.env.clone_string_contents(self)
-    }
-}
-
-impl Env {
-    fn clone_string_contents(&self, value: Value<'_>) -> Result<Vec<u8>> {
+        let env = self.env;
         let mut len: isize = 0;
         let mut bytes = unsafe {
-            let copy_string_contents = raw_fn!(self, copy_string_contents);
-            let ok: bool = self.handle_module_exit(copy_string_contents(
+            let copy_string_contents = raw_fn!(env, copy_string_contents);
+            let ok: bool = env.handle_module_exit(copy_string_contents(
+                env.raw,
                 self.raw,
-                value.raw,
                 ptr::null_mut(),
                 &mut len,
             ), |_, _| None)?;
@@ -107,9 +102,9 @@ impl Env {
             }
 
             let mut bytes = vec![0u8; len as usize];
-            let ok: bool = self.handle_module_exit(copy_string_contents(
+            let ok: bool = env.handle_module_exit(copy_string_contents(
+                env.raw,
                 self.raw,
-                value.raw,
                 bytes.as_mut_ptr() as *mut os::raw::c_char,
                 &mut len,
             ), |_, _| None)?;
