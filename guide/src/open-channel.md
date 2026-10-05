@@ -8,7 +8,7 @@ Enable the feature in `Cargo.toml`:
 
 ```toml
 [dependencies.emacs]
-version = "0.21"
+version = "0.22"
 features = ["emacs-28"]
 ```
 
