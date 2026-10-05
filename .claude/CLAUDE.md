@@ -89,4 +89,4 @@ Update `CHANGELOG.md` under `## [Unreleased]` for every non-trivial feature, bug
 
 ## Guide Docs
 
-When writing or editing files under `guide/src/`, use the `guide-writing` skill.
+When writing or editing files under `docs/guide/src/`, use the `guide-writing` skill.

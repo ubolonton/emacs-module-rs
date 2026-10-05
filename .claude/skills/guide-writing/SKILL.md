@@ -1,13 +1,13 @@
 ---
 name: guide-writing
-description: Use when writing or editing guide docs — files under guide/src/
+description: Use when writing or editing guide docs — files under docs/guide/src/
 ---
 
 # Guide Writing
 
 ## Overview
 
-This skill captures the writing style of the `guide/` mdbook. Apply it when creating or modifying any file under `guide/src/`.
+This skill captures the writing style of the `docs/guide/` mdbook. Apply it when creating or modifying any file under `docs/guide/src/`.
 
 ## Voice & Tone
 

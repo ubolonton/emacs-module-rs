@@ -10,12 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     - Made UTF-8 validation always-on for string conversions, and removed the feature `utf-8-validation`.
     - Fixed string conversions stripping all trailing null bytes. Only the terminating one is removed now.
         - Breaking: strings that end with `\0` characters keep them when converted to Rust.
-    - Added conversions between Lisp strings and byte chunks (`Vec<u8>`, `Box<[u8]>`, `&[u8]`), without UTF-8 validation. See the [type conversion guide](guide/src/type-conversions.md#strings).
+    - Added conversions between Lisp strings and byte chunks (`Vec<u8>`, `Box<[u8]>`, `&[u8]`), without UTF-8 validation. See the [type conversion guide](docs/guide/src/type-conversions.md#strings).
         - Conversion to Lisp gives a unibyte string, and needs the `emacs-28` feature.
 - Classified module-layer and Rust-layer failures into typed `ErrorKind::Module`/`ErrorKind::Rust` variants, each with its own Lisp signal under `rust-module-error`/`rust-error`.
     - Breaking (Rust): `WrongTypeUserPtr` moved to `RustError`. Module-layer failures from APIs other than `funcall` are no longer `ErrorKind::Signal`.
     - Breaking (Lisp): the error symbols and data of these failures changed. `condition-case` on the standard signals still works.
-    - See the [error handling guide](guide/src/errors.md) for the full hierarchy.
+    - See the [error handling guide](docs/guide/src/errors.md) for the full hierarchy.
 - Added an ABI compatibility check at module load time.
     - Modules built with an `emacs-N` feature (e.g. `emacs-28`) now fail to load with a clear error message when loaded into an older Emacs, instead of crashing later when a version-specific function (e.g. `Env::open_channel`) is called.
 - Raised minimum support Rust version (MSRV) to 1.87 (for `PipeWriter`).

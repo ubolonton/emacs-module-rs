@@ -5,7 +5,7 @@ on:
     branches:
       - doc
     paths:
-      - guide/**
+      - docs/guide/**
   workflow_dispatch:
 
 concurrency:
@@ -39,7 +39,7 @@ jobs:
       - name: Build guide
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          mdbook build guide --dest-dir "ubolonton.github.io/emacs-module-rs/$VERSION"
+          mdbook build docs/guide --dest-dir "ubolonton.github.io/emacs-module-rs/$VERSION"
           cd ubolonton.github.io/emacs-module-rs
           ln -sfn "$VERSION" latest
 

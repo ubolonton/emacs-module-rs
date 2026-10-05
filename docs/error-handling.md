@@ -1,6 +1,6 @@
 # Error handling architecture
 
-This doc explains how errors move between Lisp, the module layer, and Rust code. It is for maintainers. The user docs are in [`guide/src/errors.md`](../guide/src/errors.md). The decisions and their trade-offs are in [ADRs 0001–0003](adrs/README.md).
+This doc explains how errors move between Lisp, the module layer, and Rust code. It is for maintainers. The user docs are in [`guide/src/errors.md`](guide/src/errors.md). The decisions and their trade-offs are in [ADRs 0001–0003](adrs/README.md).
 
 ## Error sources
 
