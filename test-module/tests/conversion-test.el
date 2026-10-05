@@ -17,16 +17,9 @@
   (should (= -128 (t/conversion-identity-i8 -128)))
   (should (= 255 (t/conversion-identity-u8 255)))
 
-  ;; FIX: Don't rely on error's string representation.
-  (should (string-match-p
-           "out of range"
-           (cadr (should-error (t/conversion-u64-overflow) :type 'rust-error))))
-  (should (string-match-p
-           "out of range"
-           (cadr (should-error (t/conversion-identity-i8 128) :type 'rust-error))))
-  (should (string-match-p
-           "out of range"
-           (cadr (should-error (t/conversion-identity-u8 -1) :type 'rust-error)))))
+  (should-error (t/conversion-u64-overflow) :type 'rust-integer-out-of-range)
+  (should-error (t/conversion-identity-i8 128) :type 'rust-integer-out-of-range)
+  (should-error (t/conversion-identity-u8 -1) :type 'rust-integer-out-of-range))
 
 (ert-deftest conversion::passthrough ()
   (let ((x "x"))
@@ -38,11 +31,11 @@
 (ert-deftest conversion::string-basic ()
   (should (equal (t/to-uppercase "abc") "ABC"))
   ;; copy_string_contents copies the null terminator.
-  (should-error (t/conversion-copy-string-contents "xyz" 3) :type t/buffer-too-small-error-type)
-  (should-error (t/conversion-copy-string-contents "" 0) :type t/buffer-too-small-error-type)
+  (should-error (t/conversion-copy-string-contents "xyz" 3) :type 'rust-module-buffer-too-small)
+  (should-error (t/conversion-copy-string-contents "" 0) :type 'rust-module-buffer-too-small)
   (should (string= "xyz" (t/conversion-copy-string-contents "xyz" 4)))
   (should (string= "" (t/conversion-copy-string-contents "" 1)))
-  (should-error (t/conversion-copy-string-contents "abcxyz" 3) :type t/buffer-too-small-error-type))
+  (should-error (t/conversion-copy-string-contents "abcxyz" 3) :type 'rust-module-buffer-too-small))
 
 (ert-deftest conversion::string-unicode-to-bytes ()
   (dolist (multibyte-unicode-str
@@ -72,12 +65,16 @@
                   (encode-coding-string "Nguyễn Tuấn Anh" 'vietnamese-vscii) 'utf-8-emacs)
                  (decode-coding-string
                   (encode-coding-string "阮俊英" 'chinese-big5) 'utf-8-emacs)))
-    (let ((err (should-error
-                (t/conversion-string-to-bytes multibyte-non-unicode-str)
-                :type 'wrong-type-argument))
-          (unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
-      ;; Multibyte representation is rejected.
-      (should (eq (cadr err) 'unicode-string-p))
+    (let ((unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
+      ;; Multibyte representation is rejected in Emacs 27+.
+      (if (>= emacs-major-version 27)
+          (let ((err (should-error
+                      (t/conversion-string-to-bytes multibyte-non-unicode-str)
+                      :type 'wrong-type-argument)))
+            (should (eq (cadr err) 'unicode-string-p)))
+        ;; Emacs 25 and 26 copy the unibyte bytes instead.
+        (should (equal (t/conversion-string-to-bytes multibyte-non-unicode-str)
+                       (vconcat unibyte-str))))
       ;; Unibyte representation is accepted.
       (should (equal (t/conversion-string-to-bytes unibyte-str)
                      (vconcat unibyte-str))))))
@@ -113,13 +110,16 @@
                 (t/conversion-string-roundtrip multibyte-non-unicode-str)
                 :type 'wrong-type-argument))
           (unibyte-str (string-as-unibyte multibyte-non-unicode-str)))
-      ;; Multibyte representation is rejected on the Emacs side.
-      (should (eq (cadr err) 'unicode-string-p))
+      ;; Multibyte representation is rejected on the Emacs side in Emacs 27+.
+      (should (equal (cdr err)
+                     (if (>= emacs-major-version 27)
+                         (list 'unicode-string-p multibyte-non-unicode-str)
+                       ;; Emacs 25 and 26 do not check it, so the Rust side rejects it.
+                       (list 'utf-8-string-p multibyte-non-unicode-str))))
       ;; Unibyte representation is rejected on the Rust side.
-      (should (string-match-p
-               "invalid utf-8 sequence"
-               (cadr (should-error (t/conversion-string-roundtrip unibyte-str)
-                                   :type 'rust-error)))))))
+      (let ((err (should-error (t/conversion-string-roundtrip unibyte-str)
+                               :type 'rust-invalid-utf-8)))
+        (should (equal (cdr err) (list 'utf-8-string-p unibyte-str)))))))
 
 (ert-deftest conversion::option-string ()
   (should (equal (t/conversion-to-lowercase-or-nil "CDE") "cde"))
@@ -132,13 +132,13 @@
     (should (= 4 (t/conversion-vec-size v)))
     (t/conversion-vec-set v 2 'a)
     (should (eq 'a (t/conversion-vec-get v 2)))
-    (should-error (t/conversion-vec-get v -1) :type 'args-out-of-range)
-    (should-error (t/conversion-vec-set v -5 'a) :type 'args-out-of-range))
+    (should-error (t/conversion-vec-get v -1) :type 'rust-module-index-out-of-range)
+    (should-error (t/conversion-vec-set v -5 'a) :type 'rust-module-index-out-of-range))
   (let ((v [a b c d e]))
     (should (eq v (t/conversion-identity-if-vector v)))
     (should-error (t/conversion-identity-if-vector nil) :type 'wrong-type-argument)
     (should (equal (t/get-error (eq "abc" (t/conversion-identity-if-vector "abc")))
-                   '(wrong-type-argument vectorp "abc"))))
+                   '(rust-module-wrong-type vectorp "abc"))))
   (let ((v [0 1 2 3]))
     (should (eq v (t/conversion-stringify-num-vector v)))
     (should (equal v ["0" "1" "2" "3"]))

@@ -1,11 +1,22 @@
 use std::{os, ptr, cmp};
 
 use super::*;
+use crate::{ModuleError, ErrorKind, RustError, error::TempValue};
 
 impl FromLisp<'_> for String {
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
+    /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
+    /// | [`RustError::InvalidUtf8`](crate::RustError::InvalidUtf8) | `rust-invalid-utf-8` |
     fn from_lisp(value: Value<'_>) -> Result<Self> {
         let bytes = value.clone_string_contents()?;
-        String::from_utf8(bytes).map_err(|e| e.into())
+        String::from_utf8(bytes).map_err(|source| {
+            let value = TempValue::from_value(value);
+            ErrorKind::Rust(RustError::InvalidUtf8 { value, source }).into()
+        })
     }
 }
 
@@ -38,18 +49,27 @@ impl<'e> Value<'e> {
     /// Copies the content of this Lisp string value to the given buffer as a null-terminated UTF-8
     /// string. Returns the copied bytes, excluding the null terminator.
     ///
-    /// Signals an error if the buffer is too small: `args-out-of-range` before Emacs 31,
-    /// `memory-buffer-too-small` from Emacs 31 onward. Emacs never documented this as part of the
-    /// module API's contract, so callers shouldn't rely on a specific symbol.
+    /// # Errors
     ///
-    /// See https://github.com/emacs-mirror/emacs/commit/96a1a07fb1f.
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
+    /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
+    /// | [`ModuleError::BufferTooSmall`](crate::ModuleError::BufferTooSmall) | `rust-module-buffer-too-small` |
     pub fn copy_string_contents(self, buffer: &mut [u8]) -> Result<&[u8]> {
         let env = self.env;
         let ptr = buffer.as_mut_ptr() as *mut os::raw::c_char;
         let max_len = buffer.len();
         let mut len = max_len as isize;
         // Safety: ptr and len are valid, coming from a slice.
-        match unsafe_raw_call!(env, copy_string_contents, self.raw, ptr, &mut len) {
+        // Emacs writes the required size to `len` before it signals a too-small buffer. This is
+        // true on all versions, but the signal symbol and data differ between versions.
+        let result = unsafe_raw_call!(env, copy_string_contents, self.raw, ptr, &mut len;
+        |_, _| (len as usize > max_len).then(|| ModuleError::BufferTooSmall {
+            actual: max_len,
+            required: len as usize,
+        }));
+        match result {
             Ok(false) => unreachable!("Emacs failed to copy string but did not raise a signal"),
             Err(x) => Err(x),
             _ => {
@@ -59,6 +79,12 @@ impl<'e> Value<'e> {
         }
     }
 
+    /// # Errors
+    ///
+    /// | Rust variant | Lisp signal, if the error propagates |
+    /// |---|---|
+    /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::String`](crate::LispType::String) | `rust-module-wrong-type` |
+    /// | [`ModuleError::NonUnicodeString`](crate::ModuleError::NonUnicodeString) (Emacs 27+) | `rust-module-non-unicode-string` |
     #[inline]
     pub fn clone_string_contents(self) -> Result<Vec<u8>> {
         self.env.clone_string_contents(self)
@@ -70,23 +96,23 @@ impl Env {
         let mut len: isize = 0;
         let mut bytes = unsafe {
             let copy_string_contents = raw_fn!(self, copy_string_contents);
-            let ok: bool = self.handle_exit(copy_string_contents(
+            let ok: bool = self.handle_module_exit(copy_string_contents(
                 self.raw,
                 value.raw,
                 ptr::null_mut(),
                 &mut len,
-            ))?;
+            ), |_, _| None)?;
             if !ok {
                 unreachable!("Emacs failed to give string's length but did not raise a signal");
             }
 
             let mut bytes = vec![0u8; len as usize];
-            let ok: bool = self.handle_exit(copy_string_contents(
+            let ok: bool = self.handle_module_exit(copy_string_contents(
                 self.raw,
                 value.raw,
                 bytes.as_mut_ptr() as *mut os::raw::c_char,
                 &mut len,
-            ))?;
+            ), |_, _| None)?;
             if !ok {
                 unreachable!("Emacs failed to copy string but did not raise a signal");
             }

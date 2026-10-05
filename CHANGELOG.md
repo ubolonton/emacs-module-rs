@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Upgraded to Rust 2024 edition.
 - Raised minimum support Rust version (MSRV) to 1.87 (for `PipeWriter`).
 - Made UTF-8 validation always-on for string conversions, and removed the feature `utf-8-validation`.
+- Classified module-layer and Rust-layer failures into typed `ErrorKind::Module`/`ErrorKind::Rust` variants, each with its own Lisp signal under `rust-module-error`/`rust-error`.
+    - Breaking (Rust): `WrongTypeUserPtr` moved to `RustError`. Module-layer failures from APIs other than `funcall` are no longer `ErrorKind::Signal`.
+    - Breaking (Lisp): the error symbols and data of these failures changed. `condition-case` on the standard signals still works.
+    - See the [error handling guide](guide/src/errors.md) for the full hierarchy.
 
 ## [0.21.0] - 2026-03-18
 - Added `emacs-28` feature with `Env::open_channel` for pipe-based communication (Emacs 28+).

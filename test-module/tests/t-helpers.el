@@ -9,13 +9,6 @@
 
 (defvar t/support-bignum-p (fboundp 'bignump))
 
-;; Emacs 31 stopped signaling `args-out-of-range' for a too-small `copy_string_contents' buffer, in
-;; favor of a dedicated `memory-buffer-too-small'.
-;;
-;; See https://github.com/emacs-mirror/emacs/commit/96a1a07fb1f.
-(defvar t/buffer-too-small-error-type
-  (if (>= emacs-major-version 31) 'memory-buffer-too-small 'args-out-of-range))
-
 (defmacro t/get-error (&rest body)
   (declare (indent 0))
   `(condition-case err

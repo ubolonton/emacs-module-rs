@@ -58,3 +58,116 @@
       (t/error:signal 'emacs-module-rs-test-error "abc")
     (rust-error (should (equal err '(emacs-module-rs-test-error . ("abc"))))))
   (should-error (signal 'error-defined-without-parent nil) :type 'error))
+
+(ert-deftest error::variant-lisp-code ()
+  ;; Exits of Lisp code stay `Signal' and `Throw', also for symbols that the module layer uses.
+  (should (equal (t/error:variant
+                  "funcall" (lambda () (signal 'wrong-type-argument '(integerp "3"))) nil)
+                 "Signal"))
+  (should (equal (t/error:variant "funcall" (lambda () (throw 'ball 1)) nil) "Throw"))
+  (should (equal (t/error:variant "funcall" (lambda () 1) nil) nil)))
+
+(ert-deftest error::signal-hierarchy ()
+  "Check `error-conditions' of every symbol `define_core_errors' (src/error.rs) defines."
+  (dolist (case
+           `((rust-panic error)
+             (rust-error error)
+             (rust-wrong-type-user-ptr rust-error wrong-type-argument)
+             (rust-module-error error)
+             (rust-module-wrong-type rust-module-error wrong-type-argument)
+             (rust-module-non-unicode-string rust-module-error wrong-type-argument)
+             (rust-module-invalid-utf-8 rust-module-error wrong-type-argument)
+             (rust-module-buffer-too-small
+              rust-module-error args-out-of-range
+              ,@(when (>= emacs-major-version 31) '(memory-buffer-too-small)))
+             (rust-module-index-out-of-range rust-module-error args-out-of-range)
+             (rust-module-integer-out-of-range rust-module-error overflow-error)
+             (rust-invalid-utf-8 rust-error wrong-type-argument)
+             (rust-integer-out-of-range rust-error overflow-error)))
+    (dolist (parent (cdr case))
+      (should (memq parent (get (car case) 'error-conditions))))))
+
+(ert-deftest error::rust-invalid-utf-8 ()
+  (let ((s "\377"))                     ; A unibyte string. Its byte is not valid UTF-8.
+    (should (equal (t/error:variant "string" s nil) "Rust/InvalidUtf8"))
+    ;; Conversion to bytes does not check UTF-8.
+    (should (equal (t/error:variant "bytes" s nil) nil))
+    (should (equal (should-error (t/to-uppercase s))
+                   `(rust-invalid-utf-8 utf-8-string-p ,s)))))
+
+(ert-deftest error::module-wrong-type ()
+  (dolist (case '(("i64" "3" "Module/WrongType/Integer")
+                  ("f64" "x" "Module/WrongType/Float")
+                  ("string" 5 "Module/WrongType/String")
+                  ("vector" 5 "Module/WrongType/Vector")
+                  ("ref-cell" 5 "Module/WrongType/UserPtr")))
+    (should (equal (t/error:variant (nth 0 case) (nth 1 case) nil) (nth 2 case))))
+  (should (equal (should-error (t/inc "3"))
+                 '(rust-module-wrong-type integerp "3")))
+  ;; Emacs 25 says `user-ptr'. The crate always says `user-ptrp'.
+  (should (equal (should-error (t/transfer-ref-cell-inc 5))
+                 '(rust-module-wrong-type user-ptrp 5)))
+  ;; Printed errors do not change.
+  (should (equal (error-message-string (t/get-error (t/inc "3")))
+                 "Wrong type argument: integerp, \"3\"")))
+
+(ert-deftest error::propagate-bare-module-error ()
+  ;; Code that takes a `ModuleError' out of `ErrorKind' and propagates it alone with `?' still
+  ;; gets the typed Lisp signal, not a generic `rust-error'.
+  (should (equal (should-error (t/error:propagate-bare-module-error "3"))
+                 '(rust-module-wrong-type integerp "3"))))
+
+(ert-deftest error::module-buffer-too-small ()
+  (should (equal (t/error:variant "copy-string-contents" "xyz" 3) "Module/BufferTooSmall"))
+  ;; The data is (ACTUAL REQUIRED). The required size includes the null terminator.
+  (should (equal (should-error (t/conversion-copy-string-contents "xyz" 3))
+                 '(rust-module-buffer-too-small 3 4)))
+  (should (equal (should-error (t/conversion-copy-string-contents "" 0))
+                 '(rust-module-buffer-too-small 0 1))))
+
+(ert-deftest error::module-non-unicode-string ()
+  ;; Emacs 25 and 26 do not check this.
+  (skip-unless (>= emacs-major-version 27))
+  (let ((s (string #x3FFFFF)))          ; Raw byte FF, in a multibyte string.
+    (should (equal (t/error:variant "bytes" s nil) "Module/NonUnicodeString"))
+    (should (equal (t/error:variant "string" s nil) "Module/NonUnicodeString"))
+    (should (equal (should-error (t/conversion-string-to-bytes s))
+                   `(rust-module-non-unicode-string unicode-string-p ,s)))))
+
+(ert-deftest error::module-index-out-of-range ()
+  (let ((v [0 1 2 3]))
+    (should (equal (t/error:variant "vec-get" v -1) "Module/IndexOutOfRange"))
+    ;; Emacs 25 signals `overflow-error' for an index outside the fixnum range.
+    (should (equal (t/error:variant "vec-get-far" v nil) "Module/IndexOutOfRange"))
+    ;; The data is (VECTOR INDEX) on all versions.
+    (should (equal (should-error (t/conversion-vec-get v -1))
+                   `(rust-module-index-out-of-range ,v -1)))
+    (should (equal (should-error (t/conversion-vec-set v 4 'a))
+                   `(rust-module-index-out-of-range ,v 4)))))
+
+(ert-deftest error::module-integer-out-of-range ()
+  (if t/support-bignum-p
+      (let ((big (expt 2 64)))
+        (should (equal (t/error:variant "i64" big nil) "Module/IntegerOutOfRange"))
+        (should (equal (should-error (t/inc big))
+                       `(rust-module-integer-out-of-range ,big)))
+        ;; With bignums, `make_integer' does not fail.
+        (should (equal (t/error:variant "i64-max-into-lisp" nil nil) nil)))
+    ;; Without bignums, `make_integer' fails for an `i64' outside the fixnum range. No Lisp
+    ;; value exists for it, so the data is empty.
+    (should (equal (t/error:variant "i64-max-into-lisp" nil nil) "Module/IntegerOutOfRange"))
+    (should (equal (should-error (t/inc most-positive-fixnum))
+                   '(rust-module-integer-out-of-range)))))
+
+(ert-deftest error::rust-integer-out-of-range ()
+  (should (equal (t/error:variant "u8" 256 nil) "Rust/IntegerOutOfRange"))
+  (should (equal (t/error:variant "u8" -1 nil) "Rust/IntegerOutOfRange"))
+  (should (equal (t/error:variant "nonzero-u8" 0 nil) "Rust/IntegerOutOfRange"))
+  (should (equal (t/error:variant "u64-max-into-lisp" nil nil) "Rust/IntegerOutOfRange"))
+  (should (equal (should-error (t/conversion-identity-i8 128))
+                 '(rust-integer-out-of-range 128)))
+  (should (equal (should-error (t/conversion-identity-u8 -1))
+                 '(rust-integer-out-of-range -1)))
+  ;; No Lisp value exists for a Rust value that does not fit in Lisp, so the data is empty.
+  (should (equal (should-error (t/conversion-u64-overflow))
+                 '(rust-integer-out-of-range))))

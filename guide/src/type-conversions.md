@@ -38,11 +38,15 @@ It's better to declare return type for `#[defun]` than calling `.into_lisp(env)`
 
 ## Integers
 
-Integer conversion is lossless by default, which means that a module will signal an "out of range" `rust-error` in cases such as:
+Integer conversion is lossless by default. Rust code signals `rust-integer-out-of-range` (`RustError::IntegerOutOfRange`) when a value does not fit the target type, in cases such as:
 - A `#[defun]` expecting `u8` gets passed `-1`.
 - A `#[defun]` returning `u64` returns a value larger than `i64::max_value()`.
 
-To disable this behavior, use the `lossy-integer-conversion` feature:
+On Emacs 25 and 26, which have no bignums, the module layer itself can reject a Rust integer that does not fit a fixnum. This signals `rust-module-integer-out-of-range` (`ModuleError::IntegerOutOfRange`) instead.
+
+The reverse also happens. On Emacs 27+, which support bignums, a Lisp integer outside the `i64` range signals `rust-module-integer-out-of-range` (`ModuleError::IntegerOutOfRange`), for every target type, for example `i8` or `u64`. This happens even with `lossy-integer-conversion`: extracting the `i64` itself fails, before any Rust-side narrowing runs.
+
+To disable Rust-side narrowing checks, use the `lossy-integer-conversion` feature:
 
 ```toml
 [dependencies.emacs]
@@ -60,13 +64,18 @@ features = ["nonzero-integer-conversion"]
 Lisp strings are converted into Rust `String` structs.
 
 - Unibyte strings:
-    - The Lisp side copies  the raw bytes directly.
-    - The Rust side decodes the bytes, signaling `rust-error` if they are not a valid UTF-8 sequence.
+    - The Lisp side copies the raw bytes directly.
+    - The Rust side decodes the bytes, signaling `rust-invalid-utf-8` (`RustError::InvalidUtf8`) if they are not a valid UTF-8 sequence.
 - Multibyte strings:
-    - The Lisp side encodes the string into raw bytes, signaling `(wrong-type-argument unicode-string-p)` if it cannot be encoded via UTF-8. (Emacs's internal coding system is a superset.)
-    - The Rust side decodes the bytes, never signaling `rust-error`. (Emacs bugs not withstanding.) If you want to skip this validation, use `String::from_utf8_unchecked(value.clone_string_contents()?)`.
+    - The Lisp side encodes the string into raw bytes and copies them.
+    - The Rust side decodes the bytes, doing the same validation as above.
+    - Since Emacs's internal coding system is a superset, when the string cannot be encoded via UTF-8:
+        - On Emacs 25 and 26, the Lisp side doesn't check for this, so the Rust side signals `rust-invalid-utf-8`.
+        - On Emacs 27+, the Lisp side signals `rust-module-non-unicode-string`, so the Rust side's check is redundant.
 
-If you don't want to allocate memory for `String` structs, and have a large-enough buffer, use `value.copy_string_contents(buffer)`.
+To squeeze out some performance:
+- You can avoid allocating memory for `String` structs, by using `value.copy_string_contents(buffer)` with a large enough buffer.
+- You can avoid the redundant Rust side's check using `String::from_utf8_unchecked(value.clone_string_contents()?)`.
 
 ## Equality
 

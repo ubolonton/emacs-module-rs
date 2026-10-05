@@ -1,5 +1,8 @@
 #[doc(no_inline)]
-use std::{any::Any, fmt::Display, mem::MaybeUninit, result, thread};
+use std::{
+    any::Any, fmt::Display, mem::MaybeUninit, num::TryFromIntError, result, string::FromUtf8Error,
+    thread,
+};
 
 pub use anyhow::{self, Error};
 use thiserror::Error;
@@ -7,9 +10,10 @@ use thiserror::Error;
 use emacs_module::*;
 
 use crate::{
-    Env, Value, IntoLisp,
-    GlobalRef,
+    Env, Value, GlobalRef,
+    global::OnceGlobalRef,
     symbol::{self, IntoLispSymbol},
+    subr,
     call::IntoLispArgs,
 };
 
@@ -56,10 +60,10 @@ macro_rules! define_errors {
     }
 }
 
-/// Error types generic to all Rust dynamic modules.
+/// Errors that this crate reports. Each variant names the origin of the error.
 ///
-/// This list is intended to grow over time and it is not recommended to exhaustively match against
-/// it.
+/// This enum is exhaustive. Its variants are the origins, which are a closed set: Lisp code exits
+/// only by signal or throw. New failures go into [`ModuleError`] and [`RustError`].
 #[derive(Debug, Error)]
 pub enum ErrorKind {
     /// An [error] signaled by Lisp code.
@@ -74,7 +78,79 @@ pub enum ErrorKind {
     #[error("Non-local throw: tag={tag:?} value={value:?}")]
     Throw { tag: TempValue, value: TempValue },
 
-    /// An error indicating that the given value is not a `user-ptr` of the expected type.
+    /// The module layer (`emacs-module.c`) rejected the arguments of a module API call.
+    #[error(transparent)]
+    Module(#[from] ModuleError),
+
+    /// Rust code in this crate rejected a value.
+    #[error(transparent)]
+    Rust(#[from] RustError),
+}
+
+/// Errors that the module layer (`emacs-module.c`) detects.
+///
+/// If Rust code lets such an error propagate, Lisp code sees a signal with two parents:
+/// `rust-module-error`, and the standard signal for the same failure.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum ModuleError {
+    /// The value has the wrong Lisp type. Lisp signal: `rust-module-wrong-type`, with data
+    /// `(PREDICATE VALUE)`.
+    #[error("Wrong type argument: expected {expected:?}")]
+    #[non_exhaustive]
+    WrongType { expected: LispType, value: TempValue },
+
+    /// The multibyte string has chars outside Unicode, so it has no UTF-8 encoding. Emacs 27+
+    /// checks this. Lisp signal: `rust-module-non-unicode-string`, with data
+    /// `(unicode-string-p VALUE)`.
+    #[error("Not a Unicode string")]
+    #[non_exhaustive]
+    NonUnicodeString { value: TempValue },
+
+    /// Emacs rejected bytes from Rust, because they are not valid UTF-8. Emacs 28+ checks this.
+    /// Safe Rust code cannot cause it, because a `&str` is always valid UTF-8. Lisp signal:
+    /// `rust-module-invalid-utf-8`, with data `(utf-8-string-p VALUE)`.
+    #[error("Invalid UTF-8")]
+    #[non_exhaustive]
+    InvalidUtf8 { value: TempValue },
+
+    /// The buffer for [`Value::copy_string_contents`] is too small. `required` includes the null
+    /// terminator. Lisp signal: `rust-module-buffer-too-small`, with data `(ACTUAL REQUIRED)`.
+    #[error("Buffer too small: {actual} bytes, {required} required")]
+    #[non_exhaustive]
+    BufferTooSmall { actual: usize, required: usize },
+
+    /// The vector index is out of range. Lisp signal: `rust-module-index-out-of-range`, with data
+    /// `(VECTOR INDEX)`.
+    #[error("Index {index} out of range")]
+    #[non_exhaustive]
+    IndexOutOfRange { vector: TempValue, index: isize },
+
+    /// The integer does not fit. Emacs 27+: a Lisp bignum does not fit in `i64` (`value` is the
+    /// bignum). Emacs 25, 26: an `i64` does not fit in a fixnum (`value` is `None`, because no
+    /// Lisp value exists). Lisp signal: `rust-module-integer-out-of-range`, with data `(VALUE)`,
+    /// or no data.
+    #[error("Integer out of range")]
+    #[non_exhaustive]
+    IntegerOutOfRange { value: Option<TempValue> },
+
+    /// A module-layer signal with no typed variant. If it propagates, Lisp code sees it unchanged.
+    #[error("Module-layer signal: symbol={symbol:?} data={data:?}")]
+    #[non_exhaustive]
+    Signal { symbol: TempValue, data: TempValue },
+}
+
+/// Errors that Rust code in this crate detects.
+///
+/// If Rust code lets such an error propagate, Lisp code sees a signal with two parents:
+/// `rust-error`, and the standard signal for the same failure.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum RustError {
+    /// The value is a `user-ptr`, but it holds another Rust type.
+    ///
+    /// Lisp signal: `rust-wrong-type-user-ptr`, with data `(EXPECTED VALUE)`. `EXPECTED` is the
+    /// name of the expected Rust type.
     ///
     /// # Examples:
     ///
@@ -100,10 +176,53 @@ pub enum ErrorKind {
     /// ```emacs-lisp
     /// (unwrap 7)          ; *** Eval error ***  Wrong type argument: user-ptrp, 7
     /// (unwrap (wrap 7))   ; 7
-    /// (unwrap (wrap-f 7)) ; *** Eval error ***  Wrong type user-ptr: "expected: RefCell"
+    /// (unwrap (wrap-f 7)) ; *** Eval error ***  Wrong type user-ptr: "core::cell::RefCell<i64>", #<user-ptr …>
     /// ```
     #[error("expected: {expected}")]
-    WrongTypeUserPtr { expected: &'static str },
+    #[non_exhaustive]
+    WrongTypeUserPtr { expected: &'static str, value: TempValue },
+
+    /// The unibyte string is not valid UTF-8, so it cannot become a `String`. To get the bytes,
+    /// use [`Value::clone_string_contents`](crate::Value::clone_string_contents) instead. Lisp
+    /// signal: `rust-invalid-utf-8`, with data `(utf-8-string-p VALUE)`.
+    #[error("Invalid UTF-8")]
+    #[non_exhaustive]
+    InvalidUtf8 { value: TempValue, source: FromUtf8Error },
+
+    /// The integer does not fit in the target type. `value` is the Lisp value, or `None` when a
+    /// Rust value does not fit in Lisp. Lisp signal: `rust-integer-out-of-range`, with data
+    /// `(VALUE)`, or no data.
+    #[error("Integer out of range")]
+    #[non_exhaustive]
+    IntegerOutOfRange { value: Option<TempValue>, source: TryFromIntError },
+}
+
+/// A Lisp type that the module layer checks. See [`ModuleError::WrongType`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum LispType {
+    Integer,
+    Float,
+    String,
+    Vector,
+    UserPtr,
+    Process,
+    PipeProcess,
+}
+
+impl LispType {
+    /// The predicate that Lisp signal data uses for this type.
+    fn predicate(self) -> &'static OnceGlobalRef {
+        match self {
+            LispType::Integer => symbol::integerp,
+            LispType::Float => symbol::floatp,
+            LispType::String => symbol::stringp,
+            LispType::Vector => symbol::vectorp,
+            LispType::UserPtr => symbol::user_ptrp,
+            LispType::Process => symbol::processp,
+            LispType::PipeProcess => symbol::pipe_process_p,
+        }
+    }
 }
 
 /// A specialized [`Result`] type for Emacs's dynamic modules.
@@ -116,8 +235,18 @@ pub type Result<T> = result::Result<T, Error>;
 // (thus cannot be called there). This is likely a mis-design in Emacs (In Erlang,
 // `enif_keep_resource` and `enif_release_resource` don't require an env).
 impl TempValue {
-    unsafe fn new(raw: emacs_value) -> Self {
-        Self { raw }
+    /// Keeps a Lisp value in an error. To read it back, use the `unsafe` method [`value`].
+    ///
+    /// Protects the value, so that it stays live until the error is read or dropped. Some kept
+    /// values come from calls that do not protect their own result, such as the element that
+    /// `Vector::get` reads before it decides that the element itself is the failure. On Emacs
+    /// 25/26 ([GC bug #31238]), such a value is otherwise live only while something else, such as
+    /// the vector, still references it.
+    ///
+    /// [`value`]: TempValue::value
+    /// [GC bug #31238]: https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238
+    pub(crate) fn from_value(value: Value<'_>) -> Self {
+        Self { raw: value.protect().raw }
     }
 
     /// # Safety
@@ -138,31 +267,113 @@ unsafe impl Send for TempValue {}
 unsafe impl Sync for TempValue {}
 
 impl Env {
-    /// Handles possible non-local exit after calling Lisp code.
-    #[inline]
-    pub(crate) fn handle_exit<T>(&self, result: T) -> Result<T> {
-        let mut symbol = MaybeUninit::uninit();
-        let mut data = MaybeUninit::uninit();
+    /// Reads and clears the pending non-local exit. Returns `None` if the last call returned
+    /// normally. Otherwise, returns the matching [`ErrorKind::Signal`] or [`ErrorKind::Throw`].
+    fn take_exit(&self) -> Option<ErrorKind> {
+        let mut first = MaybeUninit::uninit();
+        let mut second = MaybeUninit::uninit();
         // TODO: Check whether calling non_local_exit_check first makes a difference in performance.
-        let status = self.non_local_exit_get(&mut symbol, &mut data);
-        match (status, symbol, data) {
-            (RETURN, ..) => Ok(result),
-            (SIGNAL, symbol, data) => {
-                self.non_local_exit_clear();
-                Err(ErrorKind::Signal {
-                    symbol: unsafe { TempValue::new(symbol.assume_init()) },
-                    data: unsafe { TempValue::new(data.assume_init()) },
-                }.into())
-            }
-            (THROW, tag, value) => {
-                self.non_local_exit_clear();
-                Err(ErrorKind::Throw {
-                    tag: unsafe { TempValue::new(tag.assume_init()) },
-                    value: unsafe { TempValue::new(value.assume_init()) },
-                }.into())
-            }
+        let status = self.non_local_exit_get(&mut first, &mut second);
+        // SAFETY: Emacs writes both values for the statuses SIGNAL and THROW.
+        let error = match status {
+            RETURN => return None,
+            SIGNAL => unsafe {
+                ErrorKind::Signal {
+                    symbol: TempValue { raw: first.assume_init() },
+                    data: TempValue { raw: second.assume_init() },
+                }
+            },
+            THROW => unsafe {
+                ErrorKind::Throw {
+                    tag: TempValue { raw: first.assume_init() },
+                    value: TempValue { raw: second.assume_init() },
+                }
+            },
             _ => panic!("Unexpected non local exit status {}", status),
+        };
+        self.non_local_exit_clear();
+        Some(error)
+    }
+
+    /// Handles a possible non-local exit after `funcall`. The exit comes from Lisp code, so it
+    /// stays [`ErrorKind::Signal`] or [`ErrorKind::Throw`].
+    #[inline]
+    pub(crate) fn handle_lisp_exit<T>(&self, result: T) -> Result<T> {
+        match self.take_exit() {
+            None => Ok(result),
+            Some(error) => Err(error.into()),
         }
+    }
+
+    /// Handles a possible non-local exit after a module function other than `funcall`.
+    ///
+    /// A signal from such a function comes from the module layer. The call-site `rule` classifies
+    /// it first. It gets the signal symbol, as a [`Value`]. A signal that no rule classifies
+    /// becomes [`ModuleError::Signal`]. See ADR 0002.
+    #[inline]
+    pub(crate) fn handle_module_exit<T, R>(&self, result: T, rule: R) -> Result<T>
+    where
+        R: FnOnce(&Env, Value<'_>) -> Option<ModuleError>,
+    {
+        match self.take_exit() {
+            None => Ok(result),
+            Some(ErrorKind::Signal { symbol, data }) => {
+                // SAFETY: `symbol.raw` and `data.raw` come from `non_local_exit_get` of this env.
+                // They are local values of this env, so they stay valid while the env lives, also
+                // after `non_local_exit_clear` (which only clears the pending-exit slot, not the
+                // values themselves).
+                let signal_symbol = unsafe { Value::new(symbol.raw, self) };
+                let signal_data = unsafe { Value::new(data.raw, self) };
+                let error = rule(self, signal_symbol)
+                    .or_else(|| self.classify_wrong_type(signal_symbol, signal_data))
+                    .unwrap_or(ModuleError::Signal { symbol, data });
+                Err(ErrorKind::Module(error).into())
+            }
+            // The module layer does not throw. Keep such an exit unchanged.
+            Some(error) => Err(error.into()),
+        }
+    }
+
+    /// The generic rule: classifies a `wrong-type-argument` signal from the module layer. Returns
+    /// `None` for other symbols, and for predicates with no typed variant.
+    ///
+    /// The data of `wrong-type-argument` is `(PREDICATE VALUE)` on Emacs 25–32.
+    fn classify_wrong_type(
+        &self,
+        signal_symbol: Value<'_>,
+        data: Value<'_>,
+    ) -> Option<ModuleError> {
+        if signal_symbol != *symbol::wrong_type_argument {
+            return None;
+        }
+        // Protect `data` against GC bug 31238, since the calls below run Lisp code.
+        let data = data.protect();
+        // If these calls fail, the signal stays unclassified.
+        let predicate = self.call(subr::car, [data]).ok()?;
+        let value = TempValue::from_value(self.call(subr::cadr, [data]).ok()?);
+        let expected = if predicate == *symbol::integerp {
+            LispType::Integer
+        } else if predicate == *symbol::floatp {
+            LispType::Float
+        } else if predicate == *symbol::stringp {
+            LispType::String
+        } else if predicate == *symbol::vectorp {
+            LispType::Vector
+        // Emacs 25 says `user-ptr`. Later versions say `user-ptrp`.
+        } else if predicate == *symbol::user_ptrp || predicate == *symbol::user_ptr {
+            LispType::UserPtr
+        } else if predicate == *symbol::processp {
+            LispType::Process
+        } else if predicate == *symbol::pipe_process_p {
+            LispType::PipeProcess
+        } else if predicate == *symbol::unicode_string_p {
+            return Some(ModuleError::NonUnicodeString { value });
+        } else if predicate == *symbol::utf_8_string_p {
+            return Some(ModuleError::InvalidUtf8 { value });
+        } else {
+            return None;
+        };
+        Some(ModuleError::WrongType { expected, value })
     }
 
     /// Converts a Rust's `Result` to either a normal value, or a non-local exit in Lisp.
@@ -170,15 +381,8 @@ impl Env {
     pub(crate) unsafe fn maybe_exit(&self, result: Result<Value<'_>>) -> emacs_value {
         match result {
             Ok(v) => v.raw,
-            Err(error) => match error.downcast_ref::<ErrorKind>() {
-                Some(err) => {
-                    // SAFETY: TempValue's raw values remain live for the duration of this error.
-                    unsafe { self.handle_known(err) }
-                }
-                _ => self
-                    .signal_internal(symbol::rust_error, &format!("{}", error))
-                    .unwrap_or_else(|_| panic!("Failed to signal {}", error)),
-            },
+            // SAFETY: TempValue's raw values remain live for the duration of this error.
+            Err(error) => unsafe { self.handle_error(&error) },
         }
     }
 
@@ -199,14 +403,37 @@ impl Env {
                 if let Err(error) = m {
                     m = match error.downcast::<ErrorKind>() {
                         // TODO: Explain safety.
-                        Ok(err) => unsafe { return self.handle_known(&*err); },
+                        Ok(err) => unsafe {
+                            return self.handle_known(&*err);
+                        },
+                        Err(error) => Err(error),
+                    }
+                }
+                // A bare `ModuleError` or `RustError`, taken out of an `ErrorKind` and panicked
+                // with directly, still gets its own signal. See `Env::handle_error`.
+                if let Err(error) = m {
+                    m = match error.downcast::<ModuleError>() {
+                        Ok(err) => {
+                            let raised = unsafe { self.signal_module_error(&err) };
+                            return self.signal_or_fallback(raised, &*err);
+                        }
+                        Err(error) => Err(error),
+                    }
+                }
+                if let Err(error) = m {
+                    m = match error.downcast::<RustError>() {
+                        Ok(err) => {
+                            let raised = unsafe { self.signal_rust_error(&err) };
+                            return self.signal_or_fallback(raised, &*err);
+                        }
                         Err(error) => Err(error),
                     }
                 }
                 if let Err(error) = m {
                     m = Ok(format!("{:#?}", error));
                 }
-                self.signal_internal(symbol::rust_panic, &m.expect("Logic error")).expect("Fail to signal panic")
+                self.signal_internal(symbol::rust_panic, &m.expect("Logic error"))
+                    .expect("Fail to signal panic")
             }
         }
     }
@@ -214,36 +441,231 @@ impl Env {
     pub(crate) fn define_core_errors(&self) -> Result<()> {
         // FIX: Make panics louder than errors, by somehow make sure that 'rust-panic is
         // not a sub-type of 'error.
-        self.define_error(symbol::rust_panic, "Rust panic", (symbol::error, ))?;
-        self.define_error(symbol::rust_error, "Rust error", (symbol::error, ))?;
+        self.define_error(symbol::rust_panic, "Rust panic", (symbol::error,))?;
+        self.define_error(symbol::rust_error, "Rust error", (symbol::error,))?;
         self.define_error(
             symbol::rust_wrong_type_user_ptr,
             "Wrong type user-ptr",
-            (symbol::rust_error, self.intern("wrong-type-argument")?),
+            (symbol::rust_error, symbol::wrong_type_argument),
+        )?;
+        // Module-layer errors. Each symbol uses the message of its standard parent, so printed
+        // errors do not change. See ADR 0003.
+        self.define_error(symbol::rust_module_error, "Emacs module error", (symbol::error,))?;
+        for name in [
+            symbol::rust_module_wrong_type,
+            symbol::rust_module_non_unicode_string,
+            symbol::rust_module_invalid_utf_8,
+        ] {
+            self.define_error(
+                name,
+                "Wrong type argument",
+                (symbol::rust_module_error, symbol::wrong_type_argument),
+            )?;
+        }
+        // Emacs 31 signals `memory-buffer-too-small` for a too-small buffer. Earlier versions
+        // signal `args-out-of-range`. Keep both parents where both exist, so old handlers work.
+        let buffer_too_small_is_defined = self
+            .call("get", (symbol::memory_buffer_too_small, self.intern("error-conditions")?))?
+            .is_not_nil();
+        if buffer_too_small_is_defined {
+            self.define_error(
+                symbol::rust_module_buffer_too_small,
+                "Memory buffer too small",
+                (
+                    symbol::rust_module_error,
+                    symbol::args_out_of_range,
+                    symbol::memory_buffer_too_small,
+                ),
+            )?;
+        } else {
+            self.define_error(
+                symbol::rust_module_buffer_too_small,
+                "Memory buffer too small",
+                (symbol::rust_module_error, symbol::args_out_of_range),
+            )?;
+        }
+        self.define_error(
+            symbol::rust_module_index_out_of_range,
+            "Args out of range",
+            (symbol::rust_module_error, symbol::args_out_of_range),
+        )?;
+        self.define_error(
+            symbol::rust_module_integer_out_of_range,
+            "Arithmetic overflow error",
+            (symbol::rust_module_error, symbol::overflow_error),
+        )?;
+        self.define_error(
+            symbol::rust_invalid_utf_8,
+            "Invalid UTF-8",
+            (symbol::rust_error, symbol::wrong_type_argument),
+        )?;
+        self.define_error(
+            symbol::rust_integer_out_of_range,
+            "Integer out of range",
+            (symbol::rust_error, symbol::overflow_error),
         )?;
         Ok(())
     }
 
+    /// Raises the Lisp signal or throw for `err`. See ADR 0003.
+    ///
+    /// # Safety
+    ///
+    /// The `TempValue`s in `err` must come from this env, and must still be live.
     unsafe fn handle_known(&self, err: &ErrorKind) -> emacs_value {
-        match err {
+        // SAFETY: Guaranteed by the caller.
+        let raised = match err {
             ErrorKind::Signal { symbol, data } => {
-                // SAFETY: TempValue's raw values remain live for the duration of this error.
-                unsafe { self.non_local_exit_signal(symbol.raw, data.raw) }
+                return unsafe { self.non_local_exit_signal(symbol.raw, data.raw) };
             }
             ErrorKind::Throw { tag, value } => {
-                // SAFETY: TempValue's raw values remain live for the duration of this error.
-                unsafe { self.non_local_exit_throw(tag.raw, value.raw) }
+                return unsafe { self.non_local_exit_throw(tag.raw, value.raw) };
             }
-            ErrorKind::WrongTypeUserPtr { .. } => self
-                .signal_internal(symbol::rust_wrong_type_user_ptr, &format!("{}", err))
-                .unwrap_or_else(|_| panic!("Failed to signal {}", err)),
+            ErrorKind::Module(error) => unsafe { self.signal_module_error(error) },
+            ErrorKind::Rust(error) => unsafe { self.signal_rust_error(error) },
+        };
+        self.signal_or_fallback(raised, err)
+    }
+
+    /// Converts `error` into a Lisp signal. `error` is usually an [`ErrorKind`] (ADR 0003), but
+    /// user code can also take a bare [`ModuleError`] or [`RustError`] out of an `ErrorKind` (for
+    /// example, to inspect it) and propagate it on its own with `?`; this still gets the mapping
+    /// of its type, instead of falling through to a generic `rust-error`. Anything else becomes a
+    /// generic `rust-error`, with `error`'s `Display` as the message.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`Env::handle_known`].
+    unsafe fn handle_error(&self, error: &Error) -> emacs_value {
+        if let Some(err) = error.downcast_ref::<ErrorKind>() {
+            // SAFETY: Guaranteed by the caller.
+            return unsafe { self.handle_known(err) };
+        }
+        if let Some(err) = error.downcast_ref::<ModuleError>() {
+            // SAFETY: Guaranteed by the caller.
+            let raised = unsafe { self.signal_module_error(err) };
+            return self.signal_or_fallback(raised, error);
+        }
+        if let Some(err) = error.downcast_ref::<RustError>() {
+            // SAFETY: Guaranteed by the caller.
+            let raised = unsafe { self.signal_rust_error(err) };
+            return self.signal_or_fallback(raised, error);
+        }
+        self.signal_internal(symbol::rust_error, &format!("{}", error))
+            .unwrap_or_else(|_| panic!("Failed to signal {}", error))
+    }
+
+    /// Raises `raised`'s signal. If raising it fails, falls back to a generic `rust-error`, with
+    /// `display`'s `Display` as the message.
+    fn signal_or_fallback(
+        &self,
+        raised: Result<emacs_value>,
+        display: &dyn Display,
+    ) -> emacs_value {
+        raised.unwrap_or_else(|_| {
+            self.signal_internal(symbol::rust_error, &format!("{}", display))
+                .unwrap_or_else(|_| panic!("Failed to signal {}", display))
+        })
+    }
+
+    /// Raises the signal for a module-layer error.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`Env::handle_known`].
+    unsafe fn signal_module_error(&self, error: &ModuleError) -> Result<emacs_value> {
+        match error {
+            ModuleError::WrongType { expected, value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_module_wrong_type,
+                    self.list((expected.predicate(), value))?,
+                )
+            }
+            ModuleError::NonUnicodeString { value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_module_non_unicode_string,
+                    self.list((symbol::unicode_string_p, value))?,
+                )
+            }
+            ModuleError::InvalidUtf8 { value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_module_invalid_utf_8,
+                    self.list((symbol::utf_8_string_p, value))?,
+                )
+            }
+            ModuleError::BufferTooSmall { actual, required } => self.signal_with(
+                symbol::rust_module_buffer_too_small,
+                self.list((*actual, *required))?,
+            ),
+            ModuleError::IndexOutOfRange { vector, index } => {
+                // SAFETY: Guaranteed by the caller.
+                let vector = unsafe { vector.value(self) };
+                self.signal_with(
+                    symbol::rust_module_index_out_of_range,
+                    self.list((vector, *index))?,
+                )
+            }
+            ModuleError::IntegerOutOfRange { value } => {
+                let data = match value {
+                    // SAFETY: Guaranteed by the caller.
+                    Some(value) => self.list((unsafe { value.value(self) },))?,
+                    None => symbol::nil.bind(self),
+                };
+                self.signal_with(symbol::rust_module_integer_out_of_range, data)
+            }
+            // Lisp code sees an unclassified signal unchanged.
+            // SAFETY: Guaranteed by the caller.
+            ModuleError::Signal { symbol, data } => {
+                Ok(unsafe { self.non_local_exit_signal(symbol.raw, data.raw) })
+            }
         }
     }
 
-    fn signal_internal(&self, symbol: &GlobalRef, message: &str) -> Result<emacs_value> {
-        let message = message.into_lisp(&self)?;
-        let data = self.list([message])?;
+    /// Raises the signal for an error that Rust code in this crate detected.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`Env::handle_known`].
+    unsafe fn signal_rust_error(&self, error: &RustError) -> Result<emacs_value> {
+        match error {
+            RustError::WrongTypeUserPtr { expected, value } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(symbol::rust_wrong_type_user_ptr, self.list((*expected, value))?)
+            }
+            RustError::InvalidUtf8 { value, .. } => {
+                // SAFETY: Guaranteed by the caller.
+                let value = unsafe { value.value(self) };
+                self.signal_with(
+                    symbol::rust_invalid_utf_8,
+                    self.list((symbol::utf_8_string_p, value))?,
+                )
+            }
+            RustError::IntegerOutOfRange { value, .. } => {
+                let data = match value {
+                    // SAFETY: Guaranteed by the caller.
+                    Some(value) => self.list((unsafe { value.value(self) },))?,
+                    None => symbol::nil.bind(self),
+                };
+                self.signal_with(symbol::rust_integer_out_of_range, data)
+            }
+        }
+    }
+
+    /// Raises `symbol`, with `data` as the signal data. `data` must be a list.
+    fn signal_with(&self, symbol: &GlobalRef, data: Value<'_>) -> Result<emacs_value> {
+        // SAFETY: `symbol` is a global reference, and `data` is bound to this env.
         unsafe { Ok(self.non_local_exit_signal(symbol.bind(self).raw, data.raw)) }
+    }
+
+    fn signal_internal(&self, symbol: &GlobalRef, message: &str) -> Result<emacs_value> {
+        self.signal_with(symbol, self.list((message,))?)
     }
 
     /// Defines a new Lisp error signal. This is the equivalent of the Lisp function's [`define-error`].
@@ -252,14 +674,21 @@ impl Env {
     ///
     /// [`define-error`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Error-Symbols.html
     pub fn define_error<'e, N, P>(&'e self, name: N, message: &str, parents: P) -> Result<Value<'e>>
-        where N: IntoLispSymbol<'e>, P: IntoLispArgs<'e> {
+    where
+        N: IntoLispSymbol<'e>,
+        P: IntoLispArgs<'e>,
+    {
         self.call("define-error", (name.into_lisp_symbol(self)?, message, self.list(parents)?))
     }
 
     /// Signals a Lisp error. This is the equivalent of the Lisp function's [`signal`].
     ///
     /// [`signal`]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Signaling-Errors.html#index-signal
-    pub fn signal<'e, S, D, T>(&'e self, symbol: S, data: D) -> Result<T> where S: IntoLispSymbol<'e>, D: IntoLispArgs<'e> {
+    pub fn signal<'e, S, D, T>(&'e self, symbol: S, data: D) -> Result<T>
+    where
+        S: IntoLispSymbol<'e>,
+        D: IntoLispArgs<'e>,
+    {
         let symbol = TempValue { raw: symbol.into_lisp_symbol(self)?.raw };
         let data = TempValue { raw: self.list(data)?.raw };
         Err(ErrorKind::Signal { symbol, data }.into())
@@ -282,7 +711,11 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    pub(crate) unsafe fn non_local_exit_throw(&self, tag: emacs_value, value: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn non_local_exit_throw(
+        &self,
+        tag: emacs_value,
+        value: emacs_value,
+    ) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_throw, tag, value);
         tag
     }
@@ -291,7 +724,11 @@ impl Env {
     ///
     /// The given raw values must still live.
     #[allow(unused_unsafe)]
-    pub(crate) unsafe fn non_local_exit_signal(&self, symbol: emacs_value, data: emacs_value) -> emacs_value {
+    pub(crate) unsafe fn non_local_exit_signal(
+        &self,
+        symbol: emacs_value,
+        data: emacs_value,
+    ) -> emacs_value {
         unsafe_raw_call_no_exit!(self, non_local_exit_signal, symbol, data);
         symbol
     }
@@ -305,13 +742,49 @@ pub trait ResultExt<T, E> {
     /// associated signal data will be a string formatted with [`Display::fmt`].
     ///
     /// If the result is an [`Ok`], it is returned unchanged.
-    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T> where S: IntoLispSymbol<'e>;
+    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T>
+    where
+        S: IntoLispSymbol<'e>;
 }
 
 impl<T, E: Display> ResultExt<T, E> for result::Result<T, E> {
-    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T> where S: IntoLispSymbol<'e> {
-        self.or_else(|err| env.signal(symbol, (
-            format!("{}", err),
-        )))
+    fn or_signal<'e, S>(self, env: &'e Env, symbol: S) -> Result<T>
+    where
+        S: IntoLispSymbol<'e>,
+    {
+        self.or_else(|err| env.signal(symbol, (format!("{}", err),)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `TempValue` that is never read back. Fine for `Display`, which never dereferences `raw`.
+    fn null_temp_value() -> TempValue {
+        TempValue { raw: std::ptr::null_mut() }
+    }
+
+    /// thiserror already shows a variant's `source` through `Error::source()`. If the variant's
+    /// own `#[error(...)]` message also interpolates `{source}`, a chain printer such as `{:#}`
+    /// shows the source text twice: once from the message, once from walking the chain.
+    #[test]
+    fn display_does_not_repeat_the_source_text_invalid_utf8() {
+        let source = String::from_utf8(vec![0xff]).unwrap_err();
+        let source_text = source.to_string();
+        let error: Error =
+            ErrorKind::Rust(RustError::InvalidUtf8 { value: null_temp_value(), source }).into();
+        let text = format!("{:#}", error);
+        assert_eq!(text.matches(&source_text).count(), 1, "{text:?}");
+    }
+
+    #[test]
+    fn display_does_not_repeat_the_source_text_integer_out_of_range() {
+        let source = i64::try_from(u64::MAX).unwrap_err();
+        let source_text = source.to_string();
+        let error: Error =
+            ErrorKind::Rust(RustError::IntegerOutOfRange { value: None, source }).into();
+        let text = format!("{:#}", error);
+        assert_eq!(text.matches(&source_text).count(), 1, "{text:?}");
     }
 }
