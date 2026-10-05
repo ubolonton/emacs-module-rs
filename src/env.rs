@@ -3,7 +3,6 @@ use std::{
     ffi::CString,
     mem::MaybeUninit,
     fmt::Debug,
-    io::{Write, PipeWriter},
 };
 
 use std::sync::OnceLock;
@@ -123,9 +122,11 @@ impl Env {
     /// | [`ModuleError::WrongType`](crate::ModuleError::WrongType) with [`LispType::Process`](crate::LispType::Process) or [`LispType::PipeProcess`](crate::LispType::PipeProcess) | `rust-module-wrong-type` |
     #[cfg(all(feature = "emacs-28"))]
     pub fn open_channel<'e>(&'e self, pipe_process: Value<'e>)
-        -> Result<impl Write + Debug + Send + Sync + use<>>
+        -> Result<impl std::io::Write + Debug + Send + Sync + use<>>
     {
         let raw_fd = unsafe_raw_call!(self, open_channel, pipe_process.raw)?;
+
+        use std::io::PipeWriter;
 
         #[cfg(target_os = "windows")]
         {
