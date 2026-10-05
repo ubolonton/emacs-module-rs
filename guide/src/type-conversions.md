@@ -24,7 +24,7 @@ This is enabled for types that implement `IntoLisp`. Most built-in types are sup
 
 ```rust
 "abc".into_lisp(env)?;
-"a\0bc".into_lisp(env)?; // NulError (Lisp string cannot contain null byte)
+"a\0bc".into_lisp(env)?;
 
 5.into_lisp(env)?;
 65.3.into_lisp(env)?;
@@ -57,12 +57,16 @@ features = ["nonzero-integer-conversion"]
 
 ## Strings
 
-By default, no utf-8 validation is done when converting Lisp strings into Rust strings, because the string data returned by Emacs is guaranteed to be valid utf-8 sequence. If you think you've otherwise encountered an Emacs bug, utf-8 validation can be enabled through a feature:
+Lisp strings are converted into Rust `String` structs.
 
-```toml
-[dependencies.emacs]
-features = ["utf-8-validation"]
-```
+- Unibyte strings:
+    - The Lisp side copies  the raw bytes directly.
+    - The Rust side decodes the bytes, signaling `rust-error` if they are not a valid UTF-8 sequence.
+- Multibyte strings:
+    - The Lisp side encodes the string into raw bytes, signaling `(wrong-type-argument unicode-string-p)` if it cannot be encoded via UTF-8. (Emacs's internal coding system is a superset.)
+    - The Rust side decodes the bytes, never signaling `rust-error`. (Emacs bugs not withstanding.) If you want to skip this validation, use `String::from_utf8_unchecked(value.clone_string_contents()?)`.
+
+If you don't want to allocate memory for `String` structs, and have a large-enough buffer, use `value.copy_string_contents(buffer)`.
 
 ## Equality
 
