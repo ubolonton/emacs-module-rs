@@ -24,6 +24,9 @@ include!("./emacs-module.rs");
 #[cfg(all(emacs_version = "28", not(feature = "bindgen-build")))]
 include!("./emacs-module-28.rs");
 
+#[cfg(all(emacs_version = "32", not(feature = "bindgen-build")))]
+include!("./emacs-module-32.rs");
+
 #[cfg(feature = "bindgen-build")]
 include!(concat!(env!("OUT_DIR"), "/emacs-module.rs"));
 
@@ -33,6 +36,8 @@ include!(concat!(env!("OUT_DIR"), "/emacs-module.rs"));
 pub const EMACS_VERSION: &str = "25";
 #[cfg(emacs_version = "28")]
 pub const EMACS_VERSION: &str = "28";
+#[cfg(emacs_version = "32")]
+pub const EMACS_VERSION: &str = "32";
 
 /// The minimum `emacs_env::size` (in bytes) the running Emacs must report for this build's
 /// enabled `emacs-N` feature(s) to be usable. `emacs_env`'s layout grows with each supported

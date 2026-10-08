@@ -66,6 +66,8 @@ Emacs 25 and 26 have no bignums. So `extract_integer` cannot overflow there, but
 | `utf-8-string-p` | `make_string`, bytes that are not UTF-8 | 28+ |
 | `processp`, `pipe-process-p` | `open_channel` | 28+ |
 
+`canvas_data` (32+) signals plain `error` with a message: "Not a canvas", or "Canvas: No window system". No rule classifies it, so it stays `ModuleError::Signal`.
+
 `extract_integer`'s call-site rule handles `wrong-type-argument` itself (see the call-site rules table above), so the generic rule never sees `integerp` or `numberp` from it.
 
 These facts are the same on Emacs 25–32:

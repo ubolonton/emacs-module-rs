@@ -58,6 +58,7 @@ fn inc(x: i64) -> Result<i64> {
 - Include both Rust and Elisp when showing a Lisp-facing API
 - Use real scenarios (e.g. wrapping a hash map, a git repo) not toy abstractions
 - One good example beats several mediocre ones
+- Show the recommended pattern. Do not show a weaker pattern, then suggest a better one in prose
 
 ## Terminology
 
@@ -70,3 +71,4 @@ fn inc(x: i64) -> Result<i64> {
 - Over-hedging: "Note that you may want to consider using..." → "Use X when Y"
 - Listing options without trade-offs: always say when to prefer each
 - Leaking project internals: CI matrices, supported OS counts, test version lists — omit unless directly relevant to the reader's setup
+- Linking to maintainer docs: `docs/research/` and `docs/adrs/` are for maintainers. Do not link to them. Put the facts that users need in the guide

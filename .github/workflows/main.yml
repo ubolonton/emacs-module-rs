@@ -55,6 +55,8 @@ jobs:
 
       - run: cargo test --all
 
+      - run: cargo test --all --features emacs-32-experimental
+
       - uses: purcell/setup-emacs@master
         with:
           version: ${{ matrix.emacs-version }}
@@ -135,5 +137,7 @@ jobs:
       - run: cargo xtask build
 
       - run: cargo test --all
+
+      - run: cargo test --all --features emacs-32-experimental
 
       - run: cargo xtask test --verbose

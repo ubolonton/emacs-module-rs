@@ -21,6 +21,8 @@ bindgen = { version = "0.72.1", optional = true, features = ["prettyplease"] }
 [features]
 default = []
 emacs-28 = []
+# Unreleased ABI.
+emacs-32-experimental = ["emacs-28"]
 # Code-time generation, via a binary that generates bindings as source code.
 bindgen-code = ["bindgen"]
 # Build-time generation.

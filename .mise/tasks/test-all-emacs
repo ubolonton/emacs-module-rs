@@ -3,8 +3,9 @@
 set -uo pipefail
 
 # The CI matrix has fewer Emacs versions than the crate supports. Module-layer signals differ
-# between versions, so run the tests on every version that is installed.
-mapfile -t emacs_binaries < <(compgen -c | grep -E '^emacs-[0-9]+$' | sort -uV)
+# between versions, so run the tests on every version that is installed. `emacs-N-gtk` builds are
+# included because canvas tests need a window system.
+mapfile -t emacs_binaries < <(compgen -c | grep -E '^emacs-[0-9]+(-gtk)?$' | sort -uV)
 if [ "${#emacs_binaries[@]}" -eq 0 ]; then
     echo "No emacs-N binary in PATH" >&2
     exit 1

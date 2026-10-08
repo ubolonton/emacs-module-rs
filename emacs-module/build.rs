@@ -8,12 +8,18 @@ fn main() {
     // Highest version first — features are additive in Cargo,
     // so emacs-29 = ["emacs-28"] means both are enabled.
     // To add version N:
-    //   1. Add `cfg!(feature = "emacs-N") => "N",` at the top
+    //   1. Add an `if cfg!(feature = "emacs-N") { "N" }` branch at the start of the chain below
     //   2. Add "N" to the check-cfg values
     //   3. Add `#[cfg(emacs_version = "N")]` include in lib.rs
-    let version = if cfg!(feature = "emacs-28") { "28" } else { "25" };
+    let version = if cfg!(feature = "emacs-32-experimental") {
+        "32"
+    } else if cfg!(feature = "emacs-28") {
+        "28"
+    } else {
+        "25"
+    };
 
-    println!("cargo::rustc-check-cfg=cfg(emacs_version, values(\"25\", \"28\"))");
+    println!("cargo::rustc-check-cfg=cfg(emacs_version, values(\"25\", \"28\", \"32\"))");
     println!("cargo::rustc-cfg=emacs_version=\"{version}\"");
 
     #[cfg(feature = "bindgen-build")]

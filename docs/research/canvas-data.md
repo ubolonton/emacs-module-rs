@@ -38,11 +38,23 @@ GC does not move the buffer. The buffer is malloc memory, and this Emacs has no 
 
 Consequences:
 
-- `canvas_data` resizes the buffer to the spec's current dimensions before it returns. Read the dimensions from the same spec object immediately before the call, with no Lisp code between the two steps. Then the buffer length is always `width * height`.
+- `canvas_data` resizes the buffer to the spec's current dimensions before it returns. If no Lisp code runs between the dimension reads and the end of `canvas_data`, the buffer length is `width * height`.
 - An `emacs_value` that a module holds is a GC root. Thus the buffer cannot be freed during a module call that holds the spec.
 - Any `env` call that runs Lisp (`funcall` and similar) can mutate the spec, run redisplay, call `clear-image-cache`, or yield to another Lisp thread. The pointer can become invalid, or Emacs can read the buffer while the module writes to it. Simple `env` calls such as `make_integer` cannot cause this, but a borrow checker cannot easily tell the two kinds apart.
 
 Rule: stop using the pointer before the next `env` call.
+
+### Lisp code that runs inside module calls
+
+A module `funcall` can run any Lisp code, also when it calls a primitive such as `plist-get`. `module_funcall` calls `Ffuncall` (`src/emacs-module.c`), and `Ffuncall` (`src/eval.c`) does these things around the call:
+
+- `maybe_gc ()`. GC runs `post-gc-hook` immediately (`src/alloc.c`).
+- If `debug_on_next_call` is set (the user steps with `d` in the debugger), it starts the debugger, with a recursive edit.
+- If the frame has debug-on-exit set, it starts the debugger when the call returns.
+
+`canvas_data` itself can run Lisp code. For a new canvas with `:file`, it finds the file with `Fexpand_file_name` and `openp`, which call file name handlers. When the spec has a bad `:data` or an unreadable `:file`, it calls `image_error`. That function calls `vadd_to_log` and `message_dolog` (`src/xdisp.c`), which write to `*Messages*`. If Emacs creates that buffer, it runs `messages-buffer-mode` and its hooks.
+
+Consequence: the module API cannot read a list without `funcall`. Thus a module cannot read both dimensions with no Lisp code between the reads and the end of `canvas_data`. If Lisp code changes a dimension in that window, the module's dimensions do not match the buffer. Read the dimensions before `canvas_data`, and make no `funcall` after it. This removes all races on the pointer, and leaves only this window.
 
 ## Errors
 
