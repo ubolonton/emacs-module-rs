@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Added `Value::with_canvas_data` for Emacs 32 canvas images, behind the `emacs-32-experimental` feature. This feature tracks an unreleased module ABI. See the [guide](https://ubolonton.github.io/emacs-module-rs/latest/canvas.html).
 
 ## [0.22.0] - 2026-10-05
 - Improved strings/bytes conversions

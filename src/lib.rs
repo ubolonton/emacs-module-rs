@@ -41,6 +41,10 @@ pub use self::{
     error::{ErrorKind, LispType, ModuleError, RustError, Result, ResultExt, Error},
 };
 
+#[cfg(feature = "emacs-32-experimental")]
+#[doc(inline)]
+pub use self::types::CanvasData;
+
 #[macro_use] mod macros;
 
 #[doc(hidden)]

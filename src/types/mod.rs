@@ -1,6 +1,8 @@
 use crate::{symbol, Env, Value, Result};
 
 pub use {user_ptr::Transfer, vector::Vector};
+#[cfg(feature = "emacs-32-experimental")]
+pub use canvas::CanvasData;
 
 mod integer;
 mod float;
@@ -8,6 +10,8 @@ mod string;
 
 mod user_ptr;
 mod vector;
+#[cfg(feature = "emacs-32-experimental")]
+mod canvas;
 
 // XXX: More accurate would be `CloneFromLisp` or `Decode`, but ...
 /// Converting Lisp [`Value`] into a Rust type.

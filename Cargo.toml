@@ -40,7 +40,7 @@ lossy-integer-conversion = []
 nonzero-integer-conversion = []
 debug = []
 emacs-28 = ["emacs_module/emacs-28"]
-# Unreleased Emacs 32 ABI.
+# Unreleased Emacs 32 ABI (`Value::with_canvas_data`).
 emacs-32-experimental = ["emacs-28", "emacs_module/emacs-32-experimental"]
 # This feature is intended as a workaround when building on new untested platforms. If the crate
 # cannot be built without this feature, please report the issue at
