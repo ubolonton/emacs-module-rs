@@ -4,6 +4,14 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use xshell::{Shell, cmd};
 
+/// Standalone test workspaces: (directory, library name, short module name). Each has its own
+/// Cargo.lock, because each needs a different minimum Emacs ABI (see their Cargo.toml).
+const TEST_MODULES: [(&str, &str, &str); 3] = [
+    ("test-module", "test_module", "t"),
+    ("test-module-28", "test_module_28", "t28"),
+    ("test-module-32", "test_module_32", "t32"),
+];
+
 #[derive(Parser)]
 struct Cli {
     #[command(subcommand)]
@@ -149,11 +157,12 @@ fn build(release: bool) -> Result<()> {
 
     cmd!(sh, "cargo build --workspace --exclude xtask {release_flag...}").run()?;
 
-    // test-module and test-module-28 are standalone workspaces (see their own Cargo.toml), each
-    // with its own Cargo.lock, so they must be built in their own invocations. They still share
-    // this workspace's target directory, so all module artifacts land in one place below.
-    for member in ["test-module", "test-module-28"] {
-        let manifest = root.join(member).join("Cargo.toml");
+    // test-module, test-module-28 and test-module-32 are standalone workspaces (see their own
+    // Cargo.toml), each with its own Cargo.lock, so they must be built in their own invocations.
+    // They still share this workspace's target directory, so all module artifacts land in one place
+    // below.
+    for (directory, _, _) in TEST_MODULES {
+        let manifest = root.join(directory).join("Cargo.toml");
         cmd!(
             sh,
             "cargo build --manifest-path {manifest} --target-dir {target_dir} {release_flag...}"
@@ -165,13 +174,12 @@ fn build(release: bool) -> Result<()> {
     let ext = ext();
     let prefix = lib_prefix();
 
-    let copies = [
-        (format!("{prefix}emacs_rs_module.{ext}"), format!("rs-module.{ext}")),
-        (format!("{prefix}test_module.{ext}"), format!("t.{ext}")),
-        (format!("{prefix}test_module_28.{ext}"), format!("t28.{ext}")),
-    ];
-    for (src, dst) in &copies {
-        sh.copy_file(target.join(src), target.join(dst))?;
+    let mut copies = vec![(format!("{prefix}emacs_rs_module.{ext}"), format!("rs-module.{ext}"))];
+    copies.extend(TEST_MODULES.iter().map(|(_, library, short)| {
+        (format!("{prefix}{library}.{ext}"), format!("{short}.{ext}"))
+    }));
+    for (source, destination) in &copies {
+        sh.copy_file(target.join(source), target.join(destination))?;
     }
 
     // Best-effort: show GCC version for build environment info.
@@ -183,9 +191,9 @@ fn build(release: bool) -> Result<()> {
     // On Windows this reveals the CRT (msvcrt.dll vs ucrtbase.dll);
     // on Linux/macOS/FreeBSD it shows libc/libm/etc.
     println!("=== Shared libraries for built modules ===");
-    for name in [format!("t.{ext}"), format!("t28.{ext}"), format!("rs-module.{ext}")] {
-        println!("--- {name} ---");
-        print_shared_libs(&sh, &target.join(&name));
+    for (_, destination) in &copies {
+        println!("--- {destination} ---");
+        print_shared_libs(&sh, &target.join(destination));
     }
     println!("==========================================");
 
@@ -251,13 +259,12 @@ fn test(watch: bool, release: bool, verbose: bool, filter: Option<&str>) -> Resu
     let selector = filter.map_or_else(|| "t".to_string(), elisp_string);
     let run_tests = format!("(ert-run-tests-batch-and-exit {selector})");
 
-    println!("Testing test-module");
-    let main_el = root.join("test-module/tests/main.el");
-    cmd!(sh, "{emacs} -Q -batch --directory {target} -l ert -l {main_el} --eval {run_tests}").run()?;
-
-    println!("Testing test-module-28");
-    let main_el_28 = root.join("test-module-28/tests/main.el");
-    cmd!(sh, "{emacs} -Q -batch --directory {target} -l ert -l {main_el_28} --eval {run_tests}").run()?;
+    for (directory, _, _) in TEST_MODULES {
+        println!("Testing {directory}");
+        let main_el = root.join(directory).join("tests/main.el");
+        cmd!(sh, "{emacs} -Q -batch --directory {target} -l ert -l {main_el} --eval {run_tests}")
+            .run()?;
+    }
 
     Ok(())
 }

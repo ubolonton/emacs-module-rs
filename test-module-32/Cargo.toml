@@ -1,0 +1,19 @@
+[workspace]
+# Standalone: this crate requires the `emacs-32-experimental` feature, and Cargo unifies a shared
+# dependency's features across everything resolved together in one workspace. Kept out of the root
+# workspace so that requirement can't leak into test-module, test-module-28, or rs-module.
+
+[package]
+name = "test-module-32"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+emacs = { path = "..", features = ["emacs-32-experimental"] }
+
+[features]
+bindgen = ["emacs/bindgen"]
