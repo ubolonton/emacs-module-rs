@@ -17,4 +17,5 @@ fn generate(header: &str, dest: &str) {
 fn main() {
     generate("include/emacs-module.h",    "src/emacs-module.rs");
     generate("include/emacs-module-28.h", "src/emacs-module-28.rs");
+    generate("include/emacs-module-32.h", "src/emacs-module-32.rs");
 }
