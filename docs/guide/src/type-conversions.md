@@ -9,12 +9,7 @@ The type `Value` represents Lisp values:
 This is enabled for types that implement `FromLisp`. Most built-in types are supported. Note that conversion may fail, so the return type is `Result<T>`.
 
 ```rust
-let i: i64 = value.into_rust()?; // error if Lisp value is not an integer
-let f: f64 = value.into_rust()?; // error if Lisp value is nil
-
-let s = value.into_rust::<String>()?;
-let s: Option<&str> = value.into_rust()?; // None if Lisp value is nil
-let b: Vec<u8> = value.into_rust()?; // raw bytes of a Lisp string
+{{#include ../examples/type_conversions.rs:into_rust}}
 ```
 
 It's better to declare input types for `#[defun]` than calling `.into_rust()`, unless delayed conversion is needed.
@@ -24,16 +19,7 @@ It's better to declare input types for `#[defun]` than calling `.into_rust()`, u
 This is enabled for types that implement `IntoLisp`. Most built-in types are supported. Note that conversion may fail, so the return type is `Result<Value<'_>>`.
 
 ```rust
-"abc".into_lisp(env)?;
-"a\0bc".into_lisp(env)?;
-b"\xff\0".into_lisp(env)?; // unibyte string, needs feature emacs-28
-
-5.into_lisp(env)?;
-65.3.into_lisp(env)?;
-
-().into_lisp(env)?; // nil
-true.into_lisp(env)?; // t
-false.into_lisp(env)?; // nil
+{{#include ../examples/type_conversions.rs:into_lisp}}
 ```
 
 It's better to declare return type for `#[defun]` than calling `.into_lisp(env)`, whenever possible.
@@ -66,11 +52,7 @@ features = ["nonzero-integer-conversion"]
 Use `String` for text. Use `Vec<u8>` for binary data, or for text in an encoding other than UTF-8.
 
 ```rust
-// (xor-bytes "\377\0" 1) returns "\376\1". Returning `Vec<u8>` needs feature emacs-28.
-#[defun]
-fn xor_bytes(data: Vec<u8>, key: u8) -> Result<Vec<u8>> {
-    Ok(data.iter().map(|b| b ^ key).collect())
-}
+{{#include ../examples/type_conversions.rs:xor_bytes}}
 ```
 
 Lisp to Rust conversion copies the bytes of a unibyte string, or the UTF-8 encoding of a multibyte string. `String` then validates them as UTF-8. `Vec<u8>` does not.
@@ -100,28 +82,13 @@ To squeeze out some performance:
 `Value` implements `PartialEq`, which maps to Lisp's `eq` (identity/pointer equality, not `equal`).
 
 ```rust
-// Two references to the same interned symbol are eq.
-let a = env.intern("hello")?;
-let b = env.intern("hello")?;
-assert!(a == b);
-
-// Two separately allocated strings with the same content are not eq.
-let s1 = "hi".into_lisp(env)?;
-let s2 = "hi".into_lisp(env)?;
-assert!(s1 != s2);
+{{#include ../examples/type_conversions.rs:equality}}
 ```
 
 `GlobalRef` and `OnceGlobalRef` implement `PartialEq<Value>` (and vice versa), so you can compare a cached global against an incoming argument without rebinding:
 
 ```rust
-use emacs::use_symbols;
-
-use_symbols! { nil }
-
-#[defun]
-fn is_nil(v: Value<'_>) -> Result<bool> {
-    Ok(v == *nil)
-}
+{{#include ../examples/type_conversions.rs:global_equality}}
 ```
 
 The old `value.eq(other)` method is deprecated since 0.20.0. Use `==` instead.
@@ -133,9 +100,5 @@ Lisp vectors are represented by the type `Vector`, which can be considered a "su
 To construct Lisp vectors, use `env.make_vector` and `env.vector`, which are efficient wrappers of Emacs's built-in subroutines `make-vector` and `vector`.
 
 ```rust
-env.make_vector(5, ())?;
-
-env.vector([1, 2, 3])?;
-
-env.vector((1, "x", true))?;
+{{#include ../examples/type_conversions.rs:vectors}}
 ```

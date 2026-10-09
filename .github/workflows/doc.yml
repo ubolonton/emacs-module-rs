@@ -1,11 +1,30 @@
 name: Doc
 
+# Tags publish /<version>/ and point /latest/ to it. master publishes /master/. The doc branch
+# publishes /<version>/ too, to fix a released version's guide without a new release.
+#
+# The guide's examples compile against crates/, so changes there must check the guide too. GitHub
+# does not apply the path filters to tag pushes.
 on:
   push:
     branches:
+      - master
       - doc
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
     paths:
       - docs/guide/**
+      - crates/**
+      - .mise/**
+      - .github/workflows/doc.yml
+  pull_request:
+    branches:
+      - master
+    paths:
+      - docs/guide/**
+      - crates/**
+      - .mise/**
+      - .github/workflows/doc.yml
   workflow_dispatch:
 
 concurrency:
@@ -13,21 +32,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Set up Rust
+        run: |
+          rustup install stable
+          rustc -Vv
+          cargo -V
+
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@v5
+
+      - run: mise run guide:check-examples
+
+      - run: mise run guide:build
+
   publish-doc:
+    needs: check
+    if: >-
+      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/doc'
+      || startsWith(github.ref, 'refs/tags/')
+    # Runs for different refs all push to the same Pages repo, so run them one at a time. `queue: max`
+    # keeps every pending run. The default keeps only the newest, which could drop a tag's publish.
+    concurrency:
+      group: publish-doc
+      queue: max
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
-      - name: Install mdBook
-        run: |
-          cargo install mdbook --locked --version ^0.5
-          mdbook --version
+      - uses: jdx/mise-action@v5
 
-      - name: Get crate version
-        id: version
+      - name: Choose target
+        id: target
         run: |
-          VERSION=$(awk -F'"' '/^version =/{print $2; exit}' Cargo.toml)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          VERSION=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "emacs") | .version')
+          case "$GITHUB_REF" in
+            refs/heads/master)
+              echo "args=master" >> "$GITHUB_OUTPUT"
+              ;;
+            refs/tags/*)
+              if [ "$GITHUB_REF_NAME" != "$VERSION" ]; then
+                echo "Tag $GITHUB_REF_NAME does not match crate version $VERSION" >&2
+                exit 1
+              fi
+              echo "args=$VERSION --latest" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "args=$VERSION --latest" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - name: Check out GitHub Pages repo
         uses: actions/checkout@v6
@@ -37,19 +98,18 @@ jobs:
           token: ${{ secrets.PAT }}
 
       - name: Build guide
-        run: |
-          VERSION=${{ steps.version.outputs.version }}
-          mdbook build docs/guide --dest-dir "ubolonton.github.io/emacs-module-rs/$VERSION"
-          cd ubolonton.github.io/emacs-module-rs
-          ln -sfn "$VERSION" latest
+        run: mise run guide:publish ubolonton.github.io/emacs-module-rs ${{ steps.target.outputs.args }}
 
       - name: Publish
+        env:
+          # Through env, not inline, so that the message can't inject shell code.
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add emacs-module-rs/
-          git diff --cached --quiet || git commit -m "auto: ${{ github.event.head_commit.message }}
+          git diff --cached --quiet || git commit -m "auto: $GITHUB_REF_NAME: $HEAD_COMMIT_MESSAGE
 
-          SourceCommit: https://github.com/ubolonton/emacs-module-rs/commit/${{ github.sha }}"
+          SourceCommit: https://github.com/ubolonton/emacs-module-rs/commit/$GITHUB_SHA"
           git push
         working-directory: ubolonton.github.io

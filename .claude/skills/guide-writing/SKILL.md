@@ -1,6 +1,6 @@
 ---
 name: guide-writing
-description: Use when writing or editing guide docs — files under docs/guide/src/
+description: Use when writing or editing guide docs — files under docs/guide/src/ or docs/guide/examples/
 ---
 
 # Guide Writing
@@ -56,9 +56,21 @@ fn inc(x: i64) -> Result<i64> {
 
 - Substantial enough to copy-paste and run
 - Include both Rust and Elisp when showing a Lisp-facing API
+- Tag Elisp code blocks `elisp`
 - Use real scenarios (e.g. wrapping a hash map, a git repo) not toy abstractions
 - One good example beats several mediocre ones
 - Show the recommended pattern. Do not show a weaker pattern, then suggest a better one in prose
+- Do not pin crate versions in snippets. Show `cargo add emacs --features …` instead
+
+### Compiled Rust snippets
+
+Rust code that uses this crate goes in `docs/guide/examples/`, so that it compiles against the current API. Inline Rust blocks are only for code that cannot compile there, such as code that needs a third-party crate.
+
+- Each file is one module (one `#[emacs::module]`), registered as an `[[example]]` in `docs/guide/examples/Cargo.toml`. Set `required-features` for code that needs `emacs-28` or `emacs-32-experimental`.
+- Mark the shown part with `// ANCHOR: name` and `// ANCHOR_END: name`. Put the boilerplate that the reader does not need (`plugin_is_GPL_compatible!`, a no-op `init`, wrapper functions) outside the anchors.
+- Include it with `{{#include ../examples/file.rs:name}}` at column 0, inside a `rust` fence.
+- `{{#include}}` does not dedent. Write fragments of function bodies at column 0. Indent snippets inside Markdown list items to the list level. rustfmt is off for this directory.
+- Run `mise run guide:check-examples`. It denies warnings, to catch deprecated APIs.
 
 ## Terminology
 

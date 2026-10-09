@@ -3,15 +3,7 @@
 Frequently-used Lisp functions are exposed as methods on `env`:
 
 ```rust
-env.intern("defun")?;
-
-env.message("Hello")?;
-
-env.type_of(5.into_lisp(env)?)?;
-
-env.provide("my-module")?;
-
-env.list((1, "str", true))?;
+{{#include ../examples/calling_lisp.rs:env_methods}}
 ```
 
 To call arbitrary Lisp functions, use `env.call(func, args)`.
@@ -23,38 +15,19 @@ To call arbitrary Lisp functions, use `env.call(func, args)`.
   + A tuple of different types, each satisfying the `IntoLisp` trait.
 
 ```rust
-// (list "str" 2)
-env.call("list", ("str", 2))?;
+{{#include ../examples/calling_lisp.rs:call_by_name}}
 ```
 
 ```rust
-let list = env.intern("list")?;
-// (symbol-function 'list)
-let subr = env.call("symbol-function", [list])?;
-// (funcall 'list "str" 2)
-env.call(list, ("str", 2))?;
-// (funcall (symbol-function 'list) "str" 2)
-env.call(subr, ("str", 2))?;
-subr.call(("str", 2))?; // Like the above, but shorter.
+{{#include ../examples/calling_lisp.rs:call_value}}
 ```
 
 ```rust
-// (add-hook 'text-mode-hook 'variable-pitch-mode)
-env.call("add-hook", [
-    env.intern("text-mode-hook")?,
-    env.intern("variable-pitch-mode")?,
-])?;
+{{#include ../examples/calling_lisp.rs:add_hook}}
 ```
 
 ```rust
-#[defun]
-fn listify_vec(vector: Vector) -> Result<Value> {
-    let mut args = vec![];
-    for e in vector {
-        args.push(e)
-    }
-    vector.0.env.call("list", &args)
-}
+{{#include ../examples/calling_lisp.rs:listify_vec}}
 ```
 
 ## Caching Symbols and Functions
@@ -66,33 +39,13 @@ Every call to `env.intern` and every symbol-lookup in `env.call("name", ...)` do
 `use_symbols!` declares `static` variables of type `&OnceGlobalRef` that hold interned symbol values. The variables are initialized once when the module is loaded.
 
 ```rust
-use emacs::{defun, use_symbols, Result, Value};
-
-use_symbols! {
-    left right center
-}
-
-#[defun(mod_in_name = false)]
-fn classify(pos: Value<'_>) -> Result<String> {
-    if pos == *left {
-        Ok("left".to_owned())
-    } else if pos == *right {
-        Ok("right".to_owned())
-    } else if pos == *center {
-        Ok("center".to_owned())
-    } else {
-        Ok("unknown".to_owned())
-    }
-}
+{{#include ../examples/calling_lisp.rs:use_symbols}}
 ```
 
 The Lisp name for each symbol is derived by replacing `_` with `-`. Use `=> "lisp-name"` to override:
 
 ```rust
-use_symbols! {
-    nil t
-    buffer_read_only => "buffer-read-only"
-}
+{{#include ../examples/calling_lisp.rs:use_symbols_rename}}
 ```
 
 If the symbol is bound to a function, you can call it via `env.call(symbol_var, args)`. This goes through symbol lookup on each call. Use `use_functions!` to avoid that indirection.
@@ -102,19 +55,7 @@ If the symbol is bound to a function, you can call it via `env.call(symbol_var, 
 `use_functions!` is like `use_symbols!`, but stores the function object directly (via `indirect-function`). Calls through these variables skip symbol lookup entirely.
 
 ```rust
-use emacs::{defun, use_functions, Env, Result, Value};
-
-use_functions! {
-    message
-    string_to_number => "string-to-number"
-}
-
-#[defun]
-fn greet_parsed(env: &Env, s: String) -> Result<()> {
-    let n: i64 = env.call(string_to_number, (s,))?.into_rust()?;
-    env.call(message, (format!("Got {}", n),))?;
-    Ok(())
-}
+{{#include ../examples/calling_lisp.rs:use_functions}}
 ```
 
 **Trade-off**: `use_functions!` is faster than `use_symbols!` for repeated calls because it skips symbol lookup. However, if the symbol is later rebound to a different function, the cached reference still points to the original function. Use `use_symbols!` when you need to respect runtime rebinding; use `use_functions!` for built-in and primitive functions where rebinding is not expected.

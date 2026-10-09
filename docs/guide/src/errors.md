@@ -15,23 +15,7 @@ Lisp code exits in 2 ways: it signals an error, or it throws a value. Calling it
 When calling a Lisp function, it's usually a good idea to propagate signaled errors with the `?` operator, letting higher level (Lisp) code handle them. If you want to handle a specific error, you can use `error.downcast_ref`:
 
 ```rust
-match env.call("insert", &[some_text]) {
-    Err(error) => {
-        // Handle `buffer-read-only` error.
-        if let Some(Signal { symbol, .. }) = error.downcast_ref::<ErrorKind>() {
-            let buffer_read_only = env.intern("buffer-read-only")?;
-            // `symbol` is a `TempValue` that must be converted to `Value`.
-            let symbol = unsafe { Ok(symbol.value(env)) };
-            if env.eq(symbol, buffer_read_only) {
-                env.message("This buffer is not writable!")?;
-                return Ok(())
-            }
-        }
-        // Propagate other errors.
-        Err(error)
-    },
-    v => v,
-}
+{{#include ../examples/errors.rs:handle_signal}}
 ```
 
 Note the use of `unsafe` to extract the error symbol as a `Value`. The reason is that, `ErrorKind::Signal` is marked `Send+Sync`, for compatibility with `anyhow`, while `Value` is lifetime-bound by `env`. The `unsafe` contract here requires the error being handled (and its `TempValue`) to come from this `env`, not from another thread, or from a global/thread-local storage.
@@ -47,35 +31,13 @@ Two more origins exist.
 - `ErrorKind::Rust`: The Rust layer (i.e. this crate) rejects some values, for example converting a `String` from bytes that are not valid UTF-8.
 
 ```rust
-match error.downcast_ref::<ErrorKind>() {
-    Some(ErrorKind::Signal { .. } | ErrorKind::Throw { .. }) => {
-        // Lisp code signaled or threw.
-    }
-    Some(ErrorKind::Module(_)) => {
-        // The module layer rejected the call.
-    }
-    Some(ErrorKind::Rust(_)) => {
-        // Rust code in this crate rejected the value.
-    }
-    None => {
-        // Not an `ErrorKind`.
-    }
-}
+{{#include ../examples/errors.rs:classify}}
 ```
 
 `ModuleError` and `RustError` are `#[non_exhaustive]`, so a match on their variants needs an `_` arm:
 
 ```rust
-match error.downcast_ref::<ErrorKind>() {
-    Some(ErrorKind::Module(WrongType { expected: LispType::Integer, .. })) => {
-        env.message("Expected an integer")?;
-    }
-    Some(ErrorKind::Rust(InvalidUtf8 { .. })) => {
-        env.message("Not valid UTF-8")?;
-    }
-    // `ModuleError` and `RustError` can grow new variants in a minor release.
-    _ => return Err(error),
-}
+{{#include ../examples/errors.rs:match_variants}}
 ```
 
 ## Signaling Lisp Errors from Rust
@@ -83,19 +45,7 @@ match error.downcast_ref::<ErrorKind>() {
 The function `env.signal` allows signaling a Lisp error from Rust code. The error symbol must have been defined, e.g. by the macro `define_errors!`:
 
 ```rust
-// The parentheses denote parent error signals.
-// If unspecified, the parent error signal is `error`.
-emacs::define_errors! {
-    my_custom_error "This number should not be negative" (arith_error range_error)
-}
-
-#[defun]
-fn signal_if_negative(env: &Env, x: i16) -> Result<()> {
-    if (x < 0) {
-        return env.signal(my_custom_error, ("associated", "DATA", 7))
-    }
-    Ok(())
-}
+{{#include ../examples/errors.rs:define_errors}}
 ```
 
 ## Handling Module-layer and Rust-layer Errors in Lisp
@@ -152,9 +102,7 @@ error                                      + standard symbol
 - `PREDICATE` is the Lisp type predicate that the value failed, for example `integerp` or `user-ptrp`. Some, for example `utf-8-string-p`, are not functions.
 
 ```rust
-// May signal `rust-wrong-type-user-ptr` if `value` holds a different type of hash map,
-// or is a `user-ptr` defined in a non-Rust module.
-let r: &RefCell<HashMap<String, String>> = value.into_rust()?;
+{{#include ../examples/errors.rs:wrong_type_user_ptr}}
 ```
 
 ### Panics

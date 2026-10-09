@@ -1,2 +1,26 @@
+# CI has no global mise config, so enable the lockfile here.
+[settings]
+lockfile = true
+
 [tools]
-mdbook = "latest"
+mdbook = "0.5"
+
+[tasks."guide:build"]
+depends = ["guide:highlight-js"]
+description = "Build the guide into docs/guide/book"
+run = "mdbook build docs/guide"
+
+[tasks."guide:serve"]
+depends = ["guide:highlight-js"]
+description = "Serve the guide on localhost, rebuilding on changes"
+run = "mdbook serve docs/guide"
+
+[tasks."guide:check-examples"]
+description = "Compile the guide's code examples, with and without optional features"
+dir = "docs/guide/examples"
+# Deny warnings to catch uses of deprecated APIs.
+env = { RUSTFLAGS = "-D warnings" }
+run = [
+    "cargo check --examples --locked",
+    "cargo check --examples --locked --all-features",
+]
