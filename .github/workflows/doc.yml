@@ -26,7 +26,8 @@ jobs:
       - name: Get crate version
         id: version
         run: |
-          VERSION=$(awk -F'"' '/^version =/{print $2; exit}' Cargo.toml)
+          VERSION=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "emacs") | .version')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check out GitHub Pages repo
