@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added `Value::with_canvas_data` for Emacs 32 canvas images, behind the `emacs-32-experimental` feature. This feature tracks an unreleased module ABI. See the [guide](https://ubolonton.github.io/emacs-module-rs/latest/canvas.html).
 - Removed the [workaround](https://github.com/ubolonton/emacs-module-rs/pull/3) for Emacs's [GC bug #31238](https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238) at compile time when the `emacs-28` feature is enabled. Before, it was only disabled at load time. `Env` is now just a pointer, without a `Drop` implementation.
 
-## [0.22.0] - 2026-10-05
+## [0.22.0] - 2026-10-05 - Strings, bytes, and typed errors
 - Improved strings/bytes conversions
     - Made UTF-8 validation always-on for string conversions, and removed the feature `utf-8-validation`.
     - Fixed string conversions stripping all trailing null bytes. Only the terminating one is removed now.
@@ -23,25 +23,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Raised minimum support Rust version (MSRV) to 1.87 (for `PipeWriter`).
 - Upgraded to Rust 2024 edition.
 
-## [0.21.0] - 2026-03-18
+## [0.21.0] - 2026-03-18 - Pipe channels (Emacs 28)
 - Added `emacs-28` feature with `Env::open_channel` for pipe-based communication (Emacs 28+).
     - On Windows, this requires the module to be linked against the same C runtime as Emacs.
         - Keep in mind that Emacs officially supports MSVCRT, not the newer UCRT.
         - Caution: GNU toolchain uses gcc as the linker, so if `mingw-w64-ucrt-x86_64-gcc` is before `mingw-w64-x86_64-gcc` in `$PATH`, UCRT will be linked.
 
-## [0.20.0] - 2026-03-04
+## [0.20.0] - 2026-03-04 - Cached functions and value equality
 - Added `use_functions!`, which enables module code to cache references to frequently-used Lisp functions.
 - Implemented `PartialEq` for `Value`, `GlobalRef`, `OnceGlobalRef`, enabling more ergonomic code.
 
-## [0.19.0] - 2024-03-16
+## [0.19.0] - 2024-03-16 - Rust 2021 and non-zero integers
 - Upgraded to Rust 2021 edition.
     - This also raised the minimum supported Rust version to 1.56.
 - Added support for Rust's non-zero integer types.
 
-## [0.18.0] - 2021-09-26
+## [0.18.0] - 2021-09-26 - No LLVM at build time
 - Eliminated the build-time dependency on LLVM by putting the raw Rust bindings in source, instead of generating them at build time. This would also make builds faster.
 
-## [0.17.0] - 2021-03-09
+## [0.17.0] - 2021-03-09 - Static symbols and custom errors
 - Added `OnceGlobalRef`, which eases the initialization of static references to long-lived Lisp values.
   + Added `use_symbols!`, which enables module code to use Lisp symbols without repeatedly interning them.
   + Added `define_errors!` and `Env::signal` to simplify the process of defining and signaling custom Lisp errors.
@@ -52,25 +52,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.16.2] - 2021-03-04
 - Fixed compilation on `aarch64-apple-darwin` (Apple Silicon).
 
-## [0.16.0] - 2021-01-31
+## [0.16.0] - 2021-01-31 - `anyhow` and `thiserror`
 - Replaced `failure` with `anyhow` and `thiserror`. Re-export `anyhow` as `emacs::error::anyhow`.
 
 ## [0.15.1] - 2021-01-06
 - Fixed compilation errors on new versions of `syn`, which removed the `export` module.
 
-## [0.15.0] - 2020-12-27
+## [0.15.0] - 2020-12-27 - No GC workaround on Emacs 27+
 - Disabled the [workaround](https://github.com/ubolonton/emacs-module-rs/pull/3) for Emacs's [GC bug #31238](https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238) if possible (i.e. in Emacs 27+, where the bug was fixed). This should speed up module code in newer Emacs versions.
 
 ## [0.14.1] - 2020-10-14
 - Fixed proc macro's hygiene issues, for compatibility with Rust 1.47. Example: `emacs-tree-sitter` [fails to compile](https://github.com/ubolonton/emacs-tree-sitter/issues/62).
 For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.47.0/RELEASES.md#compatibility-notes) and [PR that introduced this change](https://github.com/rust-lang/rust/pull/73084/).
 
-## [0.14.0] - 2020-04-18
+## [0.14.0] - 2020-04-18 - Iterable vectors and unprotected calls
 - Reworked `Vector`, making it iterable.
 - Changed `Env::vector` to return a `Value`.
 - Added `call_unprotected` variants to `Value::call`, `Env::call`, `GlobalRef::call`, to enable certain optimizations.
 
-## [0.13.0] - 2020-03-11
+## [0.13.0] - 2020-03-11 - Global references
 - Added `GlobalRef`, which allows keeping Lisp values around without an `Env`.
 - Reduced indirection when calling common built-in subroutines through `Env`.
 - Removed `module_init!`, `export_functions!`,  and their aliases.
@@ -86,13 +86,14 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 ## [0.12.1] - 2020-01-25
 - Added `Env::make_user_ptr`, `Value::get_user_ptr`, `Value::get_user_finalizer`.
 
-## [0.12.0] - 2019-12-04
+## [0.12.0] - 2019-12-04 - Vector constructors and string copying
 - Added `Env::make_vector` and `Env::vector` functions.
 - Added a default implementation for `Transfer::type_name`. This raised the minimum supported Rust version to 1.38 (for `std::any::type_name()`).
 - Added function to copy a Lisp string's content to a buffer `Value::copy_string_contents`.
 - Deprecated `unwrap_or_propagate`, and marked it as `unsafe`.
 
-## [0.11.0] - 2019-08-05
+## [0.11.0] - 2019-08-05 - Flexible calls and Windows support
+- Added official Windows support.
 - Made `Env::call` a lot more flexible. Also added `Value::call`.
 - Added `rust-wrong-type-user-ptr` to `wrong-type-argument` classification.
 - Deprecated `module_init!` and `export_functions!`.
@@ -110,7 +111,7 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 - Added `FromLisp` and `IntoLisp` implementations for most integer types, and an optional feature `lossy-integer-conversion` to control their behavior. This allows them to be used in `#[defun]` signatures.
 - Made `Env::message` take `AsRef<str>`, not just a `&str`.
 
-## [0.10.0] - 2019-07-17
+## [0.10.0] - 2019-07-17 - Vectors and faster strings
 - Raised the minimum supported Rust version to 1.36 (for `MaybeUninit`).
 - Added `Vector` type to represent Lisp's vectors.
 - Allowed `Rc` and `Arc` to be embedded in `user-ptr` by marking them as `Transfer`.
@@ -122,23 +123,23 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 - Improved Rust-to-Lisp string conversion's performance by not creating a temporary `CString`.
 - Fixed a safety bug in which short-lived references were allowed to be embedded in `user-ptr`.
 
-## [0.9.0] - 2019-07-11
+## [0.9.0] - 2019-07-11 - `ResultExt` and non-local exits
 - `ResultExt` is now a collection of Emacs-specific extension methods for `Result`, instead of a re-export of `failure::ResultExt`.
 - Added `failure` as a re-exported sub-mod.
 - Added `unwrap_or_propagate` for better panic handling: propagation of non-local exits without `Result`, and improved error messages.
 
-## [0.8.0] - 2019-04-20
+## [0.8.0] - 2019-04-20 - `user-ptr` in `#[defun]` signatures
 - Input parameters with reference types are now interpreted as Rust data structures embedded in `user-ptr` objects.
 - Return values are now embedded in `user-ptr` objects if `user_ptr` option is specified.
 
-## [0.7.0] - 2019-04-15
+## [0.7.0] - 2019-04-15 - `#[module]` and `#[defun]` macros
 - Greatly improved ergonomics with attribute macros `#[emacs::module]` and `#[defun]`.
 - Deprecated macros with `emacs_` prefix.
 - Made `Value.env` public.
 - Removed the need for user crate to depend directly on `libc`.
 - Added lifetime parameter to `FromLisp`.
 
-## [0.6.0] - 2019-03-26
+## [0.6.0] - 2019-03-26 - Rust 2018
 - Upgraded to Rust 2018 edition.
 
 ## [0.5.2] - 2018-09-15
@@ -148,7 +149,7 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 - Added `FromLisp` implementation for `Option`.
 - Fixed `IntoLisp` not working on `Option<&str>`.
 
-## [0.5.0] - 2018-02-24
+## [0.5.0] - 2018-02-24 - `failure` integration and panic signals
 - Error handling integration with other Rust crates is improved:
   + The exposed error type is now `failure::Error`.
   + `ErrorKind` enum now implements `failure::Fail`.
@@ -159,7 +160,7 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 - Panics are now caught and signaled to Lisp as a special error type: `rust-panic`.
 - `env.is_not_nil` and `env.eq` now return `bool` instead of `Result`.
 
-## [0.4.0] - 2018-02-18
+## [0.4.0] - 2018-02-18 - Simpler `Env`, `Value`, and conversions
 - APIs now take `&Env` instead of `&mut Env`.
 - `Value`s are no longer passed by reference, and are lifetime-scoped by `Env`.
 - Data conversion:
@@ -173,11 +174,11 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 - Panics no longer unwind into C.
 - Load/test scripts now work in Linux.
 
-## [0.3.0] - 2018-01-09
+## [0.3.0] - 2018-01-09 - Rust values in Lisp objects
 - Values of Rust types that implement `Transfer` can be embedded in Lisp objects.
 - Wrapper types `Env` and `Value` are now used instead of raw types.
 
-## [0.2.0] - 2018-01-04
+## [0.2.0] - 2018-01-04 - Crate split and Lisp error signals
 New reworked version
 
 [Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.22.0...HEAD

@@ -14,10 +14,12 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) loosely. No `##
 - Added `Env::open_channel` for pipe-based communication (Emacs 28+).
     - On Windows, this requires linking against the same CRT as Emacs.
 
-## [0.20.0] - 2026-03-04
+## [0.20.0] - 2026-03-04 - Cached functions and value equality
 - Added `use_functions!`, which enables module code to cache references to Lisp functions.
 - Implemented `PartialEq` for `Value`, `GlobalRef`, `OnceGlobalRef`.
 ```
+
+Minor releases (`x.y.0`) get a short title after the date, which names the main theme. Patch releases and `[Unreleased]` get no title.
 
 ## Entry Style
 
