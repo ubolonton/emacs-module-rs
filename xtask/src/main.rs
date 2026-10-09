@@ -7,9 +7,9 @@ use xshell::{Shell, cmd};
 /// Standalone test workspaces: (directory, library name, short module name). Each has its own
 /// Cargo.lock, because each needs a different minimum Emacs ABI (see their Cargo.toml).
 const TEST_MODULES: [(&str, &str, &str); 3] = [
-    ("test-module", "test_module", "t"),
-    ("test-module-28", "test_module_28", "t28"),
-    ("test-module-32", "test_module_32", "t32"),
+    ("tests/test-module", "test_module", "t"),
+    ("tests/test-module-28", "test_module_28", "t28"),
+    ("tests/test-module-32", "test_module_32", "t32"),
 ];
 
 #[derive(Parser)]
@@ -157,10 +157,9 @@ fn build(release: bool) -> Result<()> {
 
     cmd!(sh, "cargo build --workspace --exclude xtask {release_flag...}").run()?;
 
-    // test-module, test-module-28 and test-module-32 are standalone workspaces (see their own
-    // Cargo.toml), each with its own Cargo.lock, so they must be built in their own invocations.
-    // They still share this workspace's target directory, so all module artifacts land in one place
-    // below.
+    // tests/test-module* are standalone workspaces (see their own Cargo.toml), each with its own
+    // Cargo.lock, so they must be built in their own invocations. They still share this workspace's
+    // target directory, so all module artifacts land in one place below.
     for (directory, _, _) in TEST_MODULES {
         let manifest = root.join(directory).join("Cargo.toml");
         cmd!(

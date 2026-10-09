@@ -7,7 +7,7 @@
 
 Users want module functions from the Emacs development branch before the release, for example Emacs 32's `canvas_data`. Until Emacs cuts the release branch, its module ABI can change: `src/module-env-N.h` says that new functions go there until the release. A change can rename, remove, or move a function in `emacs_env`. A binding to the old layout then calls the wrong function pointer.
 
-Released ABIs use `emacs-N` features (for example, `emacs-28`). Each feature selects a header in `emacs-module/include/` and raises the minimum `emacs_env` size that `init.rs` checks at load time.
+Released ABIs use `emacs-N` features (for example, `emacs-28`). Each feature selects a header in `crates/emacs-module/include/` and raises the minimum `emacs_env` size that `init.rs` checks at load time.
 
 ## Drivers
 
@@ -26,7 +26,7 @@ Released ABIs use `emacs-N` features (for example, `emacs-28`). Each feature sel
 ## Decision
 
 - The feature for an unreleased ABI is `emacs-N-experimental`. It enables the previous released feature, for example `emacs-28`.
-- The header `emacs-module/include/emacs-module-N.h` records the Emacs commit that it comes from.
+- The header `crates/emacs-module/include/emacs-module-N.h` records the Emacs commit that it comes from.
 - Doc comments of gated APIs say "Experimental: tracks an unreleased module ABI". Changelog entries say the same.
 - No CI job is required while CI runners have no build of Emacs N.
 - When Emacs N is released:

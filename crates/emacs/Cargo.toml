@@ -1,0 +1,45 @@
+[package]
+name = "emacs"
+version = "0.22.0"
+edition = "2024"
+description = "Rust library for creating Emacs's dynamic modules"
+repository = "https://github.com/ubolonton/emacs-module-rs"
+documentation = "https://ubolonton.github.io/emacs-module-rs/"
+authors = [
+    "Aaron France <aaron.l.france@gmail.com>",
+    "Joey Ezechiëls <joey.ezechiels@gmail.com>",
+    "Nguyễn Tuấn Anh <ubolonton@gmail.com>",
+]
+license = "BSD-3-Clause"
+readme = "../../README.md"
+keywords = ["emacs", "emacs-module", "ffi"]
+categories = ["api-bindings", "development-tools::ffi"]
+include = [
+    "Cargo.toml",
+    "src/**/*"
+]
+rust-version = "1.87"
+resolver = "3"
+
+[dependencies]
+thiserror = "2.0"
+anyhow = "1.0"
+ctor = "0.6"
+emacs_module = { path = "../emacs-module", version = "0.22.0" }
+emacs-macros = { path = "../emacs-macros", version = "0.22.0" }
+
+[target.'cfg(windows)'.dependencies]
+libc = "0.2"
+
+[features]
+default = []
+lossy-integer-conversion = []
+nonzero-integer-conversion = []
+debug = []
+emacs-28 = ["emacs_module/emacs-28"]
+# Unreleased Emacs 32 ABI (`Value::with_canvas_data`).
+emacs-32-experimental = ["emacs-28", "emacs_module/emacs-32-experimental"]
+# This feature is intended as a workaround when building on new untested platforms. If the crate
+# cannot be built without this feature, please report the issue at
+# https://github.com/ubolonton/emacs-module-rs/issues/new.
+bindgen = ["emacs_module/bindgen-build"]

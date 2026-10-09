@@ -13,7 +13,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-emacs = { path = "..", features = ["emacs-32-experimental"] }
+emacs = { path = "../../crates/emacs", features = ["emacs-32-experimental"] }
 
 [features]
 bindgen = ["emacs/bindgen"]

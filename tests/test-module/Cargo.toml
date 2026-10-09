@@ -13,10 +13,10 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-emacs = { path = ".." }
+emacs = { path = "../../crates/emacs" }
 
 [dev-dependencies]
-emacs-rs-module = { path = "../rs-module" }
+emacs-rs-module = { path = "../../crates/rs-module" }
 
 [features]
 bindgen = ["emacs/bindgen"]

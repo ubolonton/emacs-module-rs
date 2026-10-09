@@ -32,7 +32,7 @@ fn say_hello(env: &Env, name: String) -> Result<Value<'_>> {
 
 - [emacs-tree-sitter](https://github.com/ubolonton/emacs-tree-sitter): Binding for tree-sitter, an incremental parsing tool.
 - [pullover](https://github.com/ubolonton/pullover): Use Emacs to edit text for other macOS apps.
-- [test-module](test-module).
+- [test-module](tests/test-module).
 - [emacs-rs-examples](https://github.com/ubolonton/emacs-rs-examples).
 - [magit-libgit2](https://github.com/ubolonton/magit-libgit2): Experimental attempt to speed up magit using libgit2.
 

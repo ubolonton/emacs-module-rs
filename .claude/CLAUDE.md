@@ -8,15 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workspace Structure
 
-- **`emacs/`** - Main library crate with public API (type conversions, `Env`, `Value`, error handling)
-- **`emacs-macros/`** - Proc macros: `#[module]` and `#[defun]`
-- **`emacs-module/`** - Low-level FFI bindings to the C `emacs-module` API; optionally uses `bindgen`
-- **`test-module/`** - Integration test suite compiled as `cdylib` and loaded by Emacs
-- **`test-module-28/`** - Integration tests for the `emacs-28` feature (`Env::open_channel`, etc.)
-- **`test-module-32/`** - Integration tests for the `emacs-32-experimental` feature (`Value::with_canvas_data`)
-- **`rs-module/`** - Live-reloading helper module for development
+- **`crates/emacs/`** - Main library crate with public API (type conversions, `Env`, `Value`, error handling)
+- **`crates/emacs-macros/`** - Proc macros: `#[module]` and `#[defun]`
+- **`crates/emacs-module/`** - Low-level FFI bindings to the C `emacs-module` API; optionally uses `bindgen`
+- **`tests/test-module/`** - Integration test suite compiled as `cdylib` and loaded by Emacs
+- **`tests/test-module-28/`** - Integration tests for the `emacs-28` feature (`Env::open_channel`, etc.)
+- **`tests/test-module-32/`** - Integration tests for the `emacs-32-experimental` feature (`Value::with_canvas_data`)
+- **`crates/rs-module/`** - Live-reloading helper module for development
 
-`test-module`, `test-module-28` and `test-module-32` are standalone workspaces (own `Cargo.toml`
+`tests/test-module`, `tests/test-module-28` and `tests/test-module-32` are standalone workspaces (own `Cargo.toml`
 `[workspace]`, own `Cargo.lock`), not members of the root workspace: they target different minimum
 Emacs ABI versions, and Cargo unifies a shared dependency's features across everything resolved
 together in one workspace, so keeping them separate stops one's `emacs-N` feature from leaking into
@@ -41,23 +41,23 @@ cargo xtask test --filter '^error::'  # only tests matching an ERT regexp
 EMACS=emacs-28 cargo xtask test
 ```
 
-The integration tests compile `test-module` as a `.so`/`.dylib`, then run Emacs in batch mode loading `test-module/tests/main.el` (ERT framework).
+The integration tests compile `test-module` as a `.so`/`.dylib`, then run Emacs in batch mode loading `tests/test-module/tests/main.el` (ERT framework).
 
 ### Integration test layout
 
-- `test-module/tests/main.el` only loads `t-helpers.el` and every `*-test.el` file in its directory.
-- Each topic pairs `test-module/src/<topic>.rs` with `test-module/tests/<topic>-test.el`. ERT test names start with an area prefix (`error::`, `calling::`, …), so `--filter` can select one area.
+- `tests/test-module/tests/main.el` only loads `t-helpers.el` and every `*-test.el` file in its directory.
+- Each topic pairs `tests/test-module/src/<topic>.rs` with `tests/test-module/tests/<topic>-test.el`. ERT test names start with an area prefix (`error::`, `calling::`, …), so `--filter` can select one area.
 - Lisp names come from module paths: `transfer::vector::make` is `t/transfer-vector-make`. When you move or rename a Rust module, update the Lisp call sites, including names built as strings in Rust.
-- Keep the defuns at the crate root of `test-module/src/lib.rs`. They test root-level naming.
+- Keep the defuns at the crate root of `tests/test-module/src/lib.rs`. They test root-level naming.
 
 ## Architecture
 
 ### Core abstractions
 
-- **`Env`** (`src/env.rs`) - Wraps `*mut emacs_env`; the entry point for all Lisp interaction. Bound by a lifetime to prevent use across GC checkpoints. Contains the workaround for Emacs GC bug #31238.
-- **`Value<'e>`** (`src/value.rs`) - A Lisp value bound to the lifetime of its originating `Env`. Converted to Rust types via `into_rust::<T>()`.
-- **`FromLisp<'e>` / `IntoLisp<'e>`** (`src/types/`) - Traits for bidirectional type conversion between Lisp and Rust.
-- **`Transfer`** (`src/types/user_ptr.rs`) - Trait for embedding Rust structs in Lisp `user-ptr` objects.
+- **`Env`** (`crates/emacs/src/env.rs`) - Wraps `*mut emacs_env`; the entry point for all Lisp interaction. Bound by a lifetime to prevent use across GC checkpoints. Contains the workaround for Emacs GC bug #31238.
+- **`Value<'e>`** (`crates/emacs/src/value.rs`) - A Lisp value bound to the lifetime of its originating `Env`. Converted to Rust types via `into_rust::<T>()`.
+- **`FromLisp<'e>` / `IntoLisp<'e>`** (`crates/emacs/src/types/`) - Traits for bidirectional type conversion between Lisp and Rust.
+- **`Transfer`** (`crates/emacs/src/types/user_ptr.rs`) - Trait for embedding Rust structs in Lisp `user-ptr` objects.
 
 ### Proc macro pipeline
 
@@ -68,11 +68,11 @@ The integration tests compile `test-module` as a `.so`/`.dylib`, then run Emacs 
 
 ### Error handling
 
-`Error` / `ErrorKind` in `src/error.rs` wraps both Emacs signals/throws and Rust errors. Use `thiserror` for defining custom Emacs error signals via `define_errors!`.
+`Error` / `ErrorKind` in `crates/emacs/src/error.rs` wraps both Emacs signals/throws and Rust errors. Use `thiserror` for defining custom Emacs error signals via `define_errors!`.
 
 ### Global Lisp values
 
-Use `global_refs!` macro / `OnceGlobalRef` (`src/global.rs`) to hold Lisp values beyond a single `Env` lifetime.
+Use `global_refs!` macro / `OnceGlobalRef` (`crates/emacs/src/global.rs`) to hold Lisp values beyond a single `Env` lifetime.
 
 ## Key Conventions
 

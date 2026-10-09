@@ -13,7 +13,7 @@ This is an Emacs dynamic module that aims to streamline the development of other
     ```
 
 ## Live reloading another module
-To be reloadable, the module must export an entry point named `emacs_rs_module_init`. See [test-module](../test-module/src/lib.rs).
+To be reloadable, the module must export an entry point named `emacs_rs_module_init`. See [test-module](../../tests/test-module/src/lib.rs).
 
 Run this in Emacs after each `cargo build` to reload the module:
 

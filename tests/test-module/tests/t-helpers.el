@@ -33,7 +33,7 @@
                   (list "--batch"
                         "--directory" (getenv "MODULE_DIR"))
                   (when t/support-module-assertions-p '("--module-assertions"))
-                  (list "-l" (expand-file-name "test-module/tests/main.el"
+                  (list "-l" (expand-file-name "tests/test-module/tests/main.el"
                                                (getenv "PROJECT_ROOT"))
                         "-f" name))))
          (error-string
