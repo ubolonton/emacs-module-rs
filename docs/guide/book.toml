@@ -10,6 +10,7 @@ extra-watch-dirs = ["examples"]
 
 [output.html]
 additional-css = ["custom.css"]
+additional-js = ["version-switcher.js"]
 preferred-dark-theme = "coal"
 git-repository-url = "https://github.com/ubolonton/emacs-module-rs"
 edit-url-template = "https://github.com/ubolonton/emacs-module-rs/edit/master/docs/guide/{path}"

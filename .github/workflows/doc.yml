@@ -78,6 +78,9 @@ jobs:
           mdbook build docs/guide --dest-dir "ubolonton.github.io/emacs-module-rs/$VERSION"
           cd ubolonton.github.io/emacs-module-rs
           ln -sfn "$VERSION" latest
+          # For version-switcher.js: version directories, newest first.
+          find . -maxdepth 1 -type d -regex '\./[0-9]+\.[0-9]+\.[0-9]+' -printf '%f\n' \
+            | sort -rV | jq -Rn '[inputs]' > versions.json
 
       - name: Publish
         env:
