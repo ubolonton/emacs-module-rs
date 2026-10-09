@@ -1,6 +1,6 @@
 [package]
 name = "emacs"
-version = "0.22.0"
+version = "0.23.0"
 edition = "2024"
 description = "Rust library for creating Emacs's dynamic modules"
 repository = "https://github.com/ubolonton/emacs-module-rs"
@@ -25,7 +25,7 @@ resolver = "3"
 thiserror = "2.0"
 anyhow = "1.0"
 ctor = "0.6"
-emacs_module = { path = "../emacs-module", version = "0.22.0" }
+emacs_module = { path = "../emacs-module", version = "0.23.0" }
 emacs-macros = { path = "../emacs-macros", version = "0.22.0" }
 
 [target.'cfg(windows)'.dependencies]

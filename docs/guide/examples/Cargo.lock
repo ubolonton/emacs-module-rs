@@ -76,7 +76,7 @@ checksum = "f678cf4a922c215c63e0de95eb1ff08a958a81d47e485cf9da1e27bf6305cfa5"
 
 [[package]]
 name = "emacs"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "ctor",
@@ -98,7 +98,7 @@ dependencies = [
 
 [[package]]
 name = "emacs_module"
-version = "0.22.0"
+version = "0.23.0"
 
 [[package]]
 name = "fnv"

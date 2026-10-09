@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.23.0] - 2026-10-09 - Canvas images (Emacs 32)
 - Added `Value::with_canvas_data` for Emacs 32 canvas images, behind the `emacs-32-experimental` feature. This feature tracks an unreleased module ABI. See the [guide](https://ubolonton.github.io/emacs-module-rs/latest/canvas.html).
 - Removed the [workaround](https://github.com/ubolonton/emacs-module-rs/pull/3) for Emacs's [GC bug #31238](https://debbugs.gnu.org/cgi/bugreport.cgi?bug=31238) at compile time when the `emacs-28` feature is enabled. Before, it was only disabled at load time. `Env` is now just a pointer, without a `Drop` implementation.
 
@@ -181,7 +183,8 @@ For details, see Rust's [release note](https://github.com/rust-lang/rust/blob/1.
 ## [0.2.0] - 2018-01-04 - Crate split and Lisp error signals
 New reworked version
 
-[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.22.0...HEAD
+[Unreleased]: https://github.com/ubolonton/emacs-module-rs/compare/0.23.0...HEAD
+[0.23.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.22.0...0.23.0
 [0.22.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.21.0...0.22.0
 [0.21.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.20.0...0.21.0
 [0.20.0]: https://github.com/ubolonton/emacs-module-rs/compare/0.19.0...0.20.0
