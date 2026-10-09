@@ -1,2 +1,13 @@
 [tools]
-mdbook = "latest"
+mdbook = "0.5"
+
+[tasks."guide:build"]
+depends = ["guide:highlight-js"]
+description = "Build the guide into docs/guide/book"
+run = "mdbook build docs/guide"
+
+[tasks."guide:serve"]
+depends = ["guide:highlight-js"]
+description = "Serve the guide on localhost, rebuilding on changes"
+run = "mdbook serve docs/guide"
+
