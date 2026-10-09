@@ -99,5 +99,8 @@ mise run guide:serve           # preview on localhost, rebuilding on changes
 mise run guide:check-examples  # compile docs/guide/examples
 ```
 
-CI (`.github/workflows/doc.yml`) checks the guide on PRs. Pushing to the `doc` branch publishes it to
-`ubolonton.github.io/emacs-module-rs/<version>/`, and points `latest` to it.
+CI (`.github/workflows/doc.yml`) checks the guide on PRs, and publishes it to
+`ubolonton.github.io/emacs-module-rs/` with `mise run guide:publish`:
+- A version tag publishes `<version>/`, and points `latest` to it.
+- `master` publishes `master/`.
+- The `doc` branch publishes `<version>/` too, to fix a released version's guide without a new release.
