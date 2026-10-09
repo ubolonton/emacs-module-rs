@@ -1,0 +1,448 @@
+#!/usr/bin/env bash
+#MISE description="Build Emacs from source and install it as a dpkg package, one per version"
+# Build GNU Emacs from a local source checkout and install it as a dpkg
+# package, so multiple versions (e.g. 29 / 30 / 31 / master) can coexist on
+# the same Debian machine for testing emacs-module-rs against each of them.
+#
+# Usage:
+#   mise run emacs-versions deps status|install|remove [--variant nox|gtk]
+#   mise run emacs-versions build   [--variant nox|gtk] [--source-dir DIR] [--prefix-root DIR] [--jobs N]
+#   mise run emacs-versions install [--variant nox|gtk] [--source-dir DIR] [--prefix-root DIR] [--jobs N]
+#   mise run emacs-versions list
+#   mise run emacs-versions uninstall <package-name>
+#
+# `build`/`install` always operate on whatever commit is currently checked
+# out in the source dir; check out the tag/branch you want before running.
+# `--variant gtk` builds a GTK3/Cairo X11 GUI (like Debian's emacs-gtk);
+# the default `nox` is terminal-only (like Debian's emacs-nox).
+set -euo pipefail
+
+DEFAULT_SOURCE_DIR="$HOME/Programming/Tools/emacs"
+SOURCE_DIR="${EMACS_VERSIONS_SOURCE_DIR:-$DEFAULT_SOURCE_DIR}"
+BUILD_ROOT="${EMACS_VERSIONS_BUILD_ROOT:-}"
+PREFIX_ROOT="${EMACS_VERSIONS_PREFIX_ROOT:-/opt}"
+JOBS="${EMACS_VERSIONS_JOBS:-$(nproc)}"
+VARIANT="${EMACS_VERSIONS_VARIANT:-nox}"
+
+# Packages needed to build a config close to Debian's own emacs-nox
+# (dynamic modules, native comp, no GUI/X) across Emacs 29-32, plus `file`
+# for classifying ELF binaries when computing package dependencies below.
+BUILD_PACKAGES=(
+  build-essential
+  autoconf
+  texinfo
+  pkg-config
+  gperf
+  file
+  libgnutls28-dev
+  libncurses-dev
+  libjansson-dev
+  libgccjit-14-dev
+  gcc-14
+  libgpm-dev
+  liblcms2-dev
+  libtree-sitter-dev
+  libselinux1-dev
+  libacl1-dev
+  libdbus-1-dev
+  libsystemd-dev
+  libxml2-dev
+  libsqlite3-dev
+  zlib1g-dev
+  libasound2-dev
+)
+
+# Extra packages for the `gtk` variant: an X11 GUI close to Debian's
+# emacs-gtk. Emacs 32's canvas image type (and the `canvas_data` module
+# function) is available in any window-system build; it needs no extra lib.
+GTK_BUILD_PACKAGES=(
+  libgtk-3-dev
+  libcairo2-dev
+  libharfbuzz-dev
+  libfreetype-dev
+  libfontconfig-dev
+  libxpm-dev
+  libjpeg-dev
+  libpng-dev
+  libgif-dev
+  libtiff-dev
+  librsvg2-dev
+  libwebp-dev
+  libotf-dev
+  libm17n-dev
+  libxi-dev
+  libsm-dev
+  libxrandr-dev
+)
+
+log() { printf '\033[1;34m==>\033[0m %s\n' "$*" >&2; }
+err() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; }
+die() { err "$*"; exit 1; }
+
+usage() {
+  # Print the leading comment block, without the shebang and `#MISE` lines.
+  awk 'NR > 1 && !/^#MISE/ { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0"
+}
+
+require_valid_variant() {
+  case "$VARIANT" in
+    nox|gtk) ;;
+    *) die "unknown variant: $VARIANT (expected nox or gtk)" ;;
+  esac
+}
+
+# Package names of the variant's build dependencies, one per line.
+variant_packages() {
+  printf '%s\n' "${BUILD_PACKAGES[@]}"
+  [ "$VARIANT" = gtk ] && printf '%s\n' "${GTK_BUILD_PACKAGES[@]}"
+  return 0
+}
+
+require_source_dir() {
+  [ -d "$SOURCE_DIR" ] || die "source dir not found: $SOURCE_DIR"
+  [ -f "$SOURCE_DIR/configure.ac" ] || die "$SOURCE_DIR does not look like an Emacs source checkout (no configure.ac)"
+  git -C "$SOURCE_DIR" rev-parse --git-dir >/dev/null 2>&1 || die "$SOURCE_DIR is not a git checkout (needed to derive a build name)"
+}
+
+# --- deps --------------------------------------------------------------
+
+missing_packages() {
+  local pkg
+  while read -r pkg; do
+    dpkg -s "$pkg" >/dev/null 2>&1 || printf '%s\n' "$pkg"
+  done < <(variant_packages)
+}
+
+deps_status() {
+  local pkg packages=()
+  mapfile -t packages < <(variant_packages)
+  for pkg in "${packages[@]}"; do
+    if dpkg -s "$pkg" >/dev/null 2>&1; then
+      printf '  [installed] %s\n' "$pkg"
+    else
+      printf '  [missing]   %s\n' "$pkg"
+    fi
+  done
+}
+
+deps_install() {
+  local missing=()
+  mapfile -t missing < <(missing_packages)
+  if [ "${#missing[@]}" -eq 0 ]; then
+    log "all build dependencies already installed"
+    return 0
+  fi
+  log "installing missing build dependencies: ${missing[*]}"
+  # A stale package index points at superseded (deleted) security-update
+  # versions, which makes the install fail with 404s.
+  sudo apt-get update
+  sudo apt-get install -y "${missing[@]}"
+}
+
+deps_remove() {
+  local packages=()
+  mapfile -t packages < <(variant_packages)
+  log "this will run: sudo apt-get remove ${packages[*]}"
+  log "some of these (build-essential, autoconf, texinfo, pkg-config, ...) may be relied on by other tools on this machine."
+  read -r -p "Continue? [y/N] " reply
+  case "$reply" in
+    y|Y|yes|YES) ;;
+    *) log "aborted"; return 1 ;;
+  esac
+  sudo apt-get remove -y "${packages[@]}"
+}
+
+# --- naming --------------------------------------------------------------
+
+emacs_version() {
+  # Older configure.ac (e.g. Emacs 28 and earlier) spells this
+  # AC_INIT(GNU Emacs, 28.2, ...), without the brackets newer versions use.
+  sed -n 's/^AC_INIT(\[\?GNU Emacs\]\?, *\[\?\([0-9.]*\)\]\?.*/\1/p' "$SOURCE_DIR/configure.ac"
+}
+
+build_name() {
+  local version hash dirty=""
+  version="$(emacs_version)"
+  [ -n "$version" ] || die "could not determine Emacs version from $SOURCE_DIR/configure.ac"
+  hash="$(git -C "$SOURCE_DIR" rev-parse --short=12 HEAD)"
+  # Only tracked-file changes count as dirty; unrelated untracked files
+  # (e.g. editor state left over from browsing the checkout) should not
+  # force a new build name.
+  { git -C "$SOURCE_DIR" diff --quiet && git -C "$SOURCE_DIR" diff --cached --quiet; } || dirty="-dirty"
+  # `nox` has no suffix, so names of packages built before variants existed
+  # stay valid.
+  local suffix=""
+  [ "$VARIANT" = nox ] || suffix="-$VARIANT"
+  printf 'emacs-%s-g%s%s%s\n' "$version" "$hash" "$dirty" "$suffix"
+}
+
+# Generic `/usr/bin` name shared by all builds of one major version and
+# variant, e.g. `emacs-32` or `emacs-32-gtk`.
+alias_name() {
+  local major="$1"
+  if [ "$VARIANT" = nox ]; then
+    printf 'emacs-%s\n' "$major"
+  else
+    printf 'emacs-%s-%s\n' "$major" "$VARIANT"
+  fi
+}
+
+# --- build -----------------------------------------------------------------
+
+CONFIGURE_ARGS=()
+DEB_PATH=""
+build_configure_args() {
+  local prefix="$1"
+  CONFIGURE_ARGS=(
+    "--prefix=$prefix"
+    --without-gconf
+    --without-gsettings
+    --without-pop
+    --without-mailutils
+    --with-modules
+    --with-native-compilation=yes
+    --with-json
+    --with-gnutls
+    --with-libsystemd
+    --with-sqlite3
+    --with-tree-sitter
+    --with-xml2
+    --with-zlib
+    --with-threads
+    --with-gpm
+    --with-lcms2
+    --with-dbus
+    --with-selinux
+    --with-pdumper=yes
+    --with-sound=alsa
+    --with-file-notification=inotify
+  )
+  if [ "$VARIANT" = gtk ]; then
+    # X11, not PGTK: PGTK targets Wayland, and is slower and less complete
+    # under X.
+    CONFIGURE_ARGS+=(
+      --with-x=yes
+      --with-x-toolkit=gtk3
+      --with-cairo
+      --with-harfbuzz
+      --with-toolkit-scroll-bars
+      --with-xinput2
+      --with-xpm
+      --with-jpeg
+      --with-png
+      --with-gif
+      --with-tiff
+      --with-rsvg
+      --with-webp
+      --with-libotf
+      --with-m17n-flt
+      --without-imagemagick
+    )
+  else
+    CONFIGURE_ARGS+=(--with-x=no)
+  fi
+}
+
+elf_files_under() {
+  # -N disables filename padding; without it, `file` column-aligns mime
+  # types when scanning many files at once, breaking the `: ` field split.
+  find "$1" -type f -print0 | xargs -0 -r file -N --mime-type | awk -F': ' '$2 == "application/x-executable" || $2 == "application/x-sharedlib" || $2 == "application/x-pie-executable" {print $1}'
+}
+
+# Emacs compiles Lisp in-tree (lisp/*.elc, lisp/*loaddefs.el) even with an
+# out-of-tree configure/make; leftovers from building a different commit
+# (e.g. after switching branches) can look "up to date" to make and get
+# reused, producing broken/inconsistent bootstraps. autom4te.cache can
+# similarly make autoreconf silently reuse outdated macro expansions.
+# autoreconf/make also refresh some *tracked* autotools boilerplate in
+# place (build-aux/config.guess, config.sub, install-sh, ...), which then
+# blocks checking out a different tag next time; discard that drift too.
+# Scope both to Emacs's own source subdirectories, never the repo root, so
+# unrelated dotfiles the user keeps there are left alone. Run this both
+# before a build (in case a previous run was interrupted) and after (so
+# the tree is ready for the next `git checkout <tag>`, per the README).
+clean_source_tree() {
+  local -a clean_dirs=(lisp leim src lib-src lib nt java admin build-aux doc etc info exec msdos m4)
+  local dir
+  for dir in "${clean_dirs[@]}"; do
+    # Some of these dirs don't exist, or hold no tracked files, in a given
+    # version/branch (e.g. `exec` is master-only); that is not an error.
+    git -C "$SOURCE_DIR" checkout -- "$dir" 2>/dev/null || true
+  done
+  # -x (not -X): some generated files (e.g. lisp/international/emoji-zwj.el,
+  # produced from Unicode data by a newer version's build) are untracked but
+  # not covered by any .gitignore pattern, so -X (ignored-only) misses them.
+  # An older version's byte-compiler can then choke on a newer file's syntax.
+  git -C "$SOURCE_DIR" clean -fdx -- "${clean_dirs[@]}" aclocal.m4 configure config.log
+}
+
+do_build() {
+  require_source_dir
+  deps_install
+
+  local name version prefix work_dir obj_dir pkg_dir
+  name="$(build_name)"
+  version="$(emacs_version)"
+  prefix="$PREFIX_ROOT/$name"
+  work_dir="${BUILD_ROOT:-$(dirname "$SOURCE_DIR")/emacs-versions-build}/$name"
+  obj_dir="$work_dir/obj"
+  pkg_dir="$work_dir/debian/$name"
+
+  log "building $name (prefix: $prefix)"
+  rm -rf "$work_dir"
+  mkdir -p "$obj_dir" "$pkg_dir"
+
+  log "cleaning generated build artifacts from a previous checkout"
+  clean_source_tree
+  (cd "$SOURCE_DIR" && ./autogen.sh all)
+
+  log "configuring"
+  build_configure_args "$prefix"
+  (cd "$obj_dir" && "$SOURCE_DIR/configure" "${CONFIGURE_ARGS[@]}")
+
+  log "compiling with $JOBS jobs"
+  make -C "$obj_dir" -j"$JOBS"
+
+  log "installing into staging root"
+  # DESTDIR + --prefix=$prefix (absolute) lands files at $pkg_dir$prefix,
+  # i.e. $pkg_dir mirrors the target filesystem root.
+  make -C "$obj_dir" install DESTDIR="$pkg_dir"
+
+  mkdir -p "$pkg_dir/usr/bin"
+  ln -sf "$prefix/bin/emacs" "$pkg_dir/usr/bin/$name"
+
+  # Also register a short `emacs-<major>` alias (e.g. `emacs-29`) via
+  # update-alternatives rather than a plain symlink: rebuilding the same
+  # major version later (e.g. master stays "32" across many commits) would
+  # make a second package try to own the same /usr/bin file, which dpkg
+  # refuses. update-alternatives lets multiple packages provide the same
+  # generic name; `update-alternatives --config emacs-NN` switches between
+  # them, and removing a package cleanly drops its alternative.
+  local major="${version%%.*}" alias
+  alias="$(alias_name "$major")"
+  mkdir -p "$pkg_dir/DEBIAN"
+  {
+    echo '#!/bin/sh'
+    echo 'set -e'
+    echo "update-alternatives --install /usr/bin/$alias $alias $prefix/bin/emacs 50"
+  } > "$pkg_dir/DEBIAN/postinst"
+  {
+    echo '#!/bin/sh'
+    echo 'set -e'
+    echo "update-alternatives --remove $alias $prefix/bin/emacs"
+  } > "$pkg_dir/DEBIAN/prerm"
+  chmod 755 "$pkg_dir/DEBIAN/postinst" "$pkg_dir/DEBIAN/prerm"
+
+  local stub_control="$work_dir/debian/control"
+  {
+    echo "Source: emacs-versions-build"
+    echo "Section: editors"
+    echo "Priority: optional"
+    echo "Maintainer: $(git -C "$SOURCE_DIR" config user.name 2>/dev/null || echo "$(id -un)") <$(git -C "$SOURCE_DIR" config user.email 2>/dev/null || echo "$(id -un)@localhost")>"
+    echo "Build-Depends: debhelper-compat (= 13)"
+    echo
+    echo "Package: $name"
+    echo "Architecture: any"
+    echo 'Depends: ${shlibs:Depends}, ${misc:Depends}'
+    echo "Description: GNU Emacs $version, $VARIANT (source build)"
+  } > "$stub_control"
+
+  log "computing runtime dependencies (dpkg-shlibdeps)"
+  local elf=() depends=""
+  mapfile -t elf < <(elf_files_under "$pkg_dir")
+  if [ "${#elf[@]}" -gt 0 ]; then
+    depends="$(cd "$work_dir" && dpkg-shlibdeps -O --ignore-missing-info "${elf[@]}" 2>/dev/null | sed -n 's/^shlibs:Depends=//p')"
+  fi
+  [ -n "$depends" ] || log "dpkg-shlibdeps found no dynamic dependencies (unexpected but not fatal)"
+
+  local arch installed_size
+  arch="$(dpkg --print-architecture)"
+  installed_size="$(du -sk "$pkg_dir" | cut -f1)"
+
+  mkdir -p "$pkg_dir/DEBIAN"
+  {
+    echo "Package: $name"
+    echo "Version: ${version}+git$(git -C "$SOURCE_DIR" rev-parse --short=12 HEAD)"
+    echo "Section: editors"
+    echo "Priority: optional"
+    echo "Architecture: $arch"
+    echo "Installed-Size: $installed_size"
+    [ -n "$depends" ] && echo "Depends: $depends"
+    echo "Maintainer: $(git -C "$SOURCE_DIR" config user.name 2>/dev/null || echo "$(id -un)") <$(git -C "$SOURCE_DIR" config user.email 2>/dev/null || echo "$(id -un)@localhost")>"
+    echo "Description: GNU Emacs $version, $VARIANT (source build)"
+    echo " Built from $SOURCE_DIR at commit $(git -C "$SOURCE_DIR" rev-parse --short=12 HEAD) for local multi-version testing."
+    echo " Installed under $prefix; run via /usr/bin/$name or /usr/bin/$alias."
+  } > "$pkg_dir/DEBIAN/control"
+
+  DEB_PATH="$work_dir/${name}.deb"
+  dpkg-deb --build --root-owner-group "$pkg_dir" "$DEB_PATH"
+  log "built $DEB_PATH"
+
+  log "leaving source tree clean for the next checkout"
+  clean_source_tree
+}
+
+do_install() {
+  do_build
+  log "installing $DEB_PATH"
+  sudo dpkg -i "$DEB_PATH"
+}
+
+do_list() {
+  local pkg ver status found=0
+  while IFS=$'\t' read -r pkg ver status; do
+    [[ "$status" == *"install ok installed"* ]] || continue
+    printf '%s\t%s\t%s\n' "$pkg" "$ver" "$PREFIX_ROOT/$pkg"
+    found=1
+  done < <(dpkg-query -W -f='${Package}\t${Version}\t${Status}\n' 'emacs-*-g[0-9a-f]*' 2>/dev/null || true)
+  [ "$found" -eq 1 ] || log "no emacs-versions packages installed"
+}
+
+do_uninstall() {
+  local name="${1:?usage: mise run emacs-versions uninstall <package-name>}"
+  dpkg -s "$name" >/dev/null 2>&1 || die "package not installed: $name (see: mise run emacs-versions list)"
+  sudo dpkg -P "$name"
+}
+
+# --- arg parsing -----------------------------------------------------------
+
+parse_common_opts() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --source-dir) SOURCE_DIR="$2"; shift 2 ;;
+      --prefix-root) PREFIX_ROOT="$2"; shift 2 ;;
+      --build-root) BUILD_ROOT="$2"; shift 2 ;;
+      --jobs) JOBS="$2"; shift 2 ;;
+      --variant) VARIANT="$2"; shift 2 ;;
+      *) EXTRA_ARGS+=("$1"); shift ;;
+    esac
+  done
+}
+
+main() {
+  local cmd="${1:-}"
+  [ $# -gt 0 ] && shift
+  EXTRA_ARGS=()
+  parse_common_opts "$@"
+  set -- "${EXTRA_ARGS[@]}"
+  require_valid_variant
+
+  case "$cmd" in
+    deps)
+      case "${1:-status}" in
+        status) deps_status ;;
+        install) deps_install ;;
+        remove) deps_remove ;;
+        *) die "unknown deps subcommand: $1" ;;
+      esac
+      ;;
+    build) do_build; printf '%s\n' "$DEB_PATH" ;;
+    install) do_install ;;
+    list) do_list ;;
+    uninstall) do_uninstall "${1:-}" ;;
+    -h|--help|help|"") usage ;;
+    *) die "unknown command: $cmd (see --help)" ;;
+  esac
+}
+
+main "$@"
