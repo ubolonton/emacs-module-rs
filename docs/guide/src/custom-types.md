@@ -42,7 +42,7 @@ fn init(env: &Env) -> Result<()> {
 }
 ```
 
-```lisp
+```elisp
 (let ((m (rs-hash-map/make)))
   (rs-hash-map/get m "a")     ; -> nil
 

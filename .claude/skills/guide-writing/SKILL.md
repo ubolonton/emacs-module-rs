@@ -56,6 +56,7 @@ fn inc(x: i64) -> Result<i64> {
 
 - Substantial enough to copy-paste and run
 - Include both Rust and Elisp when showing a Lisp-facing API
+- Tag Elisp code blocks `elisp`
 - Use real scenarios (e.g. wrapping a hash map, a git repo) not toy abstractions
 - One good example beats several mediocre ones
 - Show the recommended pattern. Do not show a weaker pattern, then suggest a better one in prose

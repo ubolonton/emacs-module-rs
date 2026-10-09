@@ -43,7 +43,7 @@ fn channel_send_from_thread(env: &Env, process: Value<'_>, data: String) -> Resu
 
 On the Emacs side, create the pipe process and attach a filter:
 
-```emacs-lisp
+```elisp
 (let ((proc (make-pipe-process
              :name "my-pipe"
              :filter (lambda (_proc data)

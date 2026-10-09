@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#MISE description="Generate the guide's theme/highlight.js: mdBook's bundled highlight.js plus Lisp"
+set -euo pipefail
+
+# mdBook's bundled highlight.js has no Lisp grammar. mdBook lets a book replace the bundle with
+# theme/highlight.js, so we append the Lisp grammar of the same highlight.js version to it.
+# See https://rust-lang.github.io/mdBook/format/theme/syntax-highlighting.html.
+# The output is not committed. The build tasks run this first.
+
+hljs_version=10.1.1
+lisp_url="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/$hljs_version/languages/lisp.min.js"
+lisp_sha256=f4bec92dacdbbee3712827dc21c0bd6e16a30c1ec0ab0a3f6cd6cfc382223e39
+
+work_dir="$MISE_PROJECT_ROOT/target/guide-highlight-js"
+lisp="$work_dir/lisp-$hljs_version.min.js"
+output="$MISE_PROJECT_ROOT/docs/guide/theme/highlight.js"
+
+rm -rf "$work_dir/book"
+mkdir -p "$work_dir"
+mdbook init "$work_dir/book" --theme --title highlight-js --ignore none </dev/null >/dev/null 2>&1
+bundle="$work_dir/book/theme/highlight.js"
+if ! head -3 "$bundle" | grep -q "Highlight.js $hljs_version "; then
+    echo "mdBook bundles a different highlight.js version. Update hljs_version and lisp_sha256:" >&2
+    head -3 "$bundle" >&2
+    exit 1
+fi
+
+# Download once, then reuse, so local builds work offline.
+if ! echo "$lisp_sha256  $lisp" | sha256sum --check --quiet >/dev/null 2>&1; then
+    curl -sSfL -o "$lisp" "$lisp_url"
+    echo "$lisp_sha256  $lisp" | sha256sum --check --quiet
+fi
+
+{
+    cat "$bundle"
+    echo
+    cat "$lisp"
+    echo
+    echo 'hljs.registerAliases(["elisp", "emacs-lisp"], { languageName: "lisp" });'
+} >"$output"

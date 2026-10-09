@@ -32,7 +32,7 @@ fn fill(env: &Env, canvas: Value<'_>, pixel: u32) -> Result<()> {
 }
 ```
 
-```emacs-lisp
+```elisp
 (defvar my-canvas (list 'image :type 'canvas :id 'my-canvas :data-width 320 :data-height 240))
 (insert-image my-canvas)
 (my-module-fill my-canvas #xFF3366CC)
@@ -112,7 +112,7 @@ fn render_present(env: &Env, canvas: Value<'_>) -> Result<()> {
 }
 ```
 
-```emacs-lisp
+```elisp
 (my-module-render-start 320 240)
 (run-with-timer 0 (/ 1.0 30) (lambda () (my-module-render-present my-canvas)))
 ```
