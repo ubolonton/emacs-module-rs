@@ -1,3 +1,7 @@
+# CI has no global mise config, so enable the lockfile here.
+[settings]
+lockfile = true
+
 [tools]
 mdbook = "0.5"
 

@@ -1,11 +1,24 @@
 name: Doc
 
+# The guide's examples compile against crates/, so changes there must check the guide too.
 on:
   push:
     branches:
+      - master
       - doc
     paths:
       - docs/guide/**
+      - crates/**
+      - .mise/**
+      - .github/workflows/doc.yml
+  pull_request:
+    branches:
+      - master
+    paths:
+      - docs/guide/**
+      - crates/**
+      - .mise/**
+      - .github/workflows/doc.yml
   workflow_dispatch:
 
 concurrency:
@@ -13,15 +26,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Set up Rust
+        run: |
+          rustup install stable
+          rustc -Vv
+          cargo -V
+
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@v5
+
+      - run: mise run guide:check-examples
+
+      - run: mise run guide:build
+
   publish-doc:
+    needs: check
+    if: github.ref == 'refs/heads/doc'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install mdBook
-        run: |
-          cargo install mdbook --locked --version ^0.5
-          mdbook --version
+      - uses: jdx/mise-action@v5
 
       - name: Get crate version
         id: version
@@ -49,12 +80,15 @@ jobs:
           ln -sfn "$VERSION" latest
 
       - name: Publish
+        env:
+          # Through env, not inline, so that the message can't inject shell code.
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add emacs-module-rs/
-          git diff --cached --quiet || git commit -m "auto: ${{ github.event.head_commit.message }}
+          git diff --cached --quiet || git commit -m "auto: $HEAD_COMMIT_MESSAGE
 
-          SourceCommit: https://github.com/ubolonton/emacs-module-rs/commit/${{ github.sha }}"
+          SourceCommit: https://github.com/ubolonton/emacs-module-rs/commit/$GITHUB_SHA"
           git push
         working-directory: ubolonton.github.io
