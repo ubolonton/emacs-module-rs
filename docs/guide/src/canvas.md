@@ -6,12 +6,10 @@
 
 This feature is **experimental**. It tracks an unreleased module ABI.
 
-Enable the feature in `Cargo.toml`:
+Enable the feature:
 
-```toml
-[dependencies.emacs]
-version = "0.22"
-features = ["emacs-32-experimental"]
+```bash
+cargo add emacs --features emacs-32-experimental
 ```
 
 The module needs Emacs 32, built with a window system. Older Emacs versions refuse to load it. Without a window system, `with_canvas_data` signals `error`.

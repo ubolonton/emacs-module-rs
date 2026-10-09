@@ -4,12 +4,10 @@
 
 ## Setup
 
-Enable the feature in `Cargo.toml`:
+Enable the feature:
 
-```toml
-[dependencies.emacs]
-version = "0.22"
-features = ["emacs-28"]
+```bash
+cargo add emacs --features emacs-28
 ```
 
 ## How It Works

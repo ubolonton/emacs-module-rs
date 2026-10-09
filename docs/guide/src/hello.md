@@ -3,18 +3,16 @@
 Create a new project:
 
 ```bash
-cargo new greeting
+cargo new --lib greeting
 cd greeting
+cargo add emacs
 ```
 
-Modify `Cargo.toml`:
+Add to `Cargo.toml`:
 
 ```toml
 [lib]
 crate-type = ["cdylib"]
-
-[dependencies]
-emacs = "0.20"
 ```
 
 Write code in `src/lib.rs`:

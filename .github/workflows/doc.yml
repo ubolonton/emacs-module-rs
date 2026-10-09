@@ -38,6 +38,10 @@ jobs:
           token: ${{ secrets.PAT }}
 
       - name: Build guide
+        env:
+          MDBOOK_BOOK__TITLE: emacs-module-rs ${{ steps.version.outputs.version }}
+          # The 404 page needs an absolute base URL to load its assets.
+          MDBOOK_OUTPUT__HTML__SITE_URL: /emacs-module-rs/${{ steps.version.outputs.version }}/
         run: |
           VERSION=${{ steps.version.outputs.version }}
           mdbook build docs/guide --dest-dir "ubolonton.github.io/emacs-module-rs/$VERSION"
