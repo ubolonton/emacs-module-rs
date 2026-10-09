@@ -46,10 +46,8 @@ impl<'e> Value<'e> {
     #[doc(hidden)]
     #[inline]
     pub fn protect(self) -> Self {
-        let Self { env, raw } = self;
-        if let Some(protected) = &env.protected {
-            protected.borrow_mut().push(unsafe_raw_call_no_exit!(env, make_global_ref, raw));
-        }
+        #[cfg(not(feature = "emacs-28"))]
+        self.env.protect_raw(self.raw);
         self
     }
 

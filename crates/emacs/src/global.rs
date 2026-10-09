@@ -50,11 +50,6 @@ impl GlobalRef {
         Self { raw }
     }
 
-    // For testing.
-    pub(crate) unsafe fn from_raw(raw: emacs_value) -> Self {
-        Self { raw }
-    }
-
     /// Frees this global reference.
     pub fn free(self, env: &Env) -> Result<()> {
         // Safety: We assume user code doesn't directly call C function `free_global_ref`.

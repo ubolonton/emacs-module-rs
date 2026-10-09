@@ -53,6 +53,8 @@ pub mod init;
 pub mod func;
 
 mod env;
+#[cfg(not(feature = "emacs-28"))]
+mod gc_bug_31238;
 mod value;
 mod types;
 mod error;

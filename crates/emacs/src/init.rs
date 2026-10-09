@@ -83,10 +83,6 @@ pub static __PREFIX__: LazyLock<Mutex<[String; 2]>> =
 
 pub static __MOD_IN_NAME__: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(true));
 
-fn debugging() -> bool {
-    std::env::var("EMACS_MODULE_RS_DEBUG").unwrap_or_default() == "1"
-}
-
 /// Detects loading into an Emacs older than what an enabled `emacs-N` feature requires, e.g.
 /// calling `Env::open_channel` (which needs `emacs-28`) on a struct that Emacs 27 allocated would
 /// read past its end.
@@ -101,16 +97,6 @@ fn check_abi_compatible(env: &Env) -> Result<()> {
              older: env struct is {actual} bytes, at least {MIN_ENV_SIZE} are required"
         ));
     }
-    Ok(())
-}
-
-fn check_gc_bug_31238(env: &Env) -> Result<()> {
-    let version = env.call("default-value", [env.intern("emacs-version")?])?;
-    let fixed = env.call("version<=", ("27", version))?.is_not_nil();
-    if debugging() {
-        env.call("set", (env.intern("module-rs-disable-gc-bug-31238-workaround")?, fixed))?;
-    }
-    crate::env::HAS_FIXED_GC_BUG_31238.get_or_init(|| fixed);
     Ok(())
 }
 
@@ -133,7 +119,9 @@ where
             // others): reporting a failure below goes through `Env::message`, which needs it.
             check_abi_compatible(&env)?;
             env.define_core_errors()?;
-            check_gc_bug_31238(&env)?;
+            // With `emacs-28`, `check_abi_compatible` rejected every Emacs that has the bug.
+            #[cfg(not(feature = "emacs-28"))]
+            crate::gc_bug_31238::check(&env)?;
             for define_error in __CUSTOM_ERRORS__.try_lock()
             .expect("Failed to acquire a read lock on the list of initializers for custom error signals").iter() {
             define_error(&env)?;
