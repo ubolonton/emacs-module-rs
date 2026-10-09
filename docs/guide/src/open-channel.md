@@ -15,28 +15,7 @@ cargo add emacs --features emacs-28
 Emacs's `make-pipe-process` returns a process object backed by a pair of OS pipes. `env.open_channel(pipe_process)` opens the write end of that pipe and returns an `impl Write + Send + Sync`. You can move it to any thread and write to it; Emacs's process filter function receives the data on the main thread.
 
 ```rust
-use std::io::Write;
-use emacs::{defun, Env, Result, Value};
-
-/// Send DATA to PROCESS from the calling thread.
-#[defun]
-fn channel_send(env: &Env, process: Value<'_>, data: String) -> Result<()> {
-    let mut writer = env.open_channel(process)?;
-    writer.write_all(data.as_bytes())?;
-    Ok(())
-}
-
-/// Spawn a thread that sends DATA to PROCESS, then wait for it.
-#[defun]
-fn channel_send_from_thread(env: &Env, process: Value<'_>, data: String) -> Result<()> {
-    let mut writer = env.open_channel(process)?;
-    let handle = std::thread::spawn(move || -> std::io::Result<()> {
-        writer.write_all(data.as_bytes())?;
-        Ok(())
-    });
-    handle.join().expect("thread panicked")?;
-    Ok(())
-}
+{{#include ../examples/open_channel.rs:example}}
 ```
 
 On the Emacs side, create the pipe process and attach a filter:

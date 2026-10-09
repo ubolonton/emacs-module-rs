@@ -1,0 +1,4 @@
+# The guide shows this code as written. `{{#include}}` does not dedent, so snippets of function
+# bodies start at column 0, and snippets inside Markdown list items are indented to the list level.
+# rustfmt would undo both.
+disable_all_formatting = true

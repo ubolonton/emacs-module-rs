@@ -7,11 +7,7 @@ You can use the attribute macro `#[defun]` to export Rust functions to the Lisp 
 Each parameter must be one of the following:
 - An owned value of a type that implements `FromLisp`. This is for simple data types that have an equivalent in Lisp.
     ```rust
-    /// This docstring will appear in Lisp too!
-    #[defun]
-    fn inc(x: i64) -> Result<i64> {
-        Ok(x + 1)
-    }
+{{#include ../examples/functions.rs:inc}}
     ```
 - A shared/mutable reference. This gives access to data structures that other module functions have created and embedded in the Lisp runtime (through `user-ptr` objects).
     ```rust
@@ -23,31 +19,11 @@ Each parameter must be one of the following:
     ```
 - A Lisp `Value`, or one of its "sub-types" (e.g. `Vector`). This allows holding off the conversion to Rust data structures until necessary, or working with values that don't have a meaningful representation in Rust, like Lisp lambdas.
     ```rust
-    #[defun]
-    fn maybe_call(lambda: Value) -> Result<()> {
-        if some_hidden_native_logic() {
-            lambda.call([])?;
-        }
-        Ok(())
-    }
-
-    #[defun(user_ptr)]
-    fn to_rust_vec_string(input: Vector) -> Result<Vec<String>> {
-        let mut vec = vec![];
-        for e in input {
-            vec.push(e.into_rust()?);
-        }
-        Ok(vec)
-    }
+{{#include ../examples/functions.rs:value}}
     ```
 - An `&Env`. This enables interaction with the Lisp runtime. It does not appear in the function's Lisp signature. This is unnecessary if there is already another parameter with type `Value`, which allows accessing the runtime through `Value.env`.
     ```rust
-    // Note that the function takes an owned `String`, not a reference, which would
-    // have been understood as a `user-ptr` object containing a Rust string.
-    #[defun]
-    fn hello(env: &Env, name: String) -> Result<Value<'_>> {
-        env.message(format!("Hello, {}!", name))
-    }
+{{#include ../examples/functions.rs:env}}
     ```
 
 ## Return Value
@@ -87,36 +63,7 @@ By default, the function's Lisp name has the form `<feature-prefix>[mod-prefix]<
 Examples:
 
 ```rust
-// Assuming crate's name is `native_parallelism`.
-
-#[emacs::module(separator = "/")]
-fn init(_: &Env) -> Result<()> { Ok(()) }
-
-mod shared_state {
-    mod thread {
-        // Ignore the nested mod's.
-        // (native-parallelism/make-thread "name")
-        #[defun(mod_in_name = false)]
-        fn make_thread(name: String) -> Result<Value<'_>> {
-            ..
-        }
-    }
-
-    mod process {
-        // (native-parallelism/shared-state-process-launch "bckgrnd")
-        #[defun]
-        fn launch(name: String) -> Result<Value<'_>> {
-            ..
-        }
-
-        // Specify a name explicitly, since Rust identifier cannot contain `:`.
-        // (native-parallelism/process:pool "http-client" 2 8)
-        #[defun(mod_in_name = false, name = "process:pool")]
-        fn pool(name: String, min: i64, max: i64) -> Result<Value<'_>> {
-            ..
-        }
-    }
-}
+{{#include ../examples/functions_naming.rs:example}}
 ```
 
 ## Documentation
@@ -124,12 +71,5 @@ mod shared_state {
 `#[defun]` converts Rust's docstring into Lisp's docstring. It also automatically constructs and appends the [function's signature](https://www.gnu.org/software/emacs/manual/html_node/elisp/Function-Documentation.html#Function-Documentation) to the end of the docstring, so that help modes can correctly display it.
 
 ```rust
-// `(fn X Y)` is automatically appended, so you don't have to manually do so.
-// In help modes, the signature will be (add X Y).
-
-/// Add 2 numbers.
-#[defun]
-fn add(x: usize, y: usize) -> Result<usize> {
-    Ok(x + y)
-}
+{{#include ../examples/functions.rs:docstring}}
 ```

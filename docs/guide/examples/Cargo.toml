@@ -1,0 +1,104 @@
+[workspace]
+# Standalone, like the test modules: some examples need `emacs-32-experimental`, and Cargo unifies a
+# shared dependency's features across everything resolved together in one workspace.
+
+# Code that the guide includes with `{{#include}}`, so that it compiles against the current API.
+# Each example is one module, because a crate can have only one `#[emacs::module]`.
+[package]
+name = "guide-examples"
+version = "0.0.0"
+edition = "2024"
+publish = false
+autoexamples = false
+
+[dependencies]
+emacs = { path = "../../../crates/emacs" }
+
+# Many examples are fragments, which leave variables and their wrapper functions unused.
+[lints.rust]
+dead_code = "allow"
+unused_variables = "allow"
+
+[features]
+emacs-28 = ["emacs/emacs-28"]
+emacs-32-experimental = ["emacs/emacs-32-experimental"]
+
+[[example]]
+name = "hello"
+path = "hello.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "module"
+path = "module.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "module_name_fn"
+path = "module_name_fn.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "module_separator"
+path = "module_separator.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "module_defun_prefix"
+path = "module_defun_prefix.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "functions"
+path = "functions.rs"
+crate-type = ["cdylib"]
+
+# Named so that the crate name matches the one that the naming example assumes.
+[[example]]
+name = "native_parallelism"
+path = "functions_naming.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "calling_lisp"
+path = "calling_lisp.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "type_conversions"
+path = "type_conversions.rs"
+crate-type = ["cdylib"]
+required-features = ["emacs-28"]
+
+[[example]]
+name = "custom_types"
+path = "custom_types.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "custom_types_rwlock"
+path = "custom_types_rwlock.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "errors"
+path = "errors.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "open_channel"
+path = "open_channel.rs"
+crate-type = ["cdylib"]
+required-features = ["emacs-28"]
+
+[[example]]
+name = "canvas"
+path = "canvas.rs"
+crate-type = ["cdylib"]
+required-features = ["emacs-32-experimental"]
+
+[[example]]
+name = "canvas_background"
+path = "canvas_background.rs"
+crate-type = ["cdylib"]
+required-features = ["emacs-32-experimental"]

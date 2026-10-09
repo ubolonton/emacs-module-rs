@@ -15,8 +15,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **`tests/test-module-28/`** - Integration tests for the `emacs-28` feature (`Env::open_channel`, etc.)
 - **`tests/test-module-32/`** - Integration tests for the `emacs-32-experimental` feature (`Value::with_canvas_data`)
 - **`crates/rs-module/`** - Live-reloading helper module for development
+- **`docs/guide/`** - User guide (mdBook). `docs/guide/examples/` holds the Rust code that the chapters include, so it compiles
 
-`tests/test-module`, `tests/test-module-28` and `tests/test-module-32` are standalone workspaces (own `Cargo.toml`
+`tests/test-module`, `tests/test-module-28`, `tests/test-module-32` and `docs/guide/examples` are standalone workspaces (own `Cargo.toml`
 `[workspace]`, own `Cargo.lock`), not members of the root workspace: they target different minimum
 Emacs ABI versions, and Cargo unifies a shared dependency's features across everything resolved
 together in one workspace, so keeping them separate stops one's `emacs-N` feature from leaking into
@@ -91,4 +92,12 @@ Update `CHANGELOG.md` under `## [Unreleased]` for every non-trivial feature, bug
 
 ## Guide Docs
 
-When writing or editing files under `docs/guide/src/`, use the `guide-writing` skill.
+When writing or editing files under `docs/guide/src/` or `docs/guide/examples/`, use the `guide-writing` skill.
+
+```bash
+mise run guide:serve           # preview on localhost, rebuilding on changes
+mise run guide:check-examples  # compile docs/guide/examples
+```
+
+CI (`.github/workflows/doc.yml`) checks the guide on PRs. Pushing to the `doc` branch publishes it to
+`ubolonton.github.io/emacs-module-rs/<version>/`, and points `latest` to it.

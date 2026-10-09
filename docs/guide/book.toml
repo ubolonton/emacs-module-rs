@@ -4,6 +4,10 @@ title = "emacs-module-rs"
 authors = ["ubolonton"]
 src = "src"
 
+[build]
+# Chapters include code from examples/.
+extra-watch-dirs = ["examples"]
+
 [output.html]
 additional-css = ["custom.css"]
 preferred-dark-theme = "coal"

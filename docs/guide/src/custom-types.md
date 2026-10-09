@@ -16,30 +16,7 @@ To return an embedded value, a function needs to be exported with a `user_ptr` o
 As an example, a module that allows Emacs to use Rust's `HashMap` may look like this:
 
 ```rust
-use std::collections::HashMap;
-use emacs::{defun, Env, Result, Value};
-
-#[emacs::module(name = "rs-hash-map", separator = "/")]
-fn init(env: &Env) -> Result<()> {
-    type Map = HashMap<String, String>;
-
-    #[defun(user_ptr)]
-    fn make() -> Result<Map> {
-        Ok(Map::new())
-    }
-
-    #[defun]
-    fn get(map: &Map, key: String) -> Result<Option<&String>> {
-        Ok(map.get(&key))
-    }
-
-    #[defun]
-    fn set(map: &mut Map, key: String, value: String) -> Result<Option<String>> {
-        Ok(map.insert(key,value))
-    }
-
-    Ok(())
-}
+{{#include ../examples/custom_types.rs:hash_map}}
 ```
 
 ```elisp
@@ -57,19 +34,7 @@ fn init(env: &Env) -> Result<()> {
 - `Value.into_rust()` has a runtime type check, which fails with the error `'rust-wrong-type-user-ptr` if the value is a `user-ptr` object of a different type.
 - Input parameters with reference types are interpreted as `RefCell`-embedded `user-ptr` objects. For other kinds of embedding, you will have to use a `Value` parameter, and acquire the reference manually, since locking strategy (including deadlock avoidance/detection) should be module-specific.
     ```rust
-    use std::sync::RwLock;
-
-    #[defun(user_ptr(rwlock))]
-    fn make() -> Result<Map> {
-        Ok(Map::new())
-    }
-
-    #[defun]
-    fn get(v: Value<'_>, key: String) -> Result<Value<'_>> {
-        let lock: &RwLock<Map> = v.into_rust()?;
-        let map = lock.try_read().map_err(|_| Error::msg("map is busy"))?;
-        map.get(&key).into_lisp(v.env)
-    }
+{{#include ../examples/custom_types_rwlock.rs:rwlock}}
     ```
 
 ## Lifetime-constrained Types
