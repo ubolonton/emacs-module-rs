@@ -1,7 +1,8 @@
 name: Doc
 
-# Tags publish /<version>/ and point /latest/ to it. master publishes /master/. The doc branch
-# publishes /<version>/ too, to fix a released version's guide without a new release.
+# Each publish rebuilds /master/ and the recent minor versions, e.g. /0.23/, with master's theme.
+# Tags add or update a minor version. docs/guide/versions.edn on master points a minor version to a
+# fix made after its release. See .mise/scripts/guide-publish.bb.
 #
 # The guide's examples compile against crates/, so changes there must check the guide too. GitHub
 # does not apply the path filters to tag pushes.
@@ -9,7 +10,6 @@ on:
   push:
     branches:
       - master
-      - doc
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
     paths:
@@ -44,18 +44,19 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          # Versions build from tags and branches.
+          fetch-depth: 0
 
       - uses: jdx/mise-action@v5
 
       - run: mise run guide:check-examples
 
-      - run: mise run guide:build
+      # Into a scratch directory, to check that versions.edn's refs resolve and every version builds.
+      - run: mise run guide:publish target/site --all
 
   publish-doc:
     needs: check
-    if: >-
-      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/doc'
-      || startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     # Runs for different refs all push to the same Pages repo, so run them one at a time. `queue: max`
     # keeps every pending run. The default keeps only the newest, which could drop a tag's publish.
     concurrency:
@@ -63,32 +64,14 @@ jobs:
       queue: max
     runs-on: ubuntu-24.04
     steps:
+      # master's theme and override list apply to all versions, whatever ref triggered the run.
       - uses: actions/checkout@v6
         with:
+          ref: master
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: jdx/mise-action@v5
-
-      - name: Choose target
-        id: target
-        run: |
-          VERSION=$(cargo metadata --no-deps --format-version 1 \
-            | jq -r '.packages[] | select(.name == "emacs") | .version')
-          case "$GITHUB_REF" in
-            refs/heads/master)
-              echo "args=master" >> "$GITHUB_OUTPUT"
-              ;;
-            refs/tags/*)
-              if [ "$GITHUB_REF_NAME" != "$VERSION" ]; then
-                echo "Tag $GITHUB_REF_NAME does not match crate version $VERSION" >&2
-                exit 1
-              fi
-              echo "args=$VERSION --latest" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "args=$VERSION --latest" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
 
       - name: Check out GitHub Pages repo
         uses: actions/checkout@v6
@@ -98,7 +81,7 @@ jobs:
           token: ${{ secrets.PAT }}
 
       - name: Build guide
-        run: mise run guide:publish ubolonton.github.io/emacs-module-rs ${{ steps.target.outputs.args }}
+        run: mise run guide:publish ubolonton.github.io/emacs-module-rs
 
       - name: Publish
         env:

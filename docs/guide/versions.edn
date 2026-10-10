@@ -1,0 +1,11 @@
+;; Each minor version's guide is built from the latest patch tag of that minor version, e.g. 0.16.2
+;; for 0.16. This file overrides that source, e.g. to publish a fix made after the release.
+;;
+;; A key is a full version. It applies only while that version is the latest patch of its minor
+;; version, so a new patch release makes the override stale, without a cleanup.
+;;
+;; A value is a git ref. CI fetches only branches and tags, so a commit must be reachable from one.
+{"0.13.0" "0141b59"  ; Type conversion improvements
+ "0.18.0" "9a29b07"  ; LLVM/clang install notes
+ "0.19.0" "01e7322"  ; Code highlighting fixes
+ "0.21.0" "723e846"} ; Testing chapter uses cargo xtask

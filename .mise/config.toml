@@ -3,6 +3,7 @@
 lockfile = true
 
 [tools]
+babashka = "1"
 mdbook = "0.5"
 
 [tasks."guide:build"]
@@ -24,3 +25,12 @@ run = [
     "cargo check --examples --locked",
     "cargo check --examples --locked --all-features",
 ]
+
+[tasks."guide:publish"]
+depends = ["guide:highlight-js"]
+description = "Build the guide for master and recent minor versions into a checkout of the GitHub Pages site"
+usage = '''
+arg "<site_dir>" help="The site's emacs-module-rs directory"
+flag "--all" help="Build every minor version, not only the most recent ones"
+'''
+run = "bb {{config_root}}/.mise/scripts/guide-publish.bb"

@@ -6,3 +6,6 @@
   gtag('js', new Date());
   gtag('config', 'G-FZ02QK1Q0C');
 </script>
+<!-- The publish task puts the version menu at the site root, next to versions.json, so that all
+versions share it. Local builds have neither, so they show no menu. -->
+<script src="{{ path_to_root }}../version-switcher.js" defer></script>

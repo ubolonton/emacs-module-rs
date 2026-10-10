@@ -101,6 +101,11 @@ mise run guide:check-examples  # compile docs/guide/examples
 
 CI (`.github/workflows/doc.yml`) checks the guide on PRs, and publishes it to
 `ubolonton.github.io/emacs-module-rs/` with `mise run guide:publish`:
-- A version tag publishes `<version>/`, and points `latest` to it.
-- `master` publishes `master/`.
-- The `doc` branch publishes `<version>/` too, to fix a released version's guide without a new release.
+- Each publish rebuilds `master/` and the 10 newest minor versions, e.g. `0.23/`, with `master`'s
+  theme. Older versions stay as last built. `--all` rebuilds all of them.
+- A minor version's content comes from its latest patch tag, unless `docs/guide/versions.edn`
+  overrides it. To fix a released guide, commit the fix on top of the tag, push it on any branch or
+  tag, and add an override on `master`.
+- The version menu (`version-switcher.js`) and `versions.json` live at the site root, shared by
+  all versions. The menu disables versions that lack the current page.
+- Old `X.Y.Z/` directories hold redirects to `X.Y/`.
