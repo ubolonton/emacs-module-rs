@@ -1,6 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 ;;; Functions.
 
+(require 'loadhist)
 (require 't-helpers)
 
 (ert-deftest calling::through-env ()
@@ -40,6 +41,15 @@
         (y 3))
     (should (equal (t/sum-and-diff x y)
                    (list (+ x y) (- x y))))))
+
+(ert-deftest function::symbol-file ()
+  ;; `require' loads the module with `load', which records `defalias' calls in `load-history'.
+  (let ((file (feature-file 't)))
+    (should file)
+    (should (equal (symbol-file 't/inc 'defun) file))
+    (should (equal (symbol-file 't/function-call-list 'defun) file)))
+  ;; `fset' records nothing.
+  (should-not (symbol-file 't/sum-and-diff 'defun)))
 
 (ert-deftest function::defun-signature ()
   (should (equal (t/sig 't/function-ignore-args)

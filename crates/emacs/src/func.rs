@@ -43,9 +43,9 @@ macro_rules! __export_functions {
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+,)) => {
         $crate::__export_functions!(decl, $env, $prefix, $name, ($func, $( $opt ),*))
     };
-    // Create a function and set a symbol to it.
+    // Create a function and bind a symbol to it.
     (decl, $env:expr, $prefix:expr, $name:expr, ($func:path, $( $opt:expr ),+)) => {
-        $env.fset(
+        $env.defalias(
             &format!("{}{}", $prefix, $name),
             $crate::lambda!($env, $func, $($opt),*)?
         )
@@ -103,6 +103,11 @@ pub trait Manage {
     ) -> Result<Value<'_>>;
 
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>>;
+
+    /// Like [`fset`](Manage::fset), but also records the definition in the current load file's
+    /// `load-history` entry, so that `symbol-file` finds it. `load` on a module file sets up that
+    /// entry; `module-load` does not.
+    fn defalias(&self, name: &str, func: Value<'_>) -> Result<Value<'_>>;
 }
 
 impl Manage for Env {
@@ -131,6 +136,11 @@ impl Manage for Env {
     fn fset(&self, name: &str, func: Value<'_>) -> Result<Value<'_>> {
         let symbol = self.intern(name)?;
         self.call("fset", [symbol, func])
+    }
+
+    fn defalias(&self, name: &str, func: Value<'_>) -> Result<Value<'_>> {
+        let symbol = self.intern(name)?;
+        self.call("defalias", [symbol, func])
     }
 }
 
