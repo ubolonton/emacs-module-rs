@@ -29,6 +29,9 @@ struct ModuleOpts {
     /// Alternative prefix (instead of the feature name) to use in functions' full Lisp name.
     #[darling(default)]
     defun_prefix: Option<String>,
+    /// Whether to make `find-function` visit the Rust source of the module's functions.
+    #[darling(default)]
+    source_lookup: bool,
 }
 
 #[derive(Debug)]
@@ -148,6 +151,11 @@ impl Module {
         let configure_mod_in_name = quote! {
             #mod_in_name.store(#crate_mod_in_name, ::std::sync::atomic::Ordering::Relaxed);
         };
+        let install_source_lookup = if self.opts.source_lookup {
+            quote!(::emacs::source::__install_lookup(#env)?;)
+        } else {
+            TokenStream2::new()
+        };
         let export_lisp_funcs = quote! {
             {
                 let funcs = #init_fns.try_lock()
@@ -165,6 +173,7 @@ impl Module {
                 #set_feature
                 #configure_mod_in_name
                 #export_lisp_funcs
+                #install_source_lookup
                 #hook(#env)?;
                 #env.provide(&feature)
             }

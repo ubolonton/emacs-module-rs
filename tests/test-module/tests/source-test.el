@@ -1,6 +1,9 @@
 ;;; -*- lexical-binding: t -*-
 ;;; Source locations of module functions.
 
+(require 'find-func)
+(require 'elisp-mode)
+(require 'xref)
 (require 't-helpers)
 
 (defvar t/source-root (file-name-directory (directory-file-name t/tests-dir))
@@ -26,3 +29,36 @@
                  `("src/source.rs" ,(t/source-line "src/source.rs" "#[defun]\nfn no_attributes") t)))
   ;; Not defined by `#[defun]'.
   (should-not (get 't/sum-and-diff 'emacs-module-rs-source)))
+
+(defmacro t/with-source-root (&rest body)
+  "Run BODY with the test module's source root set."
+  (declare (indent 0))
+  `(unwind-protect
+       (progn
+         (put 't 'emacs-module-rs-source-root t/source-root)
+         ,@body)
+     (put 't 'emacs-module-rs-source-root nil)))
+
+(defun t/source-should-visit (location file text)
+  "Check that LOCATION, a (BUFFER . POSITION), is at TEXT in FILE."
+  (with-current-buffer (car location)
+    (should (file-equal-p buffer-file-name (expand-file-name file t/source-root)))
+    (goto-char (cdr location))
+    (should (looking-at-p (regexp-quote text)))))
+
+(ert-deftest source::find-function ()
+  (t/with-source-root
+    (t/source-should-visit (find-function-noselect 't/inc) "src/lib.rs" "/// 1+\n#[defun]")
+    (t/source-should-visit (find-function-noselect 't/source-attributes-above)
+                           "src/source.rs" "/// A docstring, then")))
+
+(ert-deftest source::xref ()
+  (t/with-source-root
+    (let* ((xrefs (xref-backend-definitions 'elisp "t/identity"))
+           (marker (xref-location-marker (xref-item-location (car xrefs)))))
+      (t/source-should-visit (cons (marker-buffer marker) (marker-position marker))
+                             "src/lib.rs" "#[defun]\n///Return the input"))))
+
+(ert-deftest source::without-root ()
+  (should (get 't/inc 'emacs-module-rs-source))
+  (should-not (emacs-module-rs--find-source 't/inc)))

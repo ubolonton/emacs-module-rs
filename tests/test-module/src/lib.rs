@@ -21,7 +21,7 @@ const MODULE: &str = "t";
 static MODULE_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{}/", MODULE));
 
 // TODO: Add more tests for different combinations of module options.
-#[emacs::module(name(fn), separator = "/")]
+#[emacs::module(name(fn), separator = "/", source_lookup)]
 fn t(env: &Env) -> Result<()> {
     if let Err(env::VarError::NotPresent) = env::var("RUST_BACKTRACE") {
         // Silence panic logging.
