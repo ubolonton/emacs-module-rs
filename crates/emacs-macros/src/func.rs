@@ -10,7 +10,10 @@ use syn::{
     TypePath,
 };
 
-use crate::util::{self, report};
+use crate::{
+    source::Location,
+    util::{self, report},
+};
 
 #[derive(Debug)]
 enum Arg {
@@ -80,6 +83,8 @@ pub struct LispFunc {
     arities: Range<usize>,
     /// Span of the return type. This helps with error reporting.
     output_span: Span,
+    /// Where the function is defined. `None` means it is not recorded.
+    location: Option<Location>,
     opts: FuncOpts,
 }
 
@@ -117,14 +122,18 @@ impl FromMeta for UserPtr {
 }
 
 impl LispFunc {
-    pub fn parse(attr_args: Vec<NestedMeta>, fn_item: ItemFn) -> Result<Self, TokenStream2> {
+    pub fn parse(
+        attr_args: Vec<NestedMeta>,
+        fn_item: ItemFn,
+        location: Option<Location>,
+    ) -> Result<Self, TokenStream2> {
         let opts: FuncOpts = match FuncOpts::from_list(&attr_args) {
             Ok(v) => v,
             Err(e) => return Err(e.write_errors()),
         };
         let (args, arities, output_span) = check_signature(&fn_item.sig)?;
         let def = fn_item;
-        Ok(Self { def, args, arities, output_span, opts })
+        Ok(Self { def, args, arities, output_span, location, opts })
     }
 
     pub fn render(&self) -> TokenStream2 {
@@ -235,6 +244,12 @@ impl LispFunc {
             Some(name) => name.clone(),
             None => util::lisp_name(&self.def.sig.ident),
         };
+        let record_source = match &self.location {
+            Some(Location { file, line }) => quote! {
+                ::emacs::source::__record(env, &format!("{}{}", prefix, #lisp_name), #file, #line)?;
+            },
+            None => TokenStream2::new(),
+        };
         // TODO: Consider defining `extern "C" fn` directly instead of using export_functions! and
         // CallEnv wrapper.
         quote! {
@@ -246,6 +261,7 @@ impl LispFunc {
                         #lisp_name => (#wrapper, #min..#max, #doc),
                     }
                 }
+                #record_source
                 Ok(())
             }
         }

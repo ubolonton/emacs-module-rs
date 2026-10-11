@@ -137,6 +137,14 @@ impl Module {
                 *prefix = [#defun_prefix, #separator.to_owned()];
             }
         };
+        let feature_static = util::feature_path();
+        let set_feature = quote! {
+            {
+                let mut feature_static = #feature_static.try_lock()
+                    .expect("Failed to acquire write lock on module feature");
+                *feature_static = feature.clone();
+            }
+        };
         let configure_mod_in_name = quote! {
             #mod_in_name.store(#crate_mod_in_name, ::std::sync::atomic::Ordering::Relaxed);
         };
@@ -154,6 +162,7 @@ impl Module {
             fn #init(#env: &::emacs::Env) -> ::emacs::Result<::emacs::Value<'_>> {
                 let feature = #feature;
                 #set_prefix
+                #set_feature
                 #configure_mod_in_name
                 #export_lisp_funcs
                 #hook(#env)?;

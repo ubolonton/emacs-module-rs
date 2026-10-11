@@ -51,6 +51,8 @@ pub use self::types::CanvasData;
 pub mod init;
 #[doc(hidden)]
 pub mod func;
+#[doc(hidden)]
+pub mod source;
 
 mod env;
 #[cfg(not(feature = "emacs-28"))]

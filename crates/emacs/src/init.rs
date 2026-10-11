@@ -81,6 +81,10 @@ pub static __INIT_FNS__: LazyLock<Mutex<FnMap>> = LazyLock::new(|| Mutex::new(Ha
 pub static __PREFIX__: LazyLock<Mutex<[String; 2]>> =
     LazyLock::new(|| Mutex::new(["".to_owned(), "-".to_owned()]));
 
+/// Feature name of the module, i.e. what `emacs_module_init` provides. Exporters read it to record
+/// which module defines each function.
+pub static __FEATURE__: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new(String::new()));
+
 pub static __MOD_IN_NAME__: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(true));
 
 /// Detects loading into an Emacs older than what an enabled `emacs-N` feature requires, e.g.

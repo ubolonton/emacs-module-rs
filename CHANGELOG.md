@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Made `#[defun]` bind functions with `defalias`, not `fset`. When a module is loaded with `load` or `require`, `symbol-file` now returns the module file for its functions.
     - Breaking (Lisp): when a `.el` file calls `module-load` while it loads, the functions are recorded against that `.el` file. `find-function` then fails with "Search failed", not "Don't know where … is defined". Load modules with `load` or `require`.
     - Added `Manage::defalias`.
+- Made `#[defun]` record where each function is defined: `(get SYMBOL 'emacs-module-rs-source)` is `(FILE LINE FEATURE)`, with FILE relative to the crate's root.
+- Raised minimum supported Rust version (MSRV) to 1.88 (for `proc_macro::Span::local_file`).
 
 ## [0.23.0] - 2026-10-09 - Canvas images (Emacs 32)
 - Added `Value::with_canvas_data` for Emacs 32 canvas images, behind the `emacs-32-experimental` feature. This feature tracks an unreleased module ABI. See the [guide](https://ubolonton.github.io/emacs-module-rs/latest/canvas.html).

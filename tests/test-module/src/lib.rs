@@ -12,6 +12,7 @@ mod eq;
 mod error;
 mod function;
 mod lifetime;
+mod source;
 mod transfer;
 
 emacs::plugin_is_GPL_compatible!();

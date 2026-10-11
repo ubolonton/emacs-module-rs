@@ -16,6 +16,7 @@ mod util;
 mod module;
 mod func;
 mod lisp_args;
+mod source;
 
 /// Registers a function as the initializer, to be called when Emacs loads the module. Each dynamic
 /// module must have one and only one such function.
@@ -117,8 +118,9 @@ pub fn defun(attr_ts: TokenStream, item_ts: TokenStream) -> TokenStream {
         Ok(v) => v,
         Err(e) => return TokenStream::from(darling::Error::from(e).write_errors()),
     };
+    let location = source::Location::of_attributed_item(&item_ts);
     let fn_item: ItemFn = parse_macro_input!(item_ts);
-    match func::LispFunc::parse(attr_args, fn_item) {
+    match func::LispFunc::parse(attr_args, fn_item, location) {
         Ok(func) => func.render().into(),
         Err(e) => e.into(),
     }

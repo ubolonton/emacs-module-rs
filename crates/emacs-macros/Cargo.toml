@@ -2,6 +2,7 @@
 name = "emacs-macros"
 version = "0.22.0"
 edition = "2024"
+rust-version = "1.88"
 description = "Proc macros for emacs modules"
 homepage = "https://github.com/ubolonton/emacs-module-rs"
 authors = [
